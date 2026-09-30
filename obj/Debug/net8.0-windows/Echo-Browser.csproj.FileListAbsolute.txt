@@ -1,0 +1,5 @@
+C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\Echo-Browser.csproj.AssemblyReference.cache
+C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\MainWindow.baml
+C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\MainWindow.g.cs
+C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\Echo-Browser_Content.g.cs
+C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\Echo-Browser_MarkupCompile.cache

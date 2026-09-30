@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "9q0mCaUVovQ=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\jendress\\Documents\\Coding\\Echo-Browser\\EchoBrowser.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\jendress\\.nuget\\packages\\microsoft.web.webview2\\1.0.4258.31\\microsoft.web.webview2.1.0.4258.31.nupkg.sha512"
+  ],
+  "logs": []
+}
