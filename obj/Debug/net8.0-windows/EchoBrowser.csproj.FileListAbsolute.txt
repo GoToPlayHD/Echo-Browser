@@ -33,3 +33,4 @@ C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\Themes\
 C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
 C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\EchoBrowser_MarkupCompile.lref
 C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\App.baml
+C:\Users\jendress\Documents\Coding\Echo-Browser\obj\Debug\net8.0-windows\EchoBrowser.sourcelink.json

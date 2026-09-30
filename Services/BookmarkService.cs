@@ -157,6 +157,18 @@ namespace EchoBrowser.Services
                 Bookmarks.Remove(bookmark);
                 SaveBookmarks();
             }
+            else
+            {
+                foreach (var g in Bookmarks.Where(b => b.IsGroup))
+                {
+                    if (g.Children.Contains(bookmark))
+                    {
+                        g.Children.Remove(bookmark);
+                        SaveBookmarks();
+                        break;
+                    }
+                }
+            }
         }
     }
 }

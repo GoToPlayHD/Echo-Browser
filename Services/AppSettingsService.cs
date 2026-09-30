@@ -58,6 +58,27 @@ namespace EchoBrowser.Services
                 };
                 Save();
             }
+
+            if (string.IsNullOrWhiteSpace(Settings.DownloadPath))
+            {
+                Settings.DownloadPath = AppSettings.GetDefaultDownloadPath();
+                Save();
+            }
+        }
+
+        public void ResetToDefaults()
+        {
+            Settings = new AppSettings();
+            Settings.StartpageShortcuts = new List<StartpageShortcut>
+            {
+                new StartpageShortcut("Google", "https://www.google.com", "google"),
+                new StartpageShortcut("YouTube", "https://www.youtube.com", "youtube"),
+                new StartpageShortcut("GitHub", "https://github.com", "github"),
+                new StartpageShortcut("ChatGPT", "https://chatgpt.com", "chatgpt"),
+                new StartpageShortcut("Wikipedia", "https://de.wikipedia.org", "wikipedia"),
+                new StartpageShortcut("Reddit", "https://reddit.com", "reddit")
+            };
+            Save();
         }
 
         public void Save()

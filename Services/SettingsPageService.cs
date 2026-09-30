@@ -1,0 +1,1588 @@
+using System;
+using System.Text.Json;
+using EchoBrowser.Models;
+
+namespace EchoBrowser.Services
+{
+    public static class SettingsPageService
+    {
+        public const string SettingsPageUrl = "echo://settings";
+
+        public static string GetSettingsPageHtml(AppSettings settings, string webViewVersion = "120.0", string appVersion = "1.2")
+        {
+            string settingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = false });
+
+            string html = RawHtmlTemplate;
+            html = html.Replace("##SETTINGS_JSON##", settingsJson);
+            html = html.Replace("##WEBVIEW_VERSION##", webViewVersion);
+            html = html.Replace("##APP_VERSION##", appVersion);
+
+            return html;
+        }
+
+        private const string RawHtmlTemplate = @"<!DOCTYPE html>
+<html lang=""de"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>Einstellungen – Echo-Browser</title>
+    <style>
+        :root {
+            --bg-color: #16171B;
+            --sidebar-bg: #1C1D22;
+            --surface-color: #22242B;
+            --surface-hover: #2B2E37;
+            --surface-active: #343742;
+            --border-color: #2F323B;
+            --border-subtle: #24262E;
+            --border-focus: #C4C7CC;
+            --text-primary: #F0F2F5;
+            --text-secondary: #9DA3AF;
+            --text-muted: #6B7280;
+            --accent-silver: #C4C7CC;
+            --accent-silver-bright: #FFFFFF;
+            --accent-glow: rgba(196, 199, 204, 0.2);
+            --accent-blue: #38BDF8;
+            --accent-green: #34D399;
+            --danger-color: #F87171;
+            --danger-hover: #EF4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Header */
+        header {
+            height: 60px;
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-brand svg {
+            width: 28px;
+            height: 28px;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+        }
+
+        .brand-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #C4C7CC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(196, 199, 204, 0.12);
+            color: var(--accent-silver);
+            border: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        /* Search Bar */
+        .search-container {
+            width: 380px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 36px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 0 16px 0 38px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+            background: var(--surface-color);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            fill: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* Main Workspace: Sidebar + Content */
+        .workspace {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 60px);
+            overflow: hidden;
+        }
+
+        /* Navigation Sidebar */
+        aside {
+            width: 250px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .nav-item:hover {
+            background: var(--surface-color);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--surface-hover);
+            color: var(--accent-silver-bright);
+            font-weight: 600;
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        /* Content Container */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px 48px 80px 48px;
+            scroll-behavior: smooth;
+        }
+
+        .content-wrapper {
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .settings-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 18px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .settings-card:hover {
+            border-color: #3B3F4A;
+        }
+
+        .card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+        }
+
+        .card-row:not(:last-child) {
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .row-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-right: 20px;
+        }
+
+        .row-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .row-desc {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Modern Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border-color);
+            border-radius: 24px;
+            transition: .25s ease;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: """";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--accent-silver);
+            border-radius: 50%;
+            transition: .25s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-blue);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+            background-color: #FFFFFF;
+        }
+
+        /* Radio Options Group */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .radio-option:hover {
+            border-color: var(--border-focus);
+            background: var(--surface-hover);
+        }
+
+        .radio-option.selected {
+            border-color: var(--accent-silver);
+            background: var(--surface-active);
+        }
+
+        .custom-radio {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .radio-option.selected .custom-radio {
+            border-color: var(--accent-blue);
+        }
+
+        .custom-radio:after {
+            content: """";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            display: none;
+        }
+
+        .radio-option.selected .custom-radio:after {
+            display: block;
+        }
+
+        /* Buttons & Inputs */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--surface-hover);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--surface-active);
+            border-color: var(--border-focus);
+            color: var(--accent-silver-bright);
+        }
+
+        .btn-primary {
+            background: #2D3748;
+            border-color: #4A5568;
+            color: #FFFFFF;
+        }
+
+        .btn-primary:hover {
+            background: #3B4758;
+            border-color: var(--accent-silver);
+        }
+
+        .btn-danger {
+            background: rgba(248, 113, 113, 0.15);
+            border-color: rgba(248, 113, 113, 0.35);
+            color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger-color);
+            border-color: var(--danger-hover);
+            color: #FFFFFF;
+        }
+
+        .input-text {
+            height: 34px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .input-text:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .select-input {
+            height: 34px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* Search Engine Grid */
+        .engine-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .engine-card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .engine-card:hover {
+            border-color: #4A505E;
+            background: var(--surface-hover);
+        }
+
+        .engine-card.active {
+            border-color: var(--accent-blue);
+            background: var(--surface-active);
+        }
+
+        .engine-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .engine-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .engine-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.35;
+        }
+
+        .badge-active {
+            font-size: 10px;
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--accent-blue);
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+
+        /* Theme Presets Grid */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .theme-card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .theme-card:hover {
+            border-color: var(--border-focus);
+            background: var(--surface-hover);
+        }
+
+        .theme-card.active {
+            border-color: var(--accent-silver);
+            background: var(--surface-active);
+            box-shadow: 0 0 0 1px var(--accent-silver);
+        }
+
+        .theme-preview-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            flex-shrink: 0;
+        }
+
+        /* Accent Colors Swatches */
+        .accent-palette {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.15);
+        }
+
+        .color-swatch.active {
+            border-color: #FFFFFF;
+            transform: scale(1.15);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+        }
+
+        /* Shield Protection Cards */
+        .shield-level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .shield-card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .shield-card:hover {
+            border-color: #4A505E;
+            background: var(--surface-hover);
+        }
+
+        .shield-card.active {
+            border-color: var(--accent-green);
+            background: var(--surface-active);
+        }
+
+        .shield-card-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .shield-card-desc {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px;
+            width: 440px;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+        }
+
+        .modal-title {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .modal-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 18px;
+            line-height: 1.4;
+        }
+
+        .modal-checkboxes {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .modal-cb-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .modal-cb-row input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Toast Alert */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--surface-active);
+            border: 1px solid var(--accent-silver);
+            color: var(--text-primary);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* About Section Spec */
+        .about-card {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 24px;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+
+        .about-logo svg {
+            width: 72px;
+            height: 72px;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+        }
+
+        .about-details {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .about-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #C4C7CC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .about-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .about-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--accent-green);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            width: fit-content;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class=""header-brand"">
+            <!-- Echo Waves Icon -->
+            <svg viewBox=""0 0 24 24"" fill=""none"" stroke=""#C4C7CC"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
+                <path d=""M2 12a10 10 0 0 1 20 0""/>
+                <path d=""M5 12a7 7 0 0 1 14 0""/>
+                <path d=""M8 12a4 4 0 0 1 8 0""/>
+                <circle cx=""12"" cy=""12"" r=""1"" fill=""#C4C7CC""/>
+            </svg>
+            <div class=""brand-title"">ECHO BROWSER</div>
+            <div class=""brand-badge"">Einstellungen</div>
+        </div>
+
+        <div class=""search-container"">
+            <svg class=""search-icon"" viewBox=""0 0 24 24"">
+                <path d=""M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z""/>
+            </svg>
+            <input type=""text"" id=""searchSettings"" class=""search-input"" placeholder=""Einstellungen durchsuchen..."" autocomplete=""off"">
+        </div>
+    </header>
+
+    <!-- Workspace -->
+    <div class=""workspace"">
+        <!-- Sidebar Navigation -->
+        <aside>
+            <div class=""nav-item active"" data-target=""section-general"">
+                <svg viewBox=""0 0 24 24""><path d=""M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z""/></svg>
+                <span>Allgemein</span>
+            </div>
+            <div class=""nav-item"" data-target=""section-search"">
+                <svg viewBox=""0 0 24 24""><path d=""M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z""/></svg>
+                <span>Suchmaschine</span>
+            </div>
+            <div class=""nav-item"" data-target=""section-appearance"">
+                <svg viewBox=""0 0 24 24""><path d=""M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.5c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l.9-.9C8.19 19.9 10.03 20.5 12 20.5c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15.5c-3.58 0-6.5-2.92-6.5-6.5S8.42 5.5 12 5.5s6.5 2.92 6.5 6.5-2.92 6.5-6.5 6.5z""/><circle cx=""8.5"" cy=""9.5"" r=""1.5""/><circle cx=""15.5"" cy=""9.5"" r=""1.5""/><circle cx=""12"" cy=""14"" r=""1.5""/></svg>
+                <span>Erscheinungsbild</span>
+            </div>
+            <div class=""nav-item"" data-target=""section-privacy"">
+                <svg viewBox=""0 0 24 24""><path d=""M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z""/></svg>
+                <span>Datenschutz &amp; Sicherheit</span>
+            </div>
+            <div class=""nav-item"" data-target=""section-downloads"">
+                <svg viewBox=""0 0 24 24""><path d=""M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z""/></svg>
+                <span>Downloads</span>
+            </div>
+            <div class=""nav-item"" data-target=""section-tabs"">
+                <svg viewBox=""0 0 24 24""><path d=""M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 4v12h18V7H3zm2 2h4v2H5V9zm6 0h4v2h-4V9z""/></svg>
+                <span>Tabs &amp; Verhalten</span>
+            </div>
+            <div class=""nav-item"" data-target=""section-about"">
+                <svg viewBox=""0 0 24 24""><path d=""M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z""/></svg>
+                <span>Über Echo</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id=""mainContent"">
+            <div class=""content-wrapper"">
+
+                <!-- 1. ALLGEMEIN -->
+                <section id=""section-general"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Allgemein &amp; Startverhalten</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Beim Start von Echo-Browser:</div>
+                        <div class=""row-desc"">Wähle, was geöffnet werden soll, wenn der Browser startet.</div>
+
+                        <div class=""radio-group"" id=""startupGroup"">
+                            <div class=""radio-option"" data-val=""startpage"">
+                                <div class=""custom-radio""></div>
+                                <div>
+                                    <div class=""row-title"">Startseite (Echo New Tab)</div>
+                                    <div class=""row-desc"">Öffnet eine neue, saubere Registerkarte mit Schnellzugriffen &amp; Suche.</div>
+                                </div>
+                            </div>
+                            <div class=""radio-option"" data-val=""restore_session"">
+                                <div class=""custom-radio""></div>
+                                <div>
+                                    <div class=""row-title"">Vorherige Sitzung fortsetzen</div>
+                                    <div class=""row-desc"">Öffnet automatisch die Tabs wieder, die beim letzten Schließen geöffnet waren.</div>
+                                </div>
+                            </div>
+                            <div class=""radio-option"" data-val=""custom_url"">
+                                <div class=""custom-radio""></div>
+                                <div style=""flex: 1;"">
+                                    <div class=""row-title"">Bestimmte Seite öffnen</div>
+                                    <div class=""row-desc"">Gibt eine benutzerdefinierte Webadresse als Startseite an.</div>
+                                    <input type=""text"" id=""txtCustomUrl"" class=""input-text"" style=""width: 100%; margin-top: 8px; display: none;"" placeholder=""https://example.com"">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Home-Button anzeigen</div>
+                                <div class=""row-desc"">Fügt ein Startseiten-Symbol links neben der Adressleiste ein.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowHomeButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Schnellzugriff-Kacheln auf Startseite</div>
+                                <div class=""row-desc"">Zeigt Verknüpfungen (Google, YouTube, GitHub etc.) auf der Startseite an.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkStartpageFavorites"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. SUCHMASCHINE -->
+                <section id=""section-search"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Suchmaschine</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Standardsuchmaschine</div>
+                        <div class=""row-desc"">Wähle deinen bevorzugten Suchanbieter für die Adressleiste und Startseite.</div>
+
+                        <div class=""engine-grid"" id=""engineGrid"">
+                            <div class=""engine-card"" data-engine=""duckduckgo"">
+                                <div class=""engine-card-header"">
+                                    <div class=""engine-name"">DuckDuckGo</div>
+                                    <span class=""badge-active"">Aktiv</span>
+                                </div>
+                                <div class=""engine-desc"">Privatsphäre zuerst: Kein User-Tracking, keine personalisierte Werbung.</div>
+                            </div>
+                            <div class=""engine-card"" data-engine=""google"">
+                                <div class=""engine-card-header"">
+                                    <div class=""engine-name"">Google</div>
+                                    <span class=""badge-active"">Aktiv</span>
+                                </div>
+                                <div class=""engine-desc"">Die weltweit meistgenutzte Suchmaschine mit reichhaltigen Instant-Antworten.</div>
+                            </div>
+                            <div class=""engine-card"" data-engine=""bing"">
+                                <div class=""engine-card-header"">
+                                    <div class=""engine-name"">Bing</div>
+                                    <span class=""badge-active"">Aktiv</span>
+                                </div>
+                                <div class=""engine-desc"">Microsoft Suchmaschine mit moderner Bild- und Videosuche.</div>
+                            </div>
+                            <div class=""engine-card"" data-engine=""ecosia"">
+                                <div class=""engine-card-header"">
+                                    <div class=""engine-name"">Ecosia</div>
+                                    <span class=""badge-active"">Aktiv</span>
+                                </div>
+                                <div class=""engine-desc"">Die grüne Suchmaschine: Pflanzt Bäume mit deinen täglichen Suchanfragen.</div>
+                            </div>
+                            <div class=""engine-card"" data-engine=""brave"">
+                                <div class=""engine-card-header"">
+                                    <div class=""engine-name"">Brave Search</div>
+                                    <span class=""badge-active"">Aktiv</span>
+                                </div>
+                                <div class=""engine-desc"">Unabhängiger Suchindex ohne Nachverfolgung oder Datenweitergabe.</div>
+                            </div>
+                            <div class=""engine-card"" data-engine=""startpage"">
+                                <div class=""engine-card-header"">
+                                    <div class=""engine-name"">Startpage</div>
+                                    <span class=""badge-active"">Aktiv</span>
+                                </div>
+                                <div class=""engine-desc"">Echte Google-Ergebnisse ohne Tracking in europäischer Privatsphäre.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Suchvorschläge in Adressleiste</div>
+                                <div class=""row-desc"">Zeigt während der Eingabe in der Omnibox Vorschläge und Webseiten an.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkSearchSuggestions"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. ERSCHEINUNGSBILD -->
+                <section id=""section-appearance"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Erscheinungsbild &amp; Themes</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Farb-Thema Preset</div>
+                        <div class=""row-desc"">Wähle ein vorkonfiguriertes, hochwertiges Design für Fenster und Menüs.</div>
+
+                        <div class=""theme-grid"" id=""themeGrid"">
+                            <div class=""theme-card"" data-preset=""SilverAnthracite"">
+                                <div class=""theme-preview-dot"" style=""background: #1C1D21; border-color: #C4C7CC;""></div>
+                                <div>
+                                    <div class=""row-title"">Silber &amp; Anthrazit</div>
+                                    <div class=""row-desc"">Edles Standard-Design mit matten Metall-Akzenten</div>
+                                </div>
+                            </div>
+                            <div class=""theme-card"" data-preset=""MidnightOled"">
+                                <div class=""theme-preview-dot"" style=""background: #07080A; border-color: #FFFFFF;""></div>
+                                <div>
+                                    <div class=""row-title"">Midnight OLED</div>
+                                    <div class=""row-desc"">Tiefschwarz für OLED-Monitore &amp; maximalen Kontrast</div>
+                                </div>
+                            </div>
+                            <div class=""theme-card"" data-preset=""TitaniumLight"">
+                                <div class=""theme-preview-dot"" style=""background: #F4F6F9; border-color: #8A8F99;""></div>
+                                <div>
+                                    <div class=""row-title"">Titanium Light</div>
+                                    <div class=""row-desc"">Modernes, klares helles Design in Titangrau</div>
+                                </div>
+                            </div>
+                            <div class=""theme-card"" data-preset=""CobaltSlate"">
+                                <div class=""theme-preview-dot"" style=""background: #111827; border-color: #60A5FA;""></div>
+                                <div>
+                                    <div class=""row-title"">Cobalt Slate</div>
+                                    <div class=""row-desc"">Harmonisches Schiefergrau mit kühlem Kobalt-Blau</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Akzentfarbe</div>
+                        <div class=""row-desc"">Passe die Hervorhebungsfarbe für Tabs, Icons und Eingabefelder an.</div>
+
+                        <div class=""accent-palette"" id=""accentPalette"">
+                            <div class=""color-swatch"" style=""background: #C4C7CC;"" data-color=""#C4C7CC"" title=""Silber""></div>
+                            <div class=""color-swatch"" style=""background: #38BDF8;"" data-color=""#38BDF8"" title=""Eisblau""></div>
+                            <div class=""color-swatch"" style=""background: #34D399;"" data-color=""#34D399"" title=""Smaragd""></div>
+                            <div class=""color-swatch"" style=""background: #F59E0B;"" data-color=""#F59E0B"" title=""Bernstein""></div>
+                            <div class=""color-swatch"" style=""background: #F43F5E;"" data-color=""#F43F5E"" title=""Rubinrot""></div>
+                            <div class=""color-swatch"" style=""background: #A855F7;"" data-color=""#A855F7"" title=""Amethyst""></div>
+                            <div style=""display: flex; align-items: center; gap: 8px; margin-left: 12px;"">
+                                <input type=""text"" id=""txtCustomAccent"" class=""input-text"" style=""width: 90px; text-transform: uppercase;"" maxlength=""7"" placeholder=""#HEX"">
+                                <button id=""btnApplyAccent"" class=""btn"">Setzen</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Lesezeichenleiste immer anzeigen</div>
+                                <div class=""row-desc"">Zeigt die Leiste mit deinen Lesezeichen unter der Adresszeile an (Ctrl+Shift+B).</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkBookmarksBar"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Favoriten-Seitenleiste anzeigen</div>
+                                <div class=""row-desc"">Vertikale Symbolleiste auf der linken Seite für blitzschnellen Schnellzugriff.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkSidebar"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Standard-Seitenzoom</div>
+                                <div class=""row-desc"">Vergrößert oder verkleinert Webseiteninhalte standardmäßig.</div>
+                            </div>
+                            <select id=""selZoom"" class=""select-input"">
+                                <option value=""75"">75%</option>
+                                <option value=""90"">90%</option>
+                                <option value=""100"" selected>100% (Standard)</option>
+                                <option value=""110"">110%</option>
+                                <option value=""125"">125%</option>
+                                <option value=""150"">150%</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. DATENSCHUTZ & SICHERHEIT -->
+                <section id=""section-privacy"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Datenschutz &amp; Sicherheit</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Echo Shield Tracking-Schutz</div>
+                        <div class=""row-desc"">Schützt vor websiteübergreifender Nachverfolgung und Fingerprinting.</div>
+
+                        <div class=""shield-level-grid"" id=""shieldGrid"">
+                            <div class=""shield-card"" data-level=""balanced"">
+                                <div class=""shield-card-title"">
+                                    <span>Ausgewogen</span>
+                                    <span class=""badge-active"">Empfohlen</span>
+                                </div>
+                                <div class=""shield-card-desc"">Blockiert bekannte bösartige Tracker &amp; Tracker von unbesuchten Websites. Keine Website-Fehler.</div>
+                            </div>
+                            <div class=""shield-card"" data-level=""strict"">
+                                <div class=""shield-card-title"">
+                                    <span>Strikt</span>
+                                </div>
+                                <div class=""shield-card-desc"">Maximaler Schutz: Blockiert aggressiv die Mehrzahl aller Tracker. Kann selten Layouts beeinträchtigen.</div>
+                            </div>
+                            <div class=""shield-card"" data-level=""none"">
+                                <div class=""shield-card-title"">
+                                    <span>Deaktiviert</span>
+                                </div>
+                                <div class=""shield-card-desc"">Erlaubt alle Tracker. Nicht empfohlen für den alltäglichen Gebrauch.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Pop-up-Blocker</div>
+                                <div class=""row-desc"">Verhindert, dass Webseiten unerwünschte Fenster oder Overlays im Hintergrund öffnen.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkBlockPopups"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">JavaScript ausführen</div>
+                                <div class=""row-desc"">Erlaubt interaktive Skripte auf Webseiten. Bei Deaktivierung laden Seiten schneller, aber reduzierter Funktion.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkEnableJavaScript"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Do Not Track (DNT) senden</div>
+                                <div class=""row-desc"">Sendet mit jeder Webanfrage eine Aufforderung, deine Aktivitäten nicht zu erfassen.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkSendDoNotTrack"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Browserdaten bereinigen</div>
+                                <div class=""row-desc"">Verlauf, Cookies, Website-Daten und zwischengespeicherte Bilder/Dateien (Cache) löschen.</div>
+                            </div>
+                            <button id=""btnOpenClearData"" class=""btn btn-danger"">Browserdaten löschen...</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. DOWNLOADS -->
+                <section id=""section-downloads"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Downloads</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Download-Speicherort</div>
+                        <div class=""row-desc"" style=""margin-bottom: 12px;"">Dateien werden automatisch in diesen Ordner heruntergeladen:</div>
+
+                        <div style=""display: flex; gap: 10px; align-items: center;"">
+                            <input type=""text"" id=""txtDownloadPath"" class=""input-text"" style=""flex: 1;"" readonly>
+                            <button id=""btnChangeDownloadPath"" class=""btn btn-primary"">Ändern...</button>
+                            <button id=""btnOpenDownloadFolder"" class=""btn"">Ordner öffnen</button>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Vor jedem Download nach Speicherort fragen</div>
+                                <div class=""row-desc"">Öffnet den Windows Speichern-Dialog, um Ordner und Dateinamen manuell zu bestimmen.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkAskDownloadLocation"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. TABS & VERHALTEN -->
+                <section id=""section-tabs"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Tabs &amp; Verhalten</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Neue Tabs im Hintergrund öffnen</div>
+                                <div class=""row-desc"">Wechselt beim Öffnen eines Links in neuem Tab nicht sofort auf die neue Registerkarte.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkOpenTabsInBackground"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Vor dem Schließen mehrerer Tabs warnen</div>
+                                <div class=""row-desc"">Verhindert versehentliches Schließen des Browserfensters mit vielen offenen Tabs.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkWarnCloseTabs"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Einstellungen zurücksetzen</div>
+                                <div class=""row-desc"">Setzt alle Browser-Optionen und Personalisierungen auf die Werkseinstellungen zurück.</div>
+                            </div>
+                            <button id=""btnResetSettings"" class=""btn"">Auf Standard zurücksetzen</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. ÜBER ECHO -->
+                <section id=""section-about"">
+                    <div class=""section-header"">
+                        <h2 class=""section-title"">Über Echo-Browser</h2>
+                    </div>
+
+                    <div class=""about-card"">
+                        <div class=""about-logo"">
+                            <svg viewBox=""0 0 24 24"" fill=""none"" stroke=""#C4C7CC"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
+                                <path d=""M2 12a10 10 0 0 1 20 0""/>
+                                <path d=""M5 12a7 7 0 0 1 14 0""/>
+                                <path d=""M8 12a4 4 0 0 1 8 0""/>
+                                <circle cx=""12"" cy=""12"" r=""1.5"" fill=""#C4C7CC""/>
+                            </svg>
+                        </div>
+                        <div class=""about-details"">
+                            <div class=""about-title"">Echo-Browser</div>
+                            <div class=""about-meta"">Version ##APP_VERSION## (Silver/Anthracite Edition) • 64-Bit</div>
+                            <div class=""about-meta"">Chromium-Engine / WebView2: ##WEBVIEW_VERSION##</div>
+                            <div class=""about-meta"">Plattform: .NET 8.0 Windows WPF Framework</div>
+                            <div class=""about-status"">
+                                <svg width=""12"" height=""12"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""3""><path d=""M20 6L9 17l-5-5""/></svg>
+                                <span>Echo ist auf dem neuesten Stand</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Clear Browsing Data Modal -->
+    <div id=""modalClearData"" class=""modal-overlay"">
+        <div class=""modal-card"">
+            <div class=""modal-title"">Browserdaten bereinigen</div>
+            <div class=""modal-desc"">Wähle die Daten aus, die jetzt vollständig gelöscht werden sollen. Diese Aktion kann nicht rückgängig gemacht werden.</div>
+
+            <div class=""modal-checkboxes"">
+                <label class=""modal-cb-row"">
+                    <input type=""checkbox"" id=""cbClearHistory"" checked>
+                    <span>Browser-Verlauf löschen (gespeicherte Seitenaufrufe)</span>
+                </label>
+                <label class=""modal-cb-row"">
+                    <input type=""checkbox"" id=""cbClearCookies"" checked>
+                    <span>Cookies &amp; Website-Daten löschen (meldet dich von Websites ab)</span>
+                </label>
+                <label class=""modal-cb-row"">
+                    <input type=""checkbox"" id=""cbClearCache"" checked>
+                    <span>Bilder und Dateien im Cache leeren (gibt Speicherplatz frei)</span>
+                </label>
+            </div>
+
+            <div class=""modal-actions"">
+                <button id=""btnCancelClearData"" class=""btn"">Abbrechen</button>
+                <button id=""btnConfirmClearData"" class=""btn btn-danger"">Daten jetzt löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id=""toast"" class=""toast"">
+        <svg width=""16"" height=""16"" viewBox=""0 0 24 24"" fill=""none"" stroke=""#34D399"" stroke-width=""3""><path d=""M20 6L9 17l-5-5""/></svg>
+        <span id=""toastMsg"">Einstellung gespeichert</span>
+    </div>
+
+    <!-- Interactive Logic Script -->
+    <script>
+        const initialSettings = ##SETTINGS_JSON##;
+
+        function sendMessage(msg) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(msg);
+            }
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = text;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2400);
+        }
+
+        // Initialize UI with current settings
+        function applySettingsToUI(s) {
+            // 1. Startup behavior
+            document.querySelectorAll('#startupGroup .radio-option').forEach(el => {
+                const val = el.getAttribute('data-val');
+                if (val === s.StartupBehavior) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+            const txtCustomUrl = document.getElementById('txtCustomUrl');
+            txtCustomUrl.value = s.CustomStartupUrl || '';
+            txtCustomUrl.style.display = s.StartupBehavior === 'custom_url' ? 'block' : 'none';
+
+            // General toggles
+            document.getElementById('chkShowHomeButton').checked = s.ShowHomeButton !== false;
+            document.getElementById('chkStartpageFavorites').checked = s.IsStartpageFavoritesVisible !== false;
+
+            // 2. Search
+            document.querySelectorAll('#engineGrid .engine-card').forEach(el => {
+                const eng = el.getAttribute('data-engine');
+                if (eng === (s.SearchEngine || 'duckduckgo').toLowerCase()) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+            document.getElementById('chkSearchSuggestions').checked = s.EnableSearchSuggestions !== false;
+
+            // 3. Appearance
+            document.querySelectorAll('#themeGrid .theme-card').forEach(el => {
+                const preset = el.getAttribute('data-preset');
+                if (preset === (s.ThemePreset || 'SilverAnthracite')) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('#accentPalette .color-swatch').forEach(el => {
+                const col = el.getAttribute('data-color');
+                if (col.toLowerCase() === (s.AccentColor || '#c4c7cc').toLowerCase()) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+            document.getElementById('txtCustomAccent').value = s.AccentColor || '#C4C7CC';
+
+            document.getElementById('chkBookmarksBar').checked = s.IsBookmarksBarVisible !== false;
+            document.getElementById('chkSidebar').checked = s.IsSidebarVisible !== false;
+            document.getElementById('selZoom').value = (s.DefaultZoomPercent || 100).toString();
+
+            // 4. Privacy & Shield
+            document.querySelectorAll('#shieldGrid .shield-card').forEach(el => {
+                const lvl = el.getAttribute('data-level');
+                if (lvl === (s.TrackingPreventionLevel || 'balanced').toLowerCase()) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+
+            document.getElementById('chkBlockPopups').checked = s.BlockPopups !== false;
+            document.getElementById('chkEnableJavaScript').checked = s.EnableJavaScript !== false;
+            document.getElementById('chkSendDoNotTrack').checked = s.SendDoNotTrack !== false;
+
+            // 5. Downloads
+            document.getElementById('txtDownloadPath').value = s.DownloadPath || '';
+            document.getElementById('chkAskDownloadLocation').checked = s.AskDownloadLocation === true;
+
+            // 6. Tabs
+            document.getElementById('chkOpenTabsInBackground').checked = s.OpenNewTabInBackground === true;
+            document.getElementById('chkWarnCloseTabs').checked = s.WarnOnClosingMultipleTabs !== false;
+        }
+
+        applySettingsToUI(initialSettings);
+
+        // Sidebar Navigation click handling
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                const targetId = item.getAttribute('data-target');
+                const targetEl = document.getElementById(targetId);
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Search Input Filter
+        document.getElementById('searchSettings').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const cards = document.querySelectorAll('.settings-card, .about-card');
+            cards.forEach(card => {
+                const text = card.innerText.toLowerCase();
+                if (!query || text.includes(query)) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // Startup Behavior Radios
+        document.querySelectorAll('#startupGroup .radio-option').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#startupGroup .radio-option').forEach(r => r.classList.remove('selected'));
+                el.classList.add('selected');
+                const val = el.getAttribute('data-val');
+                document.getElementById('txtCustomUrl').style.display = val === 'custom_url' ? 'block' : 'none';
+                sendMessage({ type: 'updateSetting', key: 'StartupBehavior', value: val });
+                showToast('Startverhalten aktualisiert');
+            });
+        });
+
+        document.getElementById('txtCustomUrl').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'CustomStartupUrl', value: e.target.value.trim() });
+            showToast('Start-URL gespeichert');
+        });
+
+        // General Toggles
+        document.getElementById('chkShowHomeButton').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'ShowHomeButton', value: e.target.checked });
+            showToast('Home-Button Einstellung gespeichert');
+        });
+
+        document.getElementById('chkStartpageFavorites').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'IsStartpageFavoritesVisible', value: e.target.checked });
+            showToast('Startseiten-Verknüpfungen aktualisiert');
+        });
+
+        // Search Engine Cards
+        document.querySelectorAll('#engineGrid .engine-card').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#engineGrid .engine-card').forEach(c => c.classList.remove('active'));
+                el.classList.add('active');
+                const engine = el.getAttribute('data-engine');
+                sendMessage({ type: 'updateSetting', key: 'SearchEngine', value: engine });
+                showToast('Standardsuchmaschine auf ' + engine + ' geändert');
+            });
+        });
+
+        document.getElementById('chkSearchSuggestions').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'EnableSearchSuggestions', value: e.target.checked });
+            showToast('Suchvorschläge aktualisiert');
+        });
+
+        // Theme Presets
+        document.querySelectorAll('#themeGrid .theme-card').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#themeGrid .theme-card').forEach(c => c.classList.remove('active'));
+                el.classList.add('active');
+                const preset = el.getAttribute('data-preset');
+                sendMessage({ type: 'setThemePreset', preset: preset });
+                showToast('Theme-Preset angewendet');
+            });
+        });
+
+        // Accent Color Swatches
+        document.querySelectorAll('#accentPalette .color-swatch').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#accentPalette .color-swatch').forEach(s => s.classList.remove('active'));
+                el.classList.add('active');
+                const hex = el.getAttribute('data-color');
+                document.getElementById('txtCustomAccent').value = hex;
+                sendMessage({ type: 'setAccentColor', hex: hex });
+                showToast('Akzentfarbe aktualisiert');
+            });
+        });
+
+        document.getElementById('btnApplyAccent').addEventListener('click', () => {
+            let hex = document.getElementById('txtCustomAccent').value.trim();
+            if (!hex.startsWith('#')) hex = '#' + hex;
+            if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                sendMessage({ type: 'setAccentColor', hex: hex });
+                showToast('Eigene Akzentfarbe übernommen');
+            } else {
+                alert('Bitte einen gültigen Hex-Farbcode (z.B. #38BDF8) eingeben.');
+            }
+        });
+
+        // Appearance Toggles & Zoom
+        document.getElementById('chkBookmarksBar').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'IsBookmarksBarVisible', value: e.target.checked });
+            showToast('Lesezeichenleiste aktualisiert');
+        });
+
+        document.getElementById('chkSidebar').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'IsSidebarVisible', value: e.target.checked });
+            showToast('Seitenleiste aktualisiert');
+        });
+
+        document.getElementById('selZoom').addEventListener('change', (e) => {
+            const zoom = parseInt(e.target.value, 10);
+            sendMessage({ type: 'updateSetting', key: 'DefaultZoomPercent', value: zoom });
+            showToast('Standard-Zoom auf ' + zoom + '% gesetzt');
+        });
+
+        // Shield Level Cards
+        document.querySelectorAll('#shieldGrid .shield-card').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#shieldGrid .shield-card').forEach(c => c.classList.remove('active'));
+                el.classList.add('active');
+                const lvl = el.getAttribute('data-level');
+                sendMessage({ type: 'updateSetting', key: 'TrackingPreventionLevel', value: lvl });
+                showToast('Echo Shield Stufe auf ' + lvl + ' gesetzt');
+            });
+        });
+
+        // Privacy Toggles
+        document.getElementById('chkBlockPopups').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'BlockPopups', value: e.target.checked });
+            showToast('Pop-up-Blocker aktualisiert');
+        });
+
+        document.getElementById('chkEnableJavaScript').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'EnableJavaScript', value: e.target.checked });
+            showToast('JavaScript-Einstellung aktualisiert');
+        });
+
+        document.getElementById('chkSendDoNotTrack').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'SendDoNotTrack', value: e.target.checked });
+            showToast('Do Not Track aktualisiert');
+        });
+
+        // Clear Browsing Data Modal
+        const modalClear = document.getElementById('modalClearData');
+        document.getElementById('btnOpenClearData').addEventListener('click', () => {
+            modalClear.classList.add('open');
+        });
+        document.getElementById('btnCancelClearData').addEventListener('click', () => {
+            modalClear.classList.remove('open');
+        });
+        document.getElementById('btnConfirmClearData').addEventListener('click', () => {
+            const clearHistory = document.getElementById('cbClearHistory').checked;
+            const clearCookies = document.getElementById('cbClearCookies').checked;
+            const clearCache = document.getElementById('cbClearCache').checked;
+            sendMessage({
+                type: 'clearBrowsingData',
+                clearHistory: clearHistory,
+                clearCookies: clearCookies,
+                clearCache: clearCache
+            });
+            modalClear.classList.remove('open');
+            showToast('Browserdaten werden bereinigt...');
+        });
+
+        // Downloads
+        document.getElementById('btnChangeDownloadPath').addEventListener('click', () => {
+            sendMessage({ type: 'browseDownloadFolder' });
+        });
+
+        document.getElementById('btnOpenDownloadFolder').addEventListener('click', () => {
+            sendMessage({ type: 'openDownloadFolder' });
+        });
+
+        document.getElementById('chkAskDownloadLocation').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'AskDownloadLocation', value: e.target.checked });
+            showToast('Download-Option aktualisiert');
+        });
+
+        // Tabs & Reset
+        document.getElementById('chkOpenTabsInBackground').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'OpenNewTabInBackground', value: e.target.checked });
+            showToast('Tab-Verhalten aktualisiert');
+        });
+
+        document.getElementById('chkWarnCloseTabs').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'WarnOnClosingMultipleTabs', value: e.target.checked });
+            showToast('Warnungs-Einstellung aktualisiert');
+        });
+
+        document.getElementById('btnResetSettings').addEventListener('click', () => {
+            if (confirm('Möchtest du wirklich alle Einstellungen auf den Standard zurücksetzen?')) {
+                sendMessage({ type: 'resetSettings' });
+                showToast('Einstellungen wurden zurückgesetzt');
+            }
+        });
+
+        // Host callbacks
+        window.onSettingUpdatedFromHost = function(newSettings) {
+            applySettingsToUI(newSettings);
+            showToast('✓ Einstellungen synchronisiert');
+        };
+
+        window.onBrowsingDataCleared = function() {
+            showToast('✓ Browserdaten erfolgreich gelöscht');
+        };
+
+        window.onDownloadPathChanged = function(newPath) {
+            document.getElementById('txtDownloadPath').value = newPath;
+            showToast('Download-Pfad geändert');
+        };
+    </script>
+</body>
+</html>";
+    }
+}

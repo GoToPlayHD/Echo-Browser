@@ -34,6 +34,7 @@ namespace EchoBrowser
         private BrowserTab? _draggedTab;
         private Point _bmDragStartPoint;
         private Bookmark? _draggedBookmark;
+        private Bookmark? _activeGroupForPopup;
 
         // Add Favorite State
         private string _selectedFavIconKey = "globe";
@@ -73,6 +74,8 @@ namespace EchoBrowser
             InitializeComponent();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
+            PreviewKeyDown += MainWindow_PreviewKeyDown;
+            Closing += MainWindow_Closing;
 
             if (_isIncognito)
             {
@@ -97,8 +100,28 @@ namespace EchoBrowser
             borderSidebar.Visibility = settings.IsSidebarVisible ? Visibility.Visible : Visibility.Collapsed;
             menuChkSidebar.IsChecked = settings.IsSidebarVisible;
 
+            // Restore Home Button visibility
+            btnHome.Visibility = settings.ShowHomeButton ? Visibility.Visible : Visibility.Collapsed;
+
             // Restore Search Engine selector
             SyncSearchEngineComboBox();
+
+            // Restore Theme Preset
+            if (Enum.TryParse<ThemePreset>(settings.ThemePreset, out var preset))
+            {
+                ThemeManager.Instance.ApplyPreset(preset);
+            }
+
+            // Restore Accent Color
+            if (!string.IsNullOrWhiteSpace(settings.AccentColor) && settings.AccentColor != "#C4C7CC")
+            {
+                try
+                {
+                    Color color = ThemeManager.ColorFromHex(settings.AccentColor);
+                    ThemeManager.Instance.SetAccentColor(color);
+                }
+                catch { }
+            }
         }
 
         private void SyncSearchEngineComboBox()
@@ -141,7 +164,20 @@ namespace EchoBrowser
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             await InitializeBrowserEnvironmentAsync();
-            AddNewTab(StartPageService.StartPageUrl);
+
+            var settings = AppSettingsService.Instance.Settings;
+            if (!_isIncognito && settings.StartupBehavior == "restore_session")
+            {
+                RestorePreviousSession();
+            }
+            else if (!_isIncognito && settings.StartupBehavior == "custom_url" && !string.IsNullOrWhiteSpace(settings.CustomStartupUrl))
+            {
+                AddNewTab(settings.CustomStartupUrl);
+            }
+            else
+            {
+                AddNewTab(StartPageService.StartPageUrl);
+            }
         }
 
         private async Task InitializeBrowserEnvironmentAsync()
@@ -231,14 +267,14 @@ namespace EchoBrowser
 
         #region Multi-Tab Management & Drag-Drop Reordering
 
-        public void AddNewTab(string? targetUrl = null)
+        public void AddNewTab(string? targetUrl = null, bool activateTab = true)
         {
             if (_webViewEnvironment == null) return;
 
             string initialUrl = string.IsNullOrWhiteSpace(targetUrl) ? StartPageService.StartPageUrl : targetUrl;
             var tab = new BrowserTab
             {
-                Title = "Neuer Tab",
+                Title = (initialUrl == SettingsPageService.SettingsPageUrl) ? "Einstellungen" : "Neuer Tab",
                 Url = initialUrl
             };
 
@@ -256,7 +292,10 @@ namespace EchoBrowser
             AttachWebViewEvents(tab, webView, initialUrl);
 
             Tabs.Add(tab);
-            SelectTab(tab);
+            if (activateTab)
+            {
+                SelectTab(tab);
+            }
         }
 
         private async void AttachWebViewEvents(BrowserTab tab, WebView2 webView, string initialUrl)
@@ -274,12 +313,17 @@ namespace EchoBrowser
 
                     try
                     {
-                        webView.CoreWebView2.Profile.PreferredTrackingPreventionLevel = 
-                            CoreWebView2TrackingPreventionLevel.Balanced;
+                        string trackingLevel = AppSettingsService.Instance.Settings.TrackingPreventionLevel ?? "balanced";
+                        webView.CoreWebView2.Profile.PreferredTrackingPreventionLevel = trackingLevel.ToLowerInvariant() switch
+                        {
+                            "strict" => CoreWebView2TrackingPreventionLevel.Strict,
+                            "none" => CoreWebView2TrackingPreventionLevel.None,
+                            _ => CoreWebView2TrackingPreventionLevel.Balanced
+                        };
                     }
                     catch { }
 
-                    // Intercept WebMessages from custom startpage
+                    // Intercept WebMessages from custom startpage and settings page
                     webView.CoreWebView2.WebMessageReceived += (s, args) =>
                     {
                         try
@@ -328,6 +372,184 @@ namespace EchoBrowser
                                         });
                                     }
                                 }
+                                else if (type == "updateSetting" && root.TryGetProperty("key", out var keyEl) && root.TryGetProperty("value", out var valEl))
+                                {
+                                    string key = keyEl.GetString() ?? "";
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        var settings = AppSettingsService.Instance.Settings;
+                                        switch (key)
+                                        {
+                                            case "StartupBehavior":
+                                                settings.StartupBehavior = valEl.GetString() ?? "startpage";
+                                                break;
+                                            case "CustomStartupUrl":
+                                                settings.CustomStartupUrl = valEl.GetString() ?? "";
+                                                break;
+                                            case "ShowHomeButton":
+                                                bool showHome = valEl.GetBoolean();
+                                                settings.ShowHomeButton = showHome;
+                                                btnHome.Visibility = showHome ? Visibility.Visible : Visibility.Collapsed;
+                                                break;
+                                            case "IsStartpageFavoritesVisible":
+                                                settings.IsStartpageFavoritesVisible = valEl.GetBoolean();
+                                                break;
+                                            case "SearchEngine":
+                                                string engine = valEl.GetString() ?? "duckduckgo";
+                                                AppSettingsService.Instance.SetSearchEngine(engine);
+                                                SyncSearchEngineComboBox();
+                                                break;
+                                            case "EnableSearchSuggestions":
+                                                settings.EnableSearchSuggestions = valEl.GetBoolean();
+                                                break;
+                                            case "IsBookmarksBarVisible":
+                                                bool showBm = valEl.GetBoolean();
+                                                _isBookmarksBarVisible = showBm;
+                                                borderBookmarksBar.Visibility = showBm ? Visibility.Visible : Visibility.Collapsed;
+                                                menuChkBookmarksBar.IsChecked = showBm;
+                                                settings.IsBookmarksBarVisible = showBm;
+                                                break;
+                                            case "IsSidebarVisible":
+                                                bool showSb = valEl.GetBoolean();
+                                                borderSidebar.Visibility = showSb ? Visibility.Visible : Visibility.Collapsed;
+                                                menuChkSidebar.IsChecked = showSb;
+                                                settings.IsSidebarVisible = showSb;
+                                                break;
+                                            case "DefaultZoomPercent":
+                                                int zoom = valEl.GetInt32();
+                                                settings.DefaultZoomPercent = zoom;
+                                                ApplyDefaultZoom(zoom);
+                                                break;
+                                            case "TrackingPreventionLevel":
+                                                string level = valEl.GetString() ?? "balanced";
+                                                settings.TrackingPreventionLevel = level;
+                                                ApplyTrackingPrevention(level);
+                                                break;
+                                            case "BlockPopups":
+                                                settings.BlockPopups = valEl.GetBoolean();
+                                                break;
+                                            case "EnableJavaScript":
+                                                bool js = valEl.GetBoolean();
+                                                settings.EnableJavaScript = js;
+                                                tab.JavaScriptEnabled = js;
+                                                if (webView.CoreWebView2 != null) webView.CoreWebView2.Settings.IsScriptEnabled = js;
+                                                break;
+                                            case "SendDoNotTrack":
+                                                settings.SendDoNotTrack = valEl.GetBoolean();
+                                                break;
+                                            case "AskDownloadLocation":
+                                                settings.AskDownloadLocation = valEl.GetBoolean();
+                                                break;
+                                            case "OpenNewTabInBackground":
+                                                settings.OpenNewTabInBackground = valEl.GetBoolean();
+                                                break;
+                                            case "WarnOnClosingMultipleTabs":
+                                                settings.WarnOnClosingMultipleTabs = valEl.GetBoolean();
+                                                break;
+                                        }
+                                        AppSettingsService.Instance.Save();
+                                    });
+                                }
+                                else if (type == "setThemePreset" && root.TryGetProperty("preset", out var presetEl))
+                                {
+                                    string presetStr = presetEl.GetString() ?? "";
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        if (Enum.TryParse<ThemePreset>(presetStr, out var preset))
+                                        {
+                                            ThemeManager.Instance.ApplyPreset(preset);
+                                            AppSettingsService.Instance.Settings.ThemePreset = presetStr;
+                                            AppSettingsService.Instance.Save();
+                                        }
+                                    });
+                                }
+                                else if (type == "setAccentColor" && root.TryGetProperty("hex", out var hexEl))
+                                {
+                                    string hex = hexEl.GetString() ?? "";
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        try
+                                        {
+                                            Color color = ThemeManager.ColorFromHex(hex);
+                                            ThemeManager.Instance.SetAccentColor(color);
+                                            AppSettingsService.Instance.Settings.AccentColor = hex;
+                                            AppSettingsService.Instance.Save();
+                                        }
+                                        catch { }
+                                    });
+                                }
+                                else if (type == "browseDownloadFolder")
+                                {
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        var dlg = new Microsoft.Win32.OpenFolderDialog
+                                        {
+                                            Title = "Download-Ordner auswählen",
+                                            InitialDirectory = AppSettingsService.Instance.Settings.DownloadPath
+                                        };
+                                        if (dlg.ShowDialog() == true)
+                                        {
+                                            string newPath = dlg.FolderName;
+                                            AppSettingsService.Instance.Settings.DownloadPath = newPath;
+                                            AppSettingsService.Instance.Save();
+                                            string escaped = JsonEncodedText.Encode(newPath).ToString();
+                                            webView.CoreWebView2?.ExecuteScriptAsync($"window.onDownloadPathChanged && window.onDownloadPathChanged('{escaped}');");
+                                        }
+                                    });
+                                }
+                                else if (type == "openDownloadFolder")
+                                {
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        string p = AppSettingsService.Instance.Settings.DownloadPath;
+                                        if (Directory.Exists(p))
+                                        {
+                                            Process.Start(new ProcessStartInfo { FileName = p, UseShellExecute = true });
+                                        }
+                                    });
+                                }
+                                else if (type == "clearBrowsingData")
+                                {
+                                    bool clearHist = root.TryGetProperty("clearHistory", out var ch) && ch.GetBoolean();
+                                    bool clearCook = root.TryGetProperty("clearCookies", out var cc) && cc.GetBoolean();
+                                    bool clearCache = root.TryGetProperty("clearCache", out var cca) && cca.GetBoolean();
+
+                                    Dispatcher.Invoke(async () =>
+                                    {
+                                        if (clearHist)
+                                        {
+                                            _historyService.ClearHistory();
+                                            UpdateFilteredHistory();
+                                        }
+
+                                        if (clearCook || clearCache)
+                                        {
+                                            CoreWebView2BrowsingDataKinds kinds = 0;
+                                            if (clearCook) kinds |= CoreWebView2BrowsingDataKinds.Cookies;
+                                            if (clearCache) kinds |= CoreWebView2BrowsingDataKinds.DiskCache;
+                                            if (kinds != 0)
+                                            {
+                                                try
+                                                {
+                                                    await webView.CoreWebView2.Profile.ClearBrowsingDataAsync(kinds);
+                                                }
+                                                catch { }
+                                            }
+                                        }
+
+                                        await webView.CoreWebView2.ExecuteScriptAsync("window.onBrowsingDataCleared && window.onBrowsingDataCleared();");
+                                    });
+                                }
+                                else if (type == "resetSettings")
+                                {
+                                    Dispatcher.Invoke(async () =>
+                                    {
+                                        AppSettingsService.Instance.ResetToDefaults();
+                                        RestoreSavedSettings();
+                                        string newSettingsJson = JsonSerializer.Serialize(AppSettingsService.Instance.Settings);
+                                        await webView.CoreWebView2.ExecuteScriptAsync($"window.onSettingUpdatedFromHost && window.onSettingUpdatedFromHost({newSettingsJson});");
+                                    });
+                                }
                             }
                         }
                         catch { }
@@ -339,7 +561,11 @@ namespace EchoBrowser
                         args.Handled = true;
                         if (!string.IsNullOrWhiteSpace(args.Uri))
                         {
-                            Dispatcher.Invoke(() => AddNewTab(args.Uri));
+                            Dispatcher.Invoke(() =>
+                            {
+                                bool inBackground = AppSettingsService.Instance.Settings.OpenNewTabInBackground;
+                                AddNewTab(args.Uri, activateTab: !inBackground);
+                            });
                         }
                     };
 
@@ -349,6 +575,17 @@ namespace EchoBrowser
                         Dispatcher.Invoke(() =>
                         {
                             string fileName = Path.GetFileName(args.ResultFilePath);
+                            string customFolder = AppSettingsService.Instance.Settings.DownloadPath;
+                            if (!string.IsNullOrWhiteSpace(customFolder) && Directory.Exists(customFolder))
+                            {
+                                args.ResultFilePath = Path.Combine(customFolder, fileName);
+                            }
+
+                            if (AppSettingsService.Instance.Settings.AskDownloadLocation)
+                            {
+                                args.Handled = false;
+                            }
+
                             var download = new DownloadItem
                             {
                                 FileName = fileName,
@@ -396,12 +633,12 @@ namespace EchoBrowser
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            if (tab.Url != StartPageService.StartPageUrl)
+                            if (tab.Url != StartPageService.StartPageUrl && tab.Url != SettingsPageService.SettingsPageUrl)
                             {
                                 tab.Title = webView.CoreWebView2.DocumentTitle;
 
                                 // Record history if NOT in incognito mode
-                                if (!_isIncognito && !string.IsNullOrWhiteSpace(tab.Url))
+                                if (!_isIncognito && !string.IsNullOrWhiteSpace(tab.Url) && !tab.Url.StartsWith("echo://", StringComparison.OrdinalIgnoreCase))
                                 {
                                     _historyService.AddEntry(tab.Title, tab.Url);
                                 }
@@ -451,7 +688,10 @@ namespace EchoBrowser
                         }
 
                         // Record history if NOT in incognito mode
-                        if (!_isIncognito && !string.IsNullOrWhiteSpace(tab.Url) && tab.Url != StartPageService.StartPageUrl)
+                        if (!_isIncognito && !string.IsNullOrWhiteSpace(tab.Url) && 
+                            tab.Url != StartPageService.StartPageUrl && 
+                            tab.Url != SettingsPageService.SettingsPageUrl &&
+                            !tab.Url.StartsWith("echo://", StringComparison.OrdinalIgnoreCase))
                         {
                             _historyService.AddEntry(tab.Title, tab.Url);
                         }
@@ -477,8 +717,12 @@ namespace EchoBrowser
                     });
                 };
 
-                // Navigate initially (Show custom startpage if requested)
-                if (initialUrl == StartPageService.StartPageUrl || initialUrl == "about:blank")
+                // Navigate initially (Show custom startpage or settings if requested)
+                if (initialUrl == SettingsPageService.SettingsPageUrl)
+                {
+                    NavigateToSettingsPage(tab);
+                }
+                else if (initialUrl == StartPageService.StartPageUrl || initialUrl == "about:blank")
                 {
                     tab.Url = StartPageService.StartPageUrl;
                     tab.Title = _isIncognito ? "Neuer Tab (Inkognito)" : "Neuer Tab";
@@ -737,11 +981,12 @@ namespace EchoBrowser
                 e.Effects = DragDropEffects.Move;
                 e.Handled = true;
 
-                // Live reorder only between non-group bookmarks
+                // Live reorder only between non-group bookmarks that are already top-level
                 if (e.Data.GetData("EchoBookmark") is Bookmark sourceBm &&
                     sender is FrameworkElement fe && fe.DataContext is Bookmark targetBm)
                 {
-                    if (sourceBm != targetBm && !targetBm.IsGroup && !sourceBm.IsGroup)
+                    if (sourceBm != targetBm && !targetBm.IsGroup && !sourceBm.IsGroup &&
+                        Bookmarks.Contains(sourceBm) && Bookmarks.Contains(targetBm))
                     {
                         int oldIndex = Bookmarks.IndexOf(sourceBm);
                         int newIndex = Bookmarks.IndexOf(targetBm);
@@ -757,7 +1002,145 @@ namespace EchoBrowser
 
         private void BookmarkChip_Drop(object sender, DragEventArgs e)
         {
-            e.Handled = true;
+            if (e.Data.GetDataPresent("EchoBookmark") &&
+                e.Data.GetData("EchoBookmark") is Bookmark sourceBm &&
+                sender is FrameworkElement fe && fe.DataContext is Bookmark targetBm)
+            {
+                e.Handled = true;
+                popupBookmarkGroup.IsOpen = false;
+
+                if (sourceBm != targetBm)
+                {
+                    // If sourceBm was in a group, remove from group and insert next to targetBm in top-level Bookmarks
+                    Bookmark? parentGroup = null;
+                    if (e.Data.GetDataPresent("EchoBookmarkSourceGroup") &&
+                        e.Data.GetData("EchoBookmarkSourceGroup") is Bookmark sg)
+                    {
+                        parentGroup = sg;
+                    }
+                    else
+                    {
+                        parentGroup = Bookmarks.FirstOrDefault(b => b.IsGroup && b.Children.Contains(sourceBm));
+                    }
+
+                    if (parentGroup != null)
+                    {
+                        parentGroup.Children.Remove(sourceBm);
+
+                        int targetIndex = Bookmarks.IndexOf(targetBm);
+                        if (targetIndex >= 0)
+                        {
+                            Bookmarks.Insert(targetIndex, sourceBm);
+                        }
+                        else
+                        {
+                            Bookmarks.Add(sourceBm);
+                        }
+
+                        _bookmarkService.SaveBookmarks();
+                        CheckBookmarkStatus();
+                    }
+                    else if (Bookmarks.Contains(sourceBm) && Bookmarks.Contains(targetBm))
+                    {
+                        int oldIndex = Bookmarks.IndexOf(sourceBm);
+                        int targetIndex = Bookmarks.IndexOf(targetBm);
+                        if (oldIndex >= 0 && targetIndex >= 0 && oldIndex != targetIndex)
+                        {
+                            Bookmarks.Move(oldIndex, targetIndex);
+                            _bookmarkService.SaveBookmarks();
+                        }
+                    }
+                }
+            }
+            else
+            {
+                e.Handled = true;
+            }
+        }
+
+        private void BookmarksBar_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("EchoBookmark"))
+            {
+                e.Effects = DragDropEffects.Move;
+                e.Handled = true;
+            }
+        }
+
+        private void BookmarksBar_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("EchoBookmark") &&
+                e.Data.GetData("EchoBookmark") is Bookmark sourceBm)
+            {
+                e.Handled = true;
+                popupBookmarkGroup.IsOpen = false;
+
+                // Check if bookmark was in a group
+                Bookmark? parentGroup = null;
+                if (e.Data.GetDataPresent("EchoBookmarkSourceGroup") &&
+                    e.Data.GetData("EchoBookmarkSourceGroup") is Bookmark sg)
+                {
+                    parentGroup = sg;
+                }
+                else
+                {
+                    parentGroup = Bookmarks.FirstOrDefault(b => b.IsGroup && b.Children.Contains(sourceBm));
+                }
+
+                if (parentGroup != null)
+                {
+                    parentGroup.Children.Remove(sourceBm);
+                }
+                else if (Bookmarks.Contains(sourceBm))
+                {
+                    Bookmarks.Remove(sourceBm);
+                }
+
+                // Determine insertion index based on mouse position relative to itemsBookmarksBar
+                Point dropPos = e.GetPosition(itemsBookmarksBar);
+                int dropIndex = GetBookmarkDropIndexAtPoint(dropPos);
+                if (dropIndex >= 0 && dropIndex <= Bookmarks.Count)
+                {
+                    Bookmarks.Insert(dropIndex, sourceBm);
+                }
+                else
+                {
+                    Bookmarks.Add(sourceBm);
+                }
+
+                _bookmarkService.SaveBookmarks();
+                CheckBookmarkStatus();
+            }
+        }
+
+        private int GetBookmarkDropIndexAtPoint(Point pointInItemsControl)
+        {
+            if (itemsBookmarksBar == null || Bookmarks.Count == 0) return Bookmarks.Count;
+
+            for (int i = 0; i < itemsBookmarksBar.Items.Count; i++)
+            {
+                var container = itemsBookmarksBar.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                if (container != null && container.IsLoaded)
+                {
+                    try
+                    {
+                        GeneralTransform transform = container.TransformToAncestor(itemsBookmarksBar);
+                        Point containerPos = transform.Transform(new Point(0, 0));
+                        double containerMidX = containerPos.X + (container.ActualWidth / 2.0);
+
+                        if (pointInItemsControl.X < containerMidX)
+                        {
+                            return i;
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback if transform fails
+                    }
+                }
+            }
+
+            return Bookmarks.Count;
         }
 
         private void GroupChip_DragOver(object sender, DragEventArgs e)
@@ -811,6 +1194,8 @@ namespace EchoBrowser
                     !sourceBm.IsGroup &&
                     sourceBm != targetGroup)
                 {
+                    popupBookmarkGroup.IsOpen = false;
+
                     // Remove from top-level Bookmarks or from another group
                     if (Bookmarks.Contains(sourceBm))
                     {
@@ -936,84 +1321,263 @@ namespace EchoBrowser
 
         private void GroupChip_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.Tag is Bookmark group && group.IsGroup)
+            if (sender is FrameworkElement fe && ((fe.Tag as Bookmark) ?? (fe.DataContext as Bookmark)) is Bookmark group && group.IsGroup)
             {
-                var cm = new ContextMenu
-                {
-                    Background = (Brush)FindResource("SurfaceBrush"),
-                    BorderBrush = (Brush)FindResource("BorderBrush"),
-                    Foreground = (Brush)FindResource("TextPrimaryBrush")
-                };
+                _activeGroupForPopup = group;
+                txtBookmarkGroupName.Text = group.Title;
+                txtBookmarkGroupCount.Text = group.Children.Count.ToString();
+                txtGroupEmptyState.Visibility = group.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                itemsGroupBookmarks.ItemsSource = group.Children;
 
-                if (group.Children.Count == 0)
+                popupBookmarkGroup.PlacementTarget = fe;
+                popupBookmarkGroup.IsOpen = true;
+            }
+        }
+
+        private void BtnCloseGroupPopup_Click(object sender, RoutedEventArgs e)
+        {
+            popupBookmarkGroup.IsOpen = false;
+        }
+
+        private void BtnAddBookmarkToCurrentGroup_Click(object sender, RoutedEventArgs e)
+        {
+            var group = _activeGroupForPopup;
+            popupBookmarkGroup.IsOpen = false;
+            OpenAddBookmarkDialog(group);
+        }
+
+        private void BtnDeleteCurrentGroup_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeGroupForPopup != null)
+            {
+                var group = _activeGroupForPopup;
+                popupBookmarkGroup.IsOpen = false;
+                _bookmarkService.RemoveBookmark(group);
+                CheckBookmarkStatus();
+            }
+        }
+
+        private void GroupBookmarkItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is Bookmark bm)
+            {
+                _bmDragStartPoint = e.GetPosition(null);
+                _draggedBookmark = bm;
+            }
+        }
+
+        private void GroupBookmarkItem_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && _draggedBookmark != null)
+            {
+                Point currentPos = e.GetPosition(null);
+                Vector diff = _bmDragStartPoint - currentPos;
+
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    var emptyItem = new MenuItem
+                    var bm = _draggedBookmark;
+                    var sourceGroup = _activeGroupForPopup;
+
+                    var data = new DataObject("EchoBookmark", bm);
+                    if (sourceGroup != null)
                     {
-                        Header = "(Keine Lesezeichen in dieser Gruppe)",
-                        IsEnabled = false,
-                        Foreground = (Brush)FindResource("TextMutedBrush")
-                    };
-                    cm.Items.Add(emptyItem);
-                }
-                else
-                {
-                    foreach (var child in group.Children)
+                        data.SetData("EchoBookmarkSourceGroup", sourceGroup);
+                    }
+
+                    try
                     {
-                        var childItem = new MenuItem
-                        {
-                            Header = child.Title,
-                            Tag = child.Url,
-                            Foreground = (Brush)FindResource("TextPrimaryBrush")
-                        };
-                        childItem.Click += (s, args) =>
-                        {
-                            if (childItem.Tag is string u) NavigateToInput(u);
-                        };
-
-                        var subCm = new ContextMenu
-                        {
-                            Background = (Brush)FindResource("SurfaceBrush"),
-                            BorderBrush = (Brush)FindResource("BorderBrush"),
-                            Foreground = (Brush)FindResource("TextPrimaryBrush")
-                        };
-                        var delChild = new MenuItem { Header = "Aus Gruppe entfernen", Tag = child };
-                        delChild.Click += (s, args) =>
-                        {
-                            group.Children.Remove(child);
-                            _bookmarkService.SaveBookmarks();
-                            CheckBookmarkStatus();
-                        };
-                        subCm.Items.Add(delChild);
-                        childItem.ContextMenu = subCm;
-
-                        cm.Items.Add(childItem);
+                        popupBookmarkGroup.StaysOpen = true;
+                        DragDrop.DoDragDrop(this, data, DragDropEffects.Move);
+                    }
+                    finally
+                    {
+                        popupBookmarkGroup.StaysOpen = false;
+                        _draggedBookmark = null;
                     }
                 }
+            }
+        }
 
-                cm.Items.Add(new Separator { Background = (Brush)FindResource("BorderSubtleBrush") });
+        private void GroupBookmarkItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_draggedBookmark != null && sender is FrameworkElement fe && fe.DataContext is Bookmark bm)
+            {
+                Point currentPos = e.GetPosition(null);
+                Vector diff = _bmDragStartPoint - currentPos;
+                if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance &&
+                    Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _draggedBookmark = null;
+                    popupBookmarkGroup.IsOpen = false;
+                    NavigateToInput(bm.Url);
+                }
+            }
+            _draggedBookmark = null;
+        }
 
-                var addItem = new MenuItem
-                {
-                    Header = "+ Lesezeichen zu dieser Gruppe hinzufügen...",
-                    Foreground = (Brush)FindResource("AccentSilverBrightBrush")
-                };
-                addItem.Click += (s, args) => OpenAddBookmarkDialog(group);
-                cm.Items.Add(addItem);
+        private void GroupBookmarkItem_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle && sender is FrameworkElement fe && fe.DataContext is Bookmark bm)
+            {
+                popupBookmarkGroup.IsOpen = false;
+                AddNewTab(bm.Url);
+            }
+        }
 
-                var delGroup = new MenuItem
+        private void MenuGroupBookmarkOpenNewTab_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is Bookmark bm)
+            {
+                popupBookmarkGroup.IsOpen = false;
+                AddNewTab(bm.Url);
+            }
+        }
+
+        private void MenuGroupBookmarkMoveToBar_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is Bookmark bm && _activeGroupForPopup != null)
+            {
+                _activeGroupForPopup.Children.Remove(bm);
+                Bookmarks.Add(bm);
+                _bookmarkService.SaveBookmarks();
+                CheckBookmarkStatus();
+
+                txtBookmarkGroupCount.Text = _activeGroupForPopup.Children.Count.ToString();
+                txtGroupEmptyState.Visibility = _activeGroupForPopup.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        private void MenuGroupBookmarkDelete_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is Bookmark bm && _activeGroupForPopup != null)
+            {
+                _activeGroupForPopup.Children.Remove(bm);
+                _bookmarkService.SaveBookmarks();
+                CheckBookmarkStatus();
+
+                txtBookmarkGroupCount.Text = _activeGroupForPopup.Children.Count.ToString();
+                txtGroupEmptyState.Visibility = _activeGroupForPopup.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        private void GroupBookmarkItem_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("EchoBookmark"))
+            {
+                e.Effects = DragDropEffects.Move;
+                e.Handled = true;
+
+                if (e.Data.GetData("EchoBookmark") is Bookmark sourceBm &&
+                    sender is FrameworkElement fe && fe.DataContext is Bookmark targetBm &&
+                    _activeGroupForPopup != null)
                 {
-                    Header = "Gruppe löschen",
-                    Foreground = (Brush)FindResource("TextPrimaryBrush")
-                };
-                delGroup.Click += (s, args) =>
+                    if (sourceBm != targetBm && _activeGroupForPopup.Children.Contains(sourceBm) && _activeGroupForPopup.Children.Contains(targetBm))
+                    {
+                        int oldIndex = _activeGroupForPopup.Children.IndexOf(sourceBm);
+                        int newIndex = _activeGroupForPopup.Children.IndexOf(targetBm);
+                        if (oldIndex >= 0 && newIndex >= 0)
+                        {
+                            _activeGroupForPopup.Children.Move(oldIndex, newIndex);
+                            _bookmarkService.SaveBookmarks();
+                        }
+                    }
+                }
+            }
+        }
+
+        private void GroupBookmarkItem_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("EchoBookmark") &&
+                e.Data.GetData("EchoBookmark") is Bookmark sourceBm &&
+                sender is FrameworkElement fe && fe.DataContext is Bookmark targetBm &&
+                _activeGroupForPopup != null)
+            {
+                e.Handled = true;
+
+                if (!_activeGroupForPopup.Children.Contains(sourceBm) && !sourceBm.IsGroup)
                 {
-                    _bookmarkService.RemoveBookmark(group);
+                    // Remove from top-level or from another group
+                    if (Bookmarks.Contains(sourceBm))
+                    {
+                        Bookmarks.Remove(sourceBm);
+                    }
+                    else
+                    {
+                        foreach (var g in Bookmarks.Where(b => b.IsGroup))
+                        {
+                            if (g.Children.Contains(sourceBm))
+                            {
+                                g.Children.Remove(sourceBm);
+                                break;
+                            }
+                        }
+                    }
+
+                    int targetIndex = _activeGroupForPopup.Children.IndexOf(targetBm);
+                    if (targetIndex >= 0)
+                    {
+                        _activeGroupForPopup.Children.Insert(targetIndex, sourceBm);
+                    }
+                    else
+                    {
+                        _activeGroupForPopup.Children.Add(sourceBm);
+                    }
+
+                    _bookmarkService.SaveBookmarks();
                     CheckBookmarkStatus();
-                };
-                cm.Items.Add(delGroup);
+                    txtBookmarkGroupCount.Text = _activeGroupForPopup.Children.Count.ToString();
+                    txtGroupEmptyState.Visibility = _activeGroupForPopup.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+        }
 
-                cm.PlacementTarget = fe;
-                cm.IsOpen = true;
+        private void GroupFlyout_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("EchoBookmark"))
+            {
+                if (e.Data.GetData("EchoBookmark") is Bookmark sourceBm && !sourceBm.IsGroup)
+                {
+                    e.Effects = DragDropEffects.Move;
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void GroupFlyout_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("EchoBookmark") &&
+                e.Data.GetData("EchoBookmark") is Bookmark sourceBm &&
+                !sourceBm.IsGroup &&
+                _activeGroupForPopup != null)
+            {
+                e.Handled = true;
+
+                if (!_activeGroupForPopup.Children.Contains(sourceBm))
+                {
+                    // Remove from top-level or from another group
+                    if (Bookmarks.Contains(sourceBm))
+                    {
+                        Bookmarks.Remove(sourceBm);
+                    }
+                    else
+                    {
+                        foreach (var g in Bookmarks.Where(b => b.IsGroup))
+                        {
+                            if (g.Children.Contains(sourceBm))
+                            {
+                                g.Children.Remove(sourceBm);
+                                break;
+                            }
+                        }
+                    }
+
+                    _activeGroupForPopup.Children.Add(sourceBm);
+                    _bookmarkService.SaveBookmarks();
+                    CheckBookmarkStatus();
+                    txtBookmarkGroupCount.Text = _activeGroupForPopup.Children.Count.ToString();
+                    txtGroupEmptyState.Visibility = _activeGroupForPopup.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
             }
         }
 
@@ -1078,6 +1642,18 @@ namespace EchoBrowser
                 ActiveTab.Title = _isIncognito ? "Neuer Tab (Inkognito)" : "Neuer Tab";
                 ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
                 txtUrl.Text = "";
+                return;
+            }
+
+            // Check if navigating to custom settings page
+            if (target.Equals("echo://settings", StringComparison.OrdinalIgnoreCase) ||
+                target.Equals("about:settings", StringComparison.OrdinalIgnoreCase) ||
+                target.Equals("about:preferences", StringComparison.OrdinalIgnoreCase) ||
+                target.Equals("chrome://settings", StringComparison.OrdinalIgnoreCase) ||
+                target.Equals("edge://settings", StringComparison.OrdinalIgnoreCase) ||
+                target.Equals("settings", StringComparison.OrdinalIgnoreCase))
+            {
+                NavigateToSettingsPage(ActiveTab);
                 return;
             }
 
@@ -1522,11 +2098,7 @@ namespace EchoBrowser
         private void MenuSettings_Click(object sender, RoutedEventArgs e)
         {
             popupMenu.IsOpen = false;
-            MessageBox.Show(
-                "Echo-Browser Version 1.1 (Silver/Anthracite Edition)\nEngine: Microsoft WebView2 / Chromium\nPlattform: .NET 8.0 WPF",
-                "Über Echo-Browser",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            OpenSettingsTab();
         }
 
         private void BtnThemePreset_Click(object sender, RoutedEventArgs e)
@@ -1536,6 +2108,8 @@ namespace EchoBrowser
                 if (Enum.TryParse<ThemePreset>(presetName, out var preset))
                 {
                     ThemeManager.Instance.ApplyPreset(preset);
+                    AppSettingsService.Instance.Settings.ThemePreset = presetName;
+                    AppSettingsService.Instance.Save();
                 }
                 popupTheme.IsOpen = false;
             }
@@ -1545,8 +2119,14 @@ namespace EchoBrowser
         {
             if (sender is Button btn && btn.Tag is string hex)
             {
-                Color color = ThemeManager.ColorFromHex(hex);
-                ThemeManager.Instance.SetAccentColor(color);
+                try
+                {
+                    Color color = ThemeManager.ColorFromHex(hex);
+                    ThemeManager.Instance.SetAccentColor(color);
+                    AppSettingsService.Instance.Settings.AccentColor = hex;
+                    AppSettingsService.Instance.Save();
+                }
+                catch { }
                 popupTheme.IsOpen = false;
             }
         }
@@ -1555,16 +2135,256 @@ namespace EchoBrowser
         {
             try
             {
-                string downloadsPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
-                    "Downloads");
-                Process.Start("explorer.exe", downloadsPath);
+                string downloadsPath = AppSettingsService.Instance.Settings.DownloadPath;
+                if (string.IsNullOrWhiteSpace(downloadsPath) || !Directory.Exists(downloadsPath))
+                {
+                    downloadsPath = AppSettings.GetDefaultDownloadPath();
+                }
+                Process.Start(new ProcessStartInfo { FileName = downloadsPath, UseShellExecute = true });
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Could not open downloads: {ex.Message}");
             }
         }
+
+        #region Settings & Session Management
+
+        public void NavigateToSettingsPage(BrowserTab? tab)
+        {
+            if (tab?.WebView == null) return;
+            tab.Url = SettingsPageService.SettingsPageUrl;
+            tab.Title = "Einstellungen";
+            string webViewVer = _webViewEnvironment?.BrowserVersionString ?? "120.0";
+            string html = SettingsPageService.GetSettingsPageHtml(AppSettingsService.Instance.Settings, webViewVer, "1.2");
+            tab.WebView.NavigateToString(html);
+            if (tab == ActiveTab)
+            {
+                txtUrl.Text = SettingsPageService.SettingsPageUrl;
+                UpdateNavigationControls();
+            }
+        }
+
+        public void OpenSettingsTab()
+        {
+            // If already open, switch to that tab
+            foreach (var tab in Tabs)
+            {
+                if (tab.Url.Equals(SettingsPageService.SettingsPageUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectTab(tab);
+                    return;
+                }
+            }
+
+            // If current tab is clean start page, navigate within it
+            if (ActiveTab != null && (ActiveTab.Url == StartPageService.StartPageUrl || string.IsNullOrWhiteSpace(ActiveTab.Url)))
+            {
+                NavigateToSettingsPage(ActiveTab);
+            }
+            else
+            {
+                AddNewTab(SettingsPageService.SettingsPageUrl);
+            }
+        }
+
+        private void SaveCurrentSession()
+        {
+            if (_isIncognito) return;
+            try
+            {
+                var urls = Tabs.Select(t => t.Url)
+                               .Where(u => !string.IsNullOrWhiteSpace(u) && 
+                                           u != StartPageService.StartPageUrl && 
+                                           u != SettingsPageService.SettingsPageUrl &&
+                                           !u.StartsWith("echo://", StringComparison.OrdinalIgnoreCase))
+                               .ToList();
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string file = Path.Combine(appData, "EchoBrowser", "session.json");
+                File.WriteAllText(file, JsonSerializer.Serialize(urls));
+            }
+            catch { }
+        }
+
+        private void RestorePreviousSession()
+        {
+            try
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string file = Path.Combine(appData, "EchoBrowser", "session.json");
+                if (File.Exists(file))
+                {
+                    var urls = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(file));
+                    if (urls != null && urls.Count > 0)
+                    {
+                        foreach (var url in urls)
+                        {
+                            AddNewTab(url);
+                        }
+                        return;
+                    }
+                }
+            }
+            catch { }
+
+            AddNewTab(StartPageService.StartPageUrl);
+        }
+
+        private void ApplyTrackingPrevention(string level)
+        {
+            var preventionLevel = level.ToLowerInvariant() switch
+            {
+                "strict" => CoreWebView2TrackingPreventionLevel.Strict,
+                "none" => CoreWebView2TrackingPreventionLevel.None,
+                _ => CoreWebView2TrackingPreventionLevel.Balanced
+            };
+
+            foreach (var tab in Tabs)
+            {
+                try
+                {
+                    if (tab.WebView?.CoreWebView2?.Profile != null)
+                    {
+                        tab.WebView.CoreWebView2.Profile.PreferredTrackingPreventionLevel = preventionLevel;
+                    }
+                }
+                catch { }
+            }
+        }
+
+        private void ApplyDefaultZoom(int percent)
+        {
+            double zoomFactor = Math.Clamp(percent / 100.0, 0.5, 3.0);
+            foreach (var tab in Tabs)
+            {
+                try
+                {
+                    if (tab.WebView?.CoreWebView2 != null && 
+                        tab.Url != StartPageService.StartPageUrl && 
+                        tab.Url != SettingsPageService.SettingsPageUrl)
+                    {
+                        tab.WebView.CoreWebView2.Settings.IsZoomControlEnabled = true;
+                        tab.WebView.ZoomFactor = zoomFactor;
+                    }
+                }
+                catch { }
+            }
+        }
+
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl+, -> Settings
+            if (e.Key == Key.OemComma && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                OpenSettingsTab();
+                e.Handled = true;
+            }
+            // Ctrl+T -> New Tab
+            else if (e.Key == Key.T && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                AddNewTab(StartPageService.StartPageUrl);
+                e.Handled = true;
+            }
+            // Ctrl+W -> Close Tab
+            else if (e.Key == Key.W && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                if (ActiveTab != null) CloseTab(ActiveTab);
+                e.Handled = true;
+            }
+            // Ctrl+Shift+N -> New Incognito Window
+            else if (e.Key == Key.N && 
+                     (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
+                     (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                OpenNewIncognitoWindow();
+                e.Handled = true;
+            }
+            // Ctrl+N -> New Window
+            else if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                var win = new MainWindow();
+                win.Show();
+                e.Handled = true;
+            }
+            // Ctrl+Shift+B -> Toggle Bookmarks Bar
+            else if (e.Key == Key.B && 
+                     (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && 
+                     (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                MenuToggleBookmarksBar_Click(sender, e);
+                e.Handled = true;
+            }
+            // Ctrl+H -> History
+            else if (e.Key == Key.H && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                if (popupHistory.IsOpen)
+                {
+                    popupHistory.IsOpen = false;
+                }
+                else
+                {
+                    MenuHistory_Click(sender, e);
+                }
+                e.Handled = true;
+            }
+            // Ctrl+J -> Downloads
+            else if (e.Key == Key.J && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                popupDownloads.IsOpen = !popupDownloads.IsOpen;
+                e.Handled = true;
+            }
+            // Ctrl+L or Alt+D -> Focus Omnibox
+            else if ((e.Key == Key.L && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) ||
+                     (e.Key == Key.D && (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt))
+            {
+                txtUrl.Focus();
+                txtUrl.SelectAll();
+                e.Handled = true;
+            }
+        }
+
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_isIncognito && Tabs.Count > 1 && AppSettingsService.Instance.Settings.WarnOnClosingMultipleTabs)
+            {
+                var result = MessageBox.Show(
+                    $"Möchtest du wirklich alle {Tabs.Count} geöffneten Tabs schließen?",
+                    "Echo-Browser beenden",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            SaveCurrentSession();
+
+            if (!_isIncognito && AppSettingsService.Instance.Settings.ClearDataOnExit)
+            {
+                try
+                {
+                    _historyService.ClearHistory();
+                }
+                catch { }
+            }
+
+            if (_isIncognito && !string.IsNullOrEmpty(_incognitoFolder))
+            {
+                try
+                {
+                    if (Directory.Exists(_incognitoFolder))
+                    {
+                        Directory.Delete(_incognitoFolder, true);
+                    }
+                }
+                catch { }
+            }
+        }
+
+        #endregion
 
         private void BtnOpenDownloadFile_Click(object sender, RoutedEventArgs e)
         {
