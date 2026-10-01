@@ -1,17 +1,36 @@
 # Echo-Browser TODO
 
 ## Erledigt:
-- [x] **Bug behoben**: Beim Rechtsklick wurde links neben dem Text eine weiße Box angezeigt (Default Windows Aero Icon-Gutter). Es wurde ein modernes, dunkles, konsistentes ControlTemplate für `ContextMenu`, `MenuItem` und `Separator` im Silver/Anthracite-Theme implementiert (Transparenter Icon-Bereich ohne weiße Boxen, weiche Hover-Effekte, abgerundete Ecken, Drop-Shadow).
-- [x] **Settings Menü ausgebaut**: Vollwertige, moderne Einstellungs-Zentrale (`echo://settings` und Menü "Einstellungen & Über Echo" / `Ctrl+,`) wie in Chrome und Firefox:
-  - **Allgemein & Startverhalten**: Neue Tab-Seite öffnen, Vorherige Sitzung wiederherstellen, Bestimmte Start-URL, Home-Button ein/aus, Startseiten-Verknüpfungen ein/aus.
-  - **Suchmaschine**: Standardsuchmaschine wählen (DuckDuckGo, Google, Bing, Ecosia, Brave, Startpage) & Suchvorschläge-Toggle.
-  - **Erscheinungsbild**: Themes (Silber & Anthrazit, Midnight OLED, Titanium Light, Cobalt Slate), Akzentfarben (Silber, Eisblau, Smaragd, Bernstein, Rubin, Amethyst, Custom Hex), Lesezeichenleiste, Seitenleiste, Standard-Zoomstufe.
-  - **Datenschutz & Sicherheit**: Echo Shield Stufen (Ausgewogen, Strikt, Deaktiviert), Pop-up-Blocker, JavaScript ein/aus, Do Not Track (DNT), modales Tool zur vollständigen Bereinigung von Browserdaten (Verlauf, Cookies, Cache).
-  - **Downloads**: Download-Verzeichnis wählen & anpassen (inkl. Windows Ordnerauswahl-Dialog und Explorer-Verknüpfung), Option zur Bestätigung des Speicherorts vor jedem Download.
-  - **Tabs & Verhalten**: Neue Tabs im Hintergrund öffnen, Warnung beim Schließen mehrerer Tabs, Einstellungen auf Werkseinstellungen zurücksetzen.
-  - **Über Echo**: Versionsdetails (v1.2), Chromium/WebView2-Versionsanzeige, Plattform-Info, Update-Status-Badge.
-- [x] **Lesezeichen-Gruppen Drag & Drop**: Lesezeichen können jetzt per Drag & Drop aus Gruppen herausgezogen und wieder auf der Lesezeichenleiste (oder in anderen Gruppen) platziert werden:
-  - Interaktives Gruppen-Flyout (`popupBookmarkGroup`) im modernen Echo-Design mit Drag-Handles, Zähler-Badge und Hover-Effekten.
-  - Direkte OLE Drag & Drop Unterstützung: Lesezeichen im Gruppen-Flyout anklicken und auf die Hauptleiste ziehen, um sie sofort aus der Gruppe herauszunehmen und an gewünschter Stelle abzulegen.
-  - Ebenso Unterstützung zum Umordnen innerhalb der Gruppe sowie Verschieben zwischen verschiedenen Gruppen.
-  - Kontextmenü-Option "Aus Gruppe auf Leiste verschieben" als Rechtsklick-Alternative.
+- [x] **Bug behoben (Lesezeichen-Persistenz)**: Wenn alle Lesezeichen gelöscht wurden, tauchten Standard-/Test-Lesezeichen nach dem Neustart nicht mehr auf. `BookmarkService.LoadBookmarks()` prüft nun vorab, ob `bookmarks.json` existiert; Fallback-Lesezeichen werden nur noch bei einer echten Erstinstallation generiert, nicht aber bei einer geleerten Lesezeichendatei.
+- [x] **Bug behoben (Erweiterungs-Installation & "Download abgebrochen")**:
+  - In `MainWindow.xaml.cs` wurde `SaveFileSecurityCheckStarting` abgefangen (`CancelSave = false`, `SuppressDefaultPolicy = true`), sodass Chromium Sicherheitsprüfungen für `.crx`-Dateien den Download nicht mehr vorzeitig abbrechen.
+  - `CoreWebView2EnvironmentOptions.AreBrowserExtensionsEnabled = true` aktiviert.
+  - Eigener `ExtensionService` implementiert: Dekodiert `.crx`-Header (Scan nach `PK\x03\x04`), entpackt das Archiv nach `%LOCALAPPDATA%\EchoBrowser\Extensions` und installiert die Erweiterung nahtlos via `Profile.AddBrowserExtensionAsync()`.
+  - Heruntergeladene `.crx`-Dateien werden nach Abschluss des Downloads automatisch installiert. Zudem wurde ein interaktives Erweiterungs-Popup mit Liste, Status-Toggles, Löschen-Button, manuellem `.crx`-Dateidialog und Direktlink zum Chrome Web Store integriert.
+- [x] **Bug behoben / Feature (Symbolleiste anpassen)**:
+  - Alle Schaltflächen in der oberen Leiste (Sidebar, Zurück, Vorwärts, Neu laden, Home, Suchmaschinen-Auswahl, Erweiterungen, Downloads) können nun per Rechtsklick ("Schaltfläche ausblenden") ausgeblendet werden.
+  - Ein Rechtsklick auf freien Platz in der Symbolleiste öffnet ein Kontextmenü mit dem Untermenü "Symbolleiste anpassen" (Checkboxen für jede Schaltfläche), "Alle Schaltflächen einblenden" sowie Direktlink "Symbolleiste in den Einstellungen anpassen...".
+  - In den Einstellungen (`echo://settings` -> Erscheinungsbild) gibt es eine dedizierte Konfigurationskarte für alle Symbolleisten-Buttons inklusive persistenter Speicherung in den `AppSettings`.
+- [x] **Integrierter Werbe- & Tracker-Blocker (Echo Shield)**:
+  - **AdBlockerService (`Services/AdBlockerService.cs`)**:
+    - Netzwerkfilterung via `WebResourceRequested` mit `AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All)`. Treffer werden mit Status `403 Forbidden` und `Stream.Null` blockiert.
+    - $O(1)$ Lookups via `HashSet<string>` (`StringComparer.OrdinalIgnoreCase`) und rekursiver Subdomain-Prüfung (`ads.example.com` blockiert, wenn `example.com` gelistet ist).
+    - Lokale Standard-Liste von über 100 gängigen Tracking- und Werbedomains als Fallback gebündelt.
+    - Asynchroner Hintergrund-Download und lokales Caching der StevenBlack Hosts-Liste unter `%LOCALAPPDATA%\EchoBrowser\blocklist.txt`.
+    - Kosmetisches Element-Hiding via `AddScriptToExecuteOnDocumentCreatedAsync` zum Ausblenden von Werbe-Containern (`.ad-container`, `.adsbox`, `[id^='google_ads']` etc.).
+  - **Tab-Lifecycle & Session-Statistik**:
+    - Jeder Tab verwaltet `BlockedTrackersCount` für die aktuelle Seite.
+    - Bei `NavigationStarting` wird der Zähler pro Tab zurückgesetzt.
+    - Bei jedem geblockten Netzwerk-Request wird der Zähler inkrementiert und die Omnibox synchron aktualisiert.
+  - **UI-Integration ("Echo Shield" in Omnibox & Popup)**:
+    - Dezentes Schild-Icon links in der Omnibox (Silber/Anthrazit mit Akzent-Highlight bei aktiver Blockierung).
+    - Zähler-Badge direkt neben dem Schild mit Anzahl der geblockten Elemente (ausgeblendet bei 0).
+    - Vollwertiges Shield-Popup im Echo-Theme:
+      - Status-Banner: "Echo Shield: Aktiviert / Deaktiviert".
+      - Toggle für aktuelle Website ("Schutz auf dieser Website") und globalen Schutz ("Echo Shield global aktiv").
+      - Session-Statistik: "X Tracker und Werbeanzeigen blockiert" sowie geladene Filterregeln.
+      - "Filter aktualisieren"-Button zur sofortigen Online-Synchronisation.
+      - Erweiterte Berechtigungen (JavaScript, Popups) & Websitedaten leeren.
+- [x] **Bug behoben (Kontextmenü-Gutter)**: Transparenter Icon-Bereich im Silver/Anthracite-Theme ohne weiße Boxen.
+- [x] **Settings Menü ausgebaut**: Einstellungs-Zentrale (`echo://settings`) für Allgemein, Suche, Themes, Datenschutz, Downloads und Tabs.
+- [x] **Lesezeichen-Gruppen Drag & Drop**: Vollständige OLE Drag & Drop Unterstützung in und aus Lesezeichen-Gruppen.

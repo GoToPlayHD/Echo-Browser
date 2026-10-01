@@ -1052,12 +1052,108 @@ namespace EchoBrowser.Services
                             </select>
                         </div>
                     </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">Symbolleiste &amp; Schaltflächen anpassen</div>
+                        <div class=""row-desc"">Blende Schaltflächen in der oberen Leiste nach Belieben ein oder aus. Tipp: Ein Rechtsklick auf jede Schaltfläche oder die Leiste erlaubt schnelles Anpassen.</div>
+
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Favoriten-Seitenleisten-Schaltfläche</div>
+                                <div class=""row-desc"">Schaltfläche ganz links zum Ein- und Ausklappen der Favoritenleiste.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowSidebarButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Zurück-Schaltfläche</div>
+                                <div class=""row-desc"">Navigiert zur vorherigen Seite im Tab-Verlauf.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowBackButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Vorwärts-Schaltfläche</div>
+                                <div class=""row-desc"">Navigiert zur nächsten Seite im Tab-Verlauf.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowForwardButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Neu laden-Schaltfläche</div>
+                                <div class=""row-desc"">Aktualisiert die aktuelle Seite oder stoppt das Laden.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowReloadButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Suchmaschinen-Auswahl</div>
+                                <div class=""row-desc"">Auswahlmenü direkt in der Symbolleiste zum schnellen Wechseln.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowSearchEngineSelector"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Erweiterungen-Schaltfläche</div>
+                                <div class=""row-desc"">Schaltfläche für installierte Chromium- und WebExtensions.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowExtensionsButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Downloads-Schaltfläche</div>
+                                <div class=""row-desc"">Schaltfläche für die Download-Übersicht und Status-Badge.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkShowDownloadsButton"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- 4. DATENSCHUTZ & SICHERHEIT -->
                 <section id=""section-privacy"">
                     <div class=""section-header"">
                         <h2 class=""section-title"">Datenschutz &amp; Sicherheit</h2>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Integrierter Werbe- &amp; Tracker-Blocker (Echo Shield)</div>
+                                <div class=""row-desc"">Blockiert Werbung, bösartige Skripte und Tracker auf Netzwerkebene (403 Forbidden) sowie kosmetisches Element-Hiding.</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkIsAdBlockerEnabled"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Filterregeln &amp; Blockliste aktualisieren</div>
+                                <div class=""row-desc"" id=""lblFilterRuleDesc"">Filtert Werbenetzwerke und Tracker via StevenBlack Hosts.</div>
+                            </div>
+                            <button id=""btnUpdateAdBlockFilter"" class=""btn btn-primary"">Filter aktualisieren</button>
+                        </div>
                     </div>
 
                     <div class=""settings-card"">
@@ -1339,7 +1435,18 @@ namespace EchoBrowser.Services
             document.getElementById('chkSidebar').checked = s.IsSidebarVisible !== false;
             document.getElementById('selZoom').value = (s.DefaultZoomPercent || 100).toString();
 
+            // Toolbar buttons
+            if (document.getElementById('chkShowSidebarButton')) document.getElementById('chkShowSidebarButton').checked = s.ShowSidebarButton !== false;
+            if (document.getElementById('chkShowBackButton')) document.getElementById('chkShowBackButton').checked = s.ShowBackButton !== false;
+            if (document.getElementById('chkShowForwardButton')) document.getElementById('chkShowForwardButton').checked = s.ShowForwardButton !== false;
+            if (document.getElementById('chkShowReloadButton')) document.getElementById('chkShowReloadButton').checked = s.ShowReloadButton !== false;
+            if (document.getElementById('chkShowSearchEngineSelector')) document.getElementById('chkShowSearchEngineSelector').checked = s.ShowSearchEngineSelector !== false;
+            if (document.getElementById('chkShowExtensionsButton')) document.getElementById('chkShowExtensionsButton').checked = s.ShowExtensionsButton !== false;
+            if (document.getElementById('chkShowDownloadsButton')) document.getElementById('chkShowDownloadsButton').checked = s.ShowDownloadsButton !== false;
+
             // 4. Privacy & Shield
+            if (document.getElementById('chkIsAdBlockerEnabled')) document.getElementById('chkIsAdBlockerEnabled').checked = s.IsAdBlockerEnabled !== false;
+
             document.querySelectorAll('#shieldGrid .shield-card').forEach(el => {
                 const lvl = el.getAttribute('data-level');
                 if (lvl === (s.TrackingPreventionLevel || 'balanced').toLowerCase()) {
@@ -1485,6 +1592,59 @@ namespace EchoBrowser.Services
             sendMessage({ type: 'updateSetting', key: 'DefaultZoomPercent', value: zoom });
             showToast('Standard-Zoom auf ' + zoom + '% gesetzt');
         });
+
+        // Toolbar Buttons Visibility Toggles
+        const toolbarButtons = [
+            { id: 'chkShowSidebarButton', key: 'ShowSidebarButton' },
+            { id: 'chkShowBackButton', key: 'ShowBackButton' },
+            { id: 'chkShowForwardButton', key: 'ShowForwardButton' },
+            { id: 'chkShowReloadButton', key: 'ShowReloadButton' },
+            { id: 'chkShowSearchEngineSelector', key: 'ShowSearchEngineSelector' },
+            { id: 'chkShowExtensionsButton', key: 'ShowExtensionsButton' },
+            { id: 'chkShowDownloadsButton', key: 'ShowDownloadsButton' }
+        ];
+
+        toolbarButtons.forEach(btn => {
+            const el = document.getElementById(btn.id);
+            if (el) {
+                el.addEventListener('change', (e) => {
+                    sendMessage({ type: 'updateSetting', key: btn.key, value: e.target.checked });
+                    showToast('Symbolleiste aktualisiert');
+                });
+            }
+        });
+
+        // AdBlocker (Echo Shield) Toggles & Update
+        const chkAdBlock = document.getElementById('chkIsAdBlockerEnabled');
+        if (chkAdBlock) {
+            chkAdBlock.addEventListener('change', (e) => {
+                sendMessage({ type: 'updateSetting', key: 'IsAdBlockerEnabled', value: e.target.checked });
+                showToast('Echo Shield Werbeblocker aktualisiert');
+            });
+        }
+
+        const btnUpdateFilter = document.getElementById('btnUpdateAdBlockFilter');
+        if (btnUpdateFilter) {
+            btnUpdateFilter.addEventListener('click', () => {
+                btnUpdateFilter.disabled = true;
+                btnUpdateFilter.innerText = 'Lade Filter...';
+                sendMessage({ type: 'updateAdBlockFilter' });
+            });
+        }
+
+        window.onAdBlockFilterUpdated = function(count) {
+            const btn = document.getElementById('btnUpdateAdBlockFilter');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = 'Aktualisiert!';
+                setTimeout(() => { btn.innerText = 'Filter aktualisieren'; }, 2000);
+            }
+            const desc = document.getElementById('lblFilterRuleDesc');
+            if (desc) {
+                desc.innerText = (count ? count.toLocaleString('de-DE') : 'Über 100.000') + ' Filterregeln geladen und aktiv.';
+            }
+            showToast('Filterliste erfolgreich aktualisiert (' + count + ' Regeln)');
+        };
 
         // Shield Level Cards
         document.querySelectorAll('#shieldGrid .shield-card').forEach(el => {

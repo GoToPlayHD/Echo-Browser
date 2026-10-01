@@ -23,7 +23,18 @@ namespace EchoBrowser.Models
         public bool IsStartpageFavoritesVisible { get; set; } = true;
         public int DefaultZoomPercent { get; set; } = 100; // 75, 90, 100, 110, 125, 150
 
+        // Toolbar Buttons Visibility
+        public bool ShowSidebarButton { get; set; } = true;
+        public bool ShowBackButton { get; set; } = true;
+        public bool ShowForwardButton { get; set; } = true;
+        public bool ShowReloadButton { get; set; } = true;
+        public bool ShowSearchEngineSelector { get; set; } = true;
+        public bool ShowExtensionsButton { get; set; } = true;
+        public bool ShowDownloadsButton { get; set; } = true;
+
         // 4. Privacy & Security
+        public bool IsAdBlockerEnabled { get; set; } = true;
+        public string AdBlockerFilterUrl { get; set; } = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
         public string TrackingPreventionLevel { get; set; } = "balanced"; // "none", "balanced", "strict"
         public bool BlockPopups { get; set; } = true;
         public bool EnableJavaScript { get; set; } = true;

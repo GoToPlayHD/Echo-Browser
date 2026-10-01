@@ -240,10 +240,31 @@
         <!-- ROW 1: MAIN NAVIGATION & OMNIBOX BAR                         -->
         <!-- ============================================================ -->
         <Border Grid.Row="1" 
+                x:Name="borderToolbar"
                 Background="{DynamicResource ToolbarBackgroundBrush}" 
                 BorderBrush="{DynamicResource BorderSubtleBrush}" 
                 BorderThickness="0,0,0,1"
                 Padding="8,5">
+            <Border.ContextMenu>
+                <ContextMenu Background="{DynamicResource SurfaceBrush}" 
+                             BorderBrush="{DynamicResource BorderBrush}" 
+                             Foreground="{DynamicResource TextPrimaryBrush}">
+                    <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                        <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                        <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                        <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                    </MenuItem>
+                    <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                    <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                </ContextMenu>
+            </Border.ContextMenu>
             <DockPanel LastChildFill="True">
                 
                 <!-- Left Navigational Controls -->
@@ -253,6 +274,26 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnToggleSidebar_Click"
                             ToolTip="Favoriten-Seitenleiste ein-/ausblenden">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Sidebar" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Path Data="M3 3h18v18H3V3zm6 2v14h12V5H9z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -264,6 +305,26 @@
                             Click="BtnBack_Click"
                             IsEnabled="{Binding ActiveTab.CanGoBack, RelativeSource={RelativeSource AncestorType=Window}}"
                             ToolTip="Zurück (Alt+Links)">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Back" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Path Data="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -275,6 +336,26 @@
                             Click="BtnForward_Click"
                             IsEnabled="{Binding ActiveTab.CanGoForward, RelativeSource={RelativeSource AncestorType=Window}}"
                             ToolTip="Vor (Alt+Rechts)">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Forward" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Path Data="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -285,6 +366,26 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnReload_Click"
                             ToolTip="Neu laden (Ctrl+R / F5)">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Reload" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Grid>
                             <!-- Reload Arrow (When Idle) -->
                             <Path x:Name="pathReload"
@@ -305,6 +406,26 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnHome_Click"
                             ToolTip="Startseite (Echo New Tab)">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Home" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Path Data="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -320,6 +441,26 @@
                               Margin="0,0,6,0"
                               SelectionChanged="CmbSearchEngine_SelectionChanged"
                               ToolTip="Suchmaschine für Adressleiste und Startseite ändern">
+                        <ComboBox.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="SearchEngine" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </ComboBox.ContextMenu>
                         <ComboBoxItem Tag="duckduckgo" Content="DuckDuckGo"/>
                         <ComboBoxItem Tag="google" Content="Google"/>
                         <ComboBoxItem Tag="bing" Content="Bing"/>
@@ -333,7 +474,27 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnExtensions_Click"
                             ToolTip="Erweiterungen (WebExtensions)">
-                        <Path Data="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z"
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Extensions" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <Path Data="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
                     </Button>
@@ -343,6 +504,26 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnDownloads_Click"
                             ToolTip="Downloads (Ctrl+J)">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Schaltfläche ausblenden" Tag="Downloads" Click="MenuHideToolbarButton_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Grid>
                             <Path Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" 
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -361,6 +542,24 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnMenu_Click"
                             ToolTip="Hauptmenü">
+                        <Button.ContextMenu>
+                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
+                                <MenuItem Header="Symbolleiste anpassen" SubmenuOpened="MenuToolbarSubmenu_Opened">
+                                    <MenuItem Header="Favoriten-Seitenleiste" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Zurück" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Vor" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Neu laden" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Startseite" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                    <MenuItem Header="Suchmaschinen-Auswahl" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Erweiterungen" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                    <MenuItem Header="Downloads" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
+                                </MenuItem>
+                                <MenuItem Header="Alle Schaltflächen einblenden" Click="MenuShowAllToolbarButtons_Click"/>
+                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                <MenuItem Header="Symbolleiste in den Einstellungen anpassen..." Click="MenuOpenToolbarSettings_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Path Data="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -384,21 +583,40 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Brave-Style Site-Info & Shield Button -->
+                        <!-- Brave-Style Site-Info & Shield Button with Badge Counter -->
                         <Button x:Name="btnShield" 
                                 Grid.Column="0"
                                 Style="{DynamicResource IconButtonStyle}"
-                                Width="30" Height="28"
-                                Margin="3,0,0,0"
+                                Height="28"
+                                MinWidth="30"
+                                Padding="6,0"
+                                Margin="3,0,2,0"
                                 Click="BtnShield_Click"
-                                ToolTip="Site-Informationen, SSL-Status &amp; Shield-Schutz">
-                            <Grid>
+                                ToolTip="Echo Shield: Werbe- &amp; Tracking-Schutz">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <!-- Shield / Lock Icon -->
                                 <Path x:Name="pathShieldIcon"
                                       Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" 
                                       Fill="{DynamicResource StatusSuccessBrush}" 
-                                      Width="13" Height="13" Stretch="Uniform"/>
-                            </Grid>
+                                      Width="13" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"/>
+                                <!-- Subtle Badge / Counter -->
+                                <Border x:Name="borderShieldBadge"
+                                        Background="{DynamicResource ShieldActiveBrush}"
+                                        CornerRadius="7"
+                                        Padding="5,1,5,1"
+                                        Margin="5,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                    <TextBlock x:Name="txtShieldBadgeCount"
+                                               Text="0"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="#0D1117"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
                         </Button>
 
                         <!-- Address / Search Input TextBox -->
@@ -676,7 +894,7 @@
                StaysOpen="False" 
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="330" Margin="5">
+            <Border Style="{DynamicResource FlyoutCardStyle}" Width="340" Margin="5">
                 <StackPanel>
                     <!-- Header with Host & Security Status -->
                     <DockPanel LastChildFill="True" Margin="0,0,0,12">
@@ -685,7 +903,8 @@
                                 CornerRadius="18" 
                                 Background="{DynamicResource TabBackgroundBrush}" 
                                 Margin="0,0,12,0">
-                            <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
+                            <Path x:Name="pathShieldPopupIcon"
+                                  Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
                                   Fill="{DynamicResource StatusSuccessBrush}" 
                                   Width="18" Height="18" Stretch="Uniform" 
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -700,32 +919,83 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
+                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,10"/>
 
-                    <!-- Shield Controls -->
-                    <TextBlock Text="ECHO SHIELD &amp; SCHUTZ" 
-                               FontSize="10" FontWeight="Bold" 
-                               Foreground="{DynamicResource TextMutedBrush}" 
-                               Margin="0,0,0,8"/>
+                    <!-- Shield Status Banner Card -->
+                    <Border Background="{DynamicResource TabBackgroundBrush}" CornerRadius="8" Padding="12,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock x:Name="txtShieldActiveState" Text="Echo Shield: Aktiviert" 
+                                       FontWeight="Bold" FontSize="13" 
+                                       Foreground="{DynamicResource StatusSuccessBrush}"/>
+                            <TextBlock Text="Werbe- &amp; Tracking-Schutz aktiv" FontSize="11" 
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Border>
 
-                    <!-- Tracking Protection Toggle -->
+                    <!-- Primary Protection Toggles -->
                     <CheckBox x:Name="chkTrackingProtection" 
                               Style="{DynamicResource ModernToggleSwitch}" 
                               IsChecked="True" 
-                              Margin="0,6"
+                              Margin="0,4"
                               Checked="ShieldOption_Changed"
                               Unchecked="ShieldOption_Changed">
                         <StackPanel>
-                            <TextBlock Text="Tracking-Schutz" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtTrackersBlocked" Text="Tracker &amp; Fingerprinting blockieren" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="Schutz auf dieser Website" FontWeight="SemiBold"/>
+                            <TextBlock Text="Tracker &amp; Anzeigen auf dieser Domain blockieren" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
                         </StackPanel>
                     </CheckBox>
 
-                    <!-- JavaScript Toggle -->
+                    <CheckBox x:Name="chkGlobalShield" 
+                              Style="{DynamicResource ModernToggleSwitch}" 
+                              IsChecked="True" 
+                              Margin="0,4"
+                              Checked="ShieldOption_Changed"
+                              Unchecked="ShieldOption_Changed">
+                        <StackPanel>
+                            <TextBlock Text="Echo Shield global aktiv" FontWeight="SemiBold"/>
+                            <TextBlock Text="Netzwerkfilter für alle Tabs aktivieren" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Session Statistic Section -->
+                    <Border Background="{DynamicResource OmniboxBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel LastChildFill="True">
+                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
+                                      Fill="{DynamicResource ShieldActiveBrush}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtTrackersBlocked" 
+                                           Text="0 Tracker und Werbeanzeigen blockiert" 
+                                           FontWeight="Bold" FontSize="12" 
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </DockPanel>
+                            <DockPanel LastChildFill="True" Margin="0,8,0,0">
+                                <TextBlock x:Name="txtFilterRuleCount" 
+                                           Text="Filterliste bereit" 
+                                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}" 
+                                           VerticalAlignment="Center"/>
+                                <Button x:Name="btnUpdateFilterList" 
+                                        DockPanel.Dock="Right" 
+                                        Style="{DynamicResource BookmarkChipStyle}" 
+                                        Content="Filter aktualisieren" 
+                                        FontSize="11"
+                                        Padding="8,3"
+                                        Click="BtnUpdateFilterList_Click"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Additional Permissions -->
+                    <TextBlock Text="ERWEITERTE WEBSITEDATEN" 
+                               FontSize="10" FontWeight="Bold" 
+                               Foreground="{DynamicResource TextMutedBrush}" 
+                               Margin="0,4,0,6"/>
+
                     <CheckBox x:Name="chkJavaScript" 
                               Style="{DynamicResource ModernToggleSwitch}" 
                               IsChecked="True" 
-                              Margin="0,6"
+                              Margin="0,4"
                               Checked="ShieldOption_Changed"
                               Unchecked="ShieldOption_Changed">
                         <StackPanel>
@@ -734,11 +1004,10 @@
                         </StackPanel>
                     </CheckBox>
 
-                    <!-- Popups Toggle -->
                     <CheckBox x:Name="chkPopups" 
                               Style="{DynamicResource ModernToggleSwitch}" 
                               IsChecked="True" 
-                              Margin="0,6"
+                              Margin="0,4"
                               Checked="ShieldOption_Changed"
                               Unchecked="ShieldOption_Changed">
                         <StackPanel>
@@ -773,17 +1042,87 @@
                StaysOpen="False" 
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="300" Margin="5">
+            <Border Style="{DynamicResource FlyoutCardStyle}" Width="360" MaxHeight="480" Margin="5">
                 <StackPanel>
-                    <TextBlock Text="Erweiterungen" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                    <TextBlock Text="WebExtensions API Vorbereitung" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                        <TextBlock Text="Erweiterungen" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Button DockPanel.Dock="Right" 
+                                Style="{DynamicResource BookmarkChipStyle}" 
+                                Content="+ Installieren (.crx)" 
+                                Padding="8,3"
+                                FontSize="11"
+                                Click="BtnInstallExtensionFromFile_Click"
+                                ToolTip="Ungepackte Erweiterung oder .crx Datei installieren"/>
+                    </DockPanel>
+                    <TextBlock Text="Verwalte installierte Chromium- &amp; WebExtensions" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
                     <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
-                    <Border Background="{DynamicResource TabBackgroundBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="Keine Add-ons installiert" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Unterstützung für Chromium-Erweiterungen ist in Vorbereitung." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,0"/>
+
+                    <!-- Empty State -->
+                    <TextBlock x:Name="txtEmptyExtensions" 
+                               Text="Keine Erweiterungen installiert" 
+                               FontSize="12" 
+                               Foreground="{DynamicResource TextMutedBrush}" 
+                               HorizontalAlignment="Center" 
+                               Margin="0,16"/>
+
+                    <!-- Extensions List -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="260">
+                        <ItemsControl x:Name="icExtensionsList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource TabBackgroundBrush}" 
+                                            CornerRadius="8" 
+                                            Padding="10" 
+                                            Margin="0,0,0,6">
+                                        <DockPanel LastChildFill="True">
+                                            <!-- Remove button -->
+                                            <Button DockPanel.Dock="Right" 
+                                                    Style="{DynamicResource IconButtonStyle}" 
+                                                    Width="26" Height="26" 
+                                                    Tag="{Binding}" 
+                                                    Click="BtnRemoveExtension_Click"
+                                                    ToolTip="Erweiterung entfernen">
+                                                <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" 
+                                                      Fill="{DynamicResource StatusDangerBrush}" 
+                                                      Width="11" Height="11" Stretch="Uniform"/>
+                                            </Button>
+                                            
+                                            <!-- Enable / Disable Toggle -->
+                                            <CheckBox DockPanel.Dock="Right" 
+                                                      Style="{DynamicResource ModernToggleSwitch}" 
+                                                      IsChecked="{Binding IsEnabled, Mode=OneWay}" 
+                                                      Tag="{Binding}" 
+                                                      Click="ChkExtensionToggle_Click"
+                                                      Margin="0,0,8,0"
+                                                      ToolTip="Aktivieren / Deaktivieren"/>
+
+                                            <!-- Info -->
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Id}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,8,0,10"/>
+
+                    <!-- Web Store Link -->
+                    <Button Style="{DynamicResource BookmarkChipStyle}" 
+                            HorizontalAlignment="Stretch" 
+                            Height="32"
+                            Background="{DynamicResource SurfaceHoverBrush}"
+                            Click="BtnOpenChromeWebStore_Click">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" 
+                                  Fill="{DynamicResource AccentSilverDimBrush}" 
+                                  Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
+                            <TextBlock Text="Chrome Web Store durchsuchen" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
-                    </Border>
+                    </Button>
                 </StackPanel>
             </Border>
         </Popup>

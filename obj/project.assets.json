@@ -1,7 +1,7 @@
 {
-  "version": 3,
+  "version": 4,
   "targets": {
-    "net8.0-windows7.0": {
+    "net8.0-windows": {
       "Microsoft.Web.WebView2/1.0.4258.31": {
         "type": "package",
         "build": {
@@ -124,24 +124,24 @@
     }
   },
   "projectFileDependencyGroups": {
-    "net8.0-windows7.0": [
+    "net8.0-windows": [
       "Microsoft.Web.WebView2 >= 1.0.*"
     ]
   },
   "packageFolders": {
-    "C:\\Users\\jendress\\.nuget\\packages\\": {}
+    "C:\\Users\\gotop\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\jendress\\Documents\\Coding\\Echo-Browser\\EchoBrowser.csproj",
+      "projectUniqueName": "C:\\Users\\gotop\\Documents\\Coding\\Echo-Browser\\EchoBrowser.csproj",
       "projectName": "EchoBrowser",
-      "projectPath": "C:\\Users\\jendress\\Documents\\Coding\\Echo-Browser\\EchoBrowser.csproj",
-      "packagesPath": "C:\\Users\\jendress\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\jendress\\Documents\\Coding\\Echo-Browser\\obj\\",
+      "projectPath": "C:\\Users\\gotop\\Documents\\Coding\\Echo-Browser\\EchoBrowser.csproj",
+      "packagesPath": "C:\\Users\\gotop\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\gotop\\Documents\\Coding\\Echo-Browser\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\jendress\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\gotop\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0-windows"
@@ -150,7 +150,8 @@
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
-        "net8.0-windows7.0": {
+        "net8.0-windows": {
+          "framework": "net8.0-windows7.0",
           "targetAlias": "net8.0-windows",
           "projectReferences": {}
         }
@@ -164,10 +165,12 @@
         "enableAudit": "true",
         "auditLevel": "low",
         "auditMode": "direct"
-      }
+      },
+      "SdkAnalysisLevel": "10.0.400"
     },
     "frameworks": {
-      "net8.0-windows7.0": {
+      "net8.0-windows": {
+        "framework": "net8.0-windows7.0",
         "targetAlias": "net8.0-windows",
         "dependencies": {
           "Microsoft.Web.WebView2": {
@@ -186,6 +189,24 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[8.0.31, 8.0.31]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Host.win-x64",
+            "version": "[8.0.31, 8.0.31]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[8.0.31, 8.0.31]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Ref",
+            "version": "[8.0.31, 8.0.31]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
@@ -194,7 +215,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.425/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

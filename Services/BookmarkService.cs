@@ -26,9 +26,10 @@ namespace EchoBrowser.Services
         public void LoadBookmarks()
         {
             Bookmarks.Clear();
+            bool fileExisted = File.Exists(_filePath);
             try
             {
-                if (File.Exists(_filePath))
+                if (fileExisted)
                 {
                     string json = File.ReadAllText(_filePath);
                     var items = JsonSerializer.Deserialize<ObservableCollection<Bookmark>>(json);
@@ -43,12 +44,12 @@ namespace EchoBrowser.Services
             }
             catch
             {
-                // Fallback to defaults on read error
+                // Fallback on read error
             }
 
-            if (Bookmarks.Count == 0)
+            // Only add initial defaults if the file was never created before
+            if (!fileExisted)
             {
-                // Add initial defaults
                 Bookmarks.Add(new Bookmark("DuckDuckGo", "https://duckduckgo.com"));
                 Bookmarks.Add(new Bookmark("GitHub", "https://github.com"));
                 Bookmarks.Add(new Bookmark("Wikipedia", "https://de.wikipedia.org"));

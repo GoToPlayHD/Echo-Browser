@@ -100,8 +100,8 @@ namespace EchoBrowser
             borderSidebar.Visibility = settings.IsSidebarVisible ? Visibility.Visible : Visibility.Collapsed;
             menuChkSidebar.IsChecked = settings.IsSidebarVisible;
 
-            // Restore Home Button visibility
-            btnHome.Visibility = settings.ShowHomeButton ? Visibility.Visible : Visibility.Collapsed;
+            // Restore Toolbar button visibilities
+            ApplyToolbarButtonVisibilities();
 
             // Restore Search Engine selector
             SyncSearchEngineComboBox();
@@ -122,6 +122,108 @@ namespace EchoBrowser
                 }
                 catch { }
             }
+        }
+
+        public void ApplyToolbarButtonVisibilities()
+        {
+            var s = AppSettingsService.Instance.Settings;
+            btnToggleSidebar.Visibility = s.ShowSidebarButton ? Visibility.Visible : Visibility.Collapsed;
+            btnBack.Visibility = s.ShowBackButton ? Visibility.Visible : Visibility.Collapsed;
+            btnForward.Visibility = s.ShowForwardButton ? Visibility.Visible : Visibility.Collapsed;
+            btnReload.Visibility = s.ShowReloadButton ? Visibility.Visible : Visibility.Collapsed;
+            btnHome.Visibility = s.ShowHomeButton ? Visibility.Visible : Visibility.Collapsed;
+            cmbSearchEngine.Visibility = s.ShowSearchEngineSelector ? Visibility.Visible : Visibility.Collapsed;
+            btnExtensions.Visibility = s.ShowExtensionsButton ? Visibility.Visible : Visibility.Collapsed;
+            btnDownloads.Visibility = s.ShowDownloadsButton ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void MenuHideToolbarButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem item && item.Tag is string tag)
+            {
+                var s = AppSettingsService.Instance.Settings;
+                switch (tag)
+                {
+                    case "Sidebar": s.ShowSidebarButton = false; break;
+                    case "Back": s.ShowBackButton = false; break;
+                    case "Forward": s.ShowForwardButton = false; break;
+                    case "Reload": s.ShowReloadButton = false; break;
+                    case "Home": s.ShowHomeButton = false; break;
+                    case "SearchEngine": s.ShowSearchEngineSelector = false; break;
+                    case "Extensions": s.ShowExtensionsButton = false; break;
+                    case "Downloads": s.ShowDownloadsButton = false; break;
+                }
+                AppSettingsService.Instance.Save();
+                ApplyToolbarButtonVisibilities();
+            }
+        }
+
+        private void MenuToolbarSubmenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem parent)
+            {
+                var s = AppSettingsService.Instance.Settings;
+                foreach (var child in parent.Items)
+                {
+                    if (child is MenuItem mi && mi.Tag is string tag)
+                    {
+                        mi.IsChecked = tag switch
+                        {
+                            "Sidebar" => s.ShowSidebarButton,
+                            "Back" => s.ShowBackButton,
+                            "Forward" => s.ShowForwardButton,
+                            "Reload" => s.ShowReloadButton,
+                            "Home" => s.ShowHomeButton,
+                            "SearchEngine" => s.ShowSearchEngineSelector,
+                            "Extensions" => s.ShowExtensionsButton,
+                            "Downloads" => s.ShowDownloadsButton,
+                            _ => mi.IsChecked
+                        };
+                    }
+                }
+            }
+        }
+
+        private void MenuToolbarButton_Toggle(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is string tag)
+            {
+                var s = AppSettingsService.Instance.Settings;
+                bool isChecked = mi.IsChecked;
+                switch (tag)
+                {
+                    case "Sidebar": s.ShowSidebarButton = isChecked; break;
+                    case "Back": s.ShowBackButton = isChecked; break;
+                    case "Forward": s.ShowForwardButton = isChecked; break;
+                    case "Reload": s.ShowReloadButton = isChecked; break;
+                    case "Home": s.ShowHomeButton = isChecked; break;
+                    case "SearchEngine": s.ShowSearchEngineSelector = isChecked; break;
+                    case "Extensions": s.ShowExtensionsButton = isChecked; break;
+                    case "Downloads": s.ShowDownloadsButton = isChecked; break;
+                }
+                AppSettingsService.Instance.Save();
+                ApplyToolbarButtonVisibilities();
+            }
+        }
+
+        private void MenuShowAllToolbarButtons_Click(object sender, RoutedEventArgs e)
+        {
+            var s = AppSettingsService.Instance.Settings;
+            s.ShowSidebarButton = true;
+            s.ShowBackButton = true;
+            s.ShowForwardButton = true;
+            s.ShowReloadButton = true;
+            s.ShowHomeButton = true;
+            s.ShowSearchEngineSelector = true;
+            s.ShowExtensionsButton = true;
+            s.ShowDownloadsButton = true;
+            AppSettingsService.Instance.Save();
+            ApplyToolbarButtonVisibilities();
+        }
+
+        private void MenuOpenToolbarSettings_Click(object sender, RoutedEventArgs e)
+        {
+            OpenSettingsTab();
         }
 
         private void SyncSearchEngineComboBox()
@@ -198,7 +300,13 @@ namespace EchoBrowser
                     Directory.CreateDirectory(userDataFolder);
                 }
 
-                _webViewEnvironment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                var options = new CoreWebView2EnvironmentOptions
+                {
+                    AreBrowserExtensionsEnabled = true
+                };
+
+                _webViewEnvironment = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
+                _ = AdBlockerService.Instance.InitializeAsync();
                 borderSplash.Visibility = Visibility.Collapsed;
             }
             catch (Exception ex)
@@ -310,6 +418,61 @@ namespace EchoBrowser
                     webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
                     webView.CoreWebView2.Settings.IsScriptEnabled = tab.JavaScriptEnabled;
                     webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+
+                    // Cosmetic element-hiding CSS injection
+                    try
+                    {
+                        await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
+                    }
+                    catch { }
+
+                    // Allow extension downloads without prompt interruptions
+                    webView.CoreWebView2.SaveFileSecurityCheckStarting += (s, args) =>
+                    {
+                        args.CancelSave = false;
+                        args.SuppressDefaultPolicy = true;
+                    };
+
+                    // Network-level Ad and Tracker blocking
+                    try
+                    {
+                        webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+                        webView.CoreWebView2.WebResourceRequested += (s, args) =>
+                        {
+                            if (!AppSettingsService.Instance.Settings.IsAdBlockerEnabled) return;
+                            if (!tab.TrackingProtectionEnabled) return;
+
+                            try
+                            {
+                                if (Uri.TryCreate(args.Request.Uri, UriKind.Absolute, out var reqUri) &&
+                                    (reqUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) || 
+                                     reqUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    if (AdBlockerService.Instance.IsBlocked(reqUri.Host))
+                                    {
+                                        if (_webViewEnvironment != null)
+                                        {
+                                            args.Response = _webViewEnvironment.CreateWebResourceResponse(Stream.Null, 403, "Forbidden", "");
+                                        }
+                                        tab.BlockedTrackersCount++;
+                                        if (tab == ActiveTab)
+                                        {
+                                            Dispatcher.Invoke(() =>
+                                            {
+                                                UpdateShieldBadge();
+                                                if (popupShield.IsOpen)
+                                                {
+                                                    UpdateShieldUi();
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        };
+                    }
+                    catch { }
 
                     try
                     {
@@ -434,6 +597,39 @@ namespace EchoBrowser
                                                 tab.JavaScriptEnabled = js;
                                                 if (webView.CoreWebView2 != null) webView.CoreWebView2.Settings.IsScriptEnabled = js;
                                                 break;
+                                            case "ShowSidebarButton":
+                                                settings.ShowSidebarButton = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "ShowBackButton":
+                                                settings.ShowBackButton = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "ShowForwardButton":
+                                                settings.ShowForwardButton = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "ShowReloadButton":
+                                                settings.ShowReloadButton = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "ShowSearchEngineSelector":
+                                                settings.ShowSearchEngineSelector = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "ShowExtensionsButton":
+                                                settings.ShowExtensionsButton = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "ShowDownloadsButton":
+                                                settings.ShowDownloadsButton = valEl.GetBoolean();
+                                                ApplyToolbarButtonVisibilities();
+                                                break;
+                                            case "IsAdBlockerEnabled":
+                                                settings.IsAdBlockerEnabled = valEl.GetBoolean();
+                                                UpdateShieldBadge();
+                                                if (popupShield.IsOpen) UpdateShieldUi();
+                                                break;
                                             case "SendDoNotTrack":
                                                 settings.SendDoNotTrack = valEl.GetBoolean();
                                                 break;
@@ -550,6 +746,15 @@ namespace EchoBrowser
                                         await webView.CoreWebView2.ExecuteScriptAsync($"window.onSettingUpdatedFromHost && window.onSettingUpdatedFromHost({newSettingsJson});");
                                     });
                                 }
+                                else if (type == "updateAdBlockFilter")
+                                {
+                                    Dispatcher.Invoke(async () =>
+                                    {
+                                        await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(AppSettingsService.Instance.Settings.AdBlockerFilterUrl, force: true);
+                                        int count = AdBlockerService.Instance.BlockedDomainsCount;
+                                        await webView.CoreWebView2.ExecuteScriptAsync($"window.onAdBlockFilterUpdated && window.onAdBlockFilterUpdated({count});");
+                                    });
+                                }
                             }
                         }
                         catch { }
@@ -616,6 +821,33 @@ namespace EchoBrowser
                                         download.IsCompleted = true;
                                         download.State = "Abgeschlossen";
                                         downloadBadge.Visibility = Visibility.Collapsed;
+
+                                        // Auto-install CRX if it is a downloaded extension
+                                        if (download.FilePath.EndsWith(".crx", StringComparison.OrdinalIgnoreCase) && File.Exists(download.FilePath))
+                                        {
+                                            _ = Task.Run(async () =>
+                                            {
+                                                try
+                                                {
+                                                    if (webView.CoreWebView2?.Profile != null)
+                                                    {
+                                                        var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(webView.CoreWebView2.Profile, download.FilePath);
+                                                        Dispatcher.Invoke(() =>
+                                                        {
+                                                            MessageBox.Show($"Erweiterung '{ext?.Name ?? Path.GetFileName(download.FilePath)}' erfolgreich installiert!", "Echo-Browser Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Information);
+                                                            _ = RefreshExtensionsListAsync();
+                                                        });
+                                                    }
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    Dispatcher.Invoke(() =>
+                                                    {
+                                                        MessageBox.Show($"Automatische Installation der Erweiterung fehlgeschlagen:\n{ex.Message}", "Echo-Browser Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                                    });
+                                                }
+                                            });
+                                        }
                                     }
                                     else if (args.DownloadOperation.State == CoreWebView2DownloadState.Interrupted)
                                     {
@@ -666,11 +898,17 @@ namespace EchoBrowser
                 {
                     Dispatcher.Invoke(() =>
                     {
+                        tab.BlockedTrackersCount = 0;
                         tab.IsLoading = true;
                         tab.Url = args.Uri;
                         if (tab == ActiveTab)
                         {
                             UpdateNavigationControls();
+                            UpdateShieldBadge();
+                            if (popupShield.IsOpen)
+                            {
+                                UpdateShieldUi();
+                            }
                         }
                     });
                 };
@@ -796,6 +1034,7 @@ namespace EchoBrowser
             txtUrl.Text = (ActiveTab.Url == StartPageService.StartPageUrl) ? "" : ActiveTab.Url;
             UpdateNavigationControls();
             CheckBookmarkStatus();
+            UpdateShieldBadge();
             UpdateShieldUi();
         }
 
@@ -1869,6 +2108,37 @@ namespace EchoBrowser
             popupShield.IsOpen = true;
         }
 
+        private void UpdateShieldBadge()
+        {
+            if (ActiveTab == null)
+            {
+                borderShieldBadge.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            bool shieldActive = AppSettingsService.Instance.Settings.IsAdBlockerEnabled && ActiveTab.TrackingProtectionEnabled;
+            int count = ActiveTab.BlockedTrackersCount;
+
+            if (shieldActive && count > 0)
+            {
+                txtShieldBadgeCount.Text = count > 999 ? "999+" : count.ToString();
+                borderShieldBadge.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                borderShieldBadge.Visibility = Visibility.Collapsed;
+            }
+
+            if (shieldActive)
+            {
+                pathShieldIcon.Fill = FindResource("ShieldActiveBrush") as Brush ?? Brushes.CornflowerBlue;
+            }
+            else
+            {
+                pathShieldIcon.Fill = FindResource("TextMutedBrush") as Brush ?? Brushes.Gray;
+            }
+        }
+
         private void UpdateShieldUi()
         {
             if (ActiveTab == null) return;
@@ -1898,36 +2168,84 @@ namespace EchoBrowser
             {
                 txtShieldStatus.Text = "Sichere Verbindung (TLS/HTTPS)";
                 txtShieldStatus.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
-                pathShieldIcon.Fill = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
             }
             else
             {
                 txtShieldStatus.Text = "Verbindung nicht verschlüsselt (HTTP)";
                 txtShieldStatus.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
-                pathShieldIcon.Fill = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
             }
 
-            chkTrackingProtection.IsChecked = ActiveTab.TrackingProtectionEnabled;
+            bool isGlobalOn = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
+            bool isTabOn = ActiveTab.TrackingProtectionEnabled;
+            bool isProtectionActive = isGlobalOn && isTabOn;
+
+            chkGlobalShield.IsChecked = isGlobalOn;
+            chkTrackingProtection.IsChecked = isTabOn;
             chkJavaScript.IsChecked = ActiveTab.JavaScriptEnabled;
             chkPopups.IsChecked = ActiveTab.PopupsBlocked;
 
-            txtTrackersBlocked.Text = ActiveTab.TrackingProtectionEnabled
-                ? "Tracker & Fingerprinting aktiv blockiert"
-                : "Schutz deaktiviert";
+            if (isProtectionActive)
+            {
+                txtShieldActiveState.Text = "Echo Shield: Aktiviert";
+                txtShieldActiveState.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
+                pathShieldPopupIcon.Fill = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
+            }
+            else
+            {
+                txtShieldActiveState.Text = "Echo Shield: Deaktiviert";
+                txtShieldActiveState.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
+                pathShieldPopupIcon.Fill = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
+            }
+
+            txtTrackersBlocked.Text = $"{ActiveTab.BlockedTrackersCount} Tracker und Werbeanzeigen blockiert";
+            txtFilterRuleCount.Text = $"{AdBlockerService.Instance.BlockedDomainsCount:N0} Filterregeln geladen";
+
+            UpdateShieldBadge();
         }
 
         private void ShieldOption_Changed(object sender, RoutedEventArgs e)
         {
             if (ActiveTab == null) return;
 
+            bool prevGlobal = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
+            bool newGlobal = chkGlobalShield.IsChecked ?? true;
+            if (prevGlobal != newGlobal)
+            {
+                AppSettingsService.Instance.Settings.IsAdBlockerEnabled = newGlobal;
+                AppSettingsService.Instance.Save();
+            }
+
             ActiveTab.TrackingProtectionEnabled = chkTrackingProtection.IsChecked ?? true;
             ActiveTab.JavaScriptEnabled = chkJavaScript.IsChecked ?? true;
             ActiveTab.PopupsBlocked = chkPopups.IsChecked ?? true;
 
             ActiveTab.ApplyScriptSetting();
-            txtTrackersBlocked.Text = ActiveTab.TrackingProtectionEnabled
-                ? "Tracker & Fingerprinting aktiv blockiert"
-                : "Schutz deaktiviert";
+            UpdateShieldUi();
+            UpdateShieldBadge();
+        }
+
+        private async void BtnUpdateFilterList_Click(object sender, RoutedEventArgs e)
+        {
+            btnUpdateFilterList.IsEnabled = false;
+            btnUpdateFilterList.Content = "Lade Filter...";
+
+            try
+            {
+                string url = AppSettingsService.Instance.Settings.AdBlockerFilterUrl;
+                await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(url, force: true);
+                txtFilterRuleCount.Text = $"{AdBlockerService.Instance.BlockedDomainsCount:N0} Filterregeln geladen";
+                btnUpdateFilterList.Content = "Aktualisiert!";
+                await Task.Delay(1800);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Filteraktualisierung fehlgeschlagen: {ex.Message}", "Echo Shield", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            finally
+            {
+                btnUpdateFilterList.Content = "Filter aktualisieren";
+                btnUpdateFilterList.IsEnabled = true;
+            }
         }
 
         private async void BtnClearSiteData_Click(object sender, RoutedEventArgs e)
@@ -1959,9 +2277,118 @@ namespace EchoBrowser
 
         #region Toolbar Buttons, Menus & Flyouts
 
-        private void BtnExtensions_Click(object sender, RoutedEventArgs e)
+        private async void BtnExtensions_Click(object sender, RoutedEventArgs e)
         {
+            await RefreshExtensionsListAsync();
             popupExtensions.IsOpen = true;
+        }
+
+        private async Task RefreshExtensionsListAsync()
+        {
+            try
+            {
+                var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
+                if (profile == null)
+                {
+                    txtEmptyExtensions.Visibility = Visibility.Visible;
+                    icExtensionsList.ItemsSource = null;
+                    return;
+                }
+
+                var extensions = await ExtensionService.Instance.GetInstalledExtensionsAsync(profile);
+                if (extensions.Count == 0)
+                {
+                    txtEmptyExtensions.Visibility = Visibility.Visible;
+                    icExtensionsList.ItemsSource = null;
+                }
+                else
+                {
+                    txtEmptyExtensions.Visibility = Visibility.Collapsed;
+                    icExtensionsList.ItemsSource = extensions;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to refresh extensions: {ex.Message}");
+            }
+        }
+
+        private async void BtnInstallExtensionFromFile_Click(object sender, RoutedEventArgs e)
+        {
+            var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
+            if (profile == null)
+            {
+                MessageBox.Show("Das Browser-Profil ist noch nicht bereit.", "Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Erweiterungsdatei auswählen (.crx)",
+                Filter = "Chromium Extension (*.crx)|*.crx|Alle Dateien (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, dlg.FileName);
+                    MessageBox.Show($"Erweiterung '{ext?.Name ?? Path.GetFileName(dlg.FileName)}' erfolgreich installiert!", "Echo-Browser Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshExtensionsListAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Fehler beim Installieren der Erweiterung:\n{ex.Message}", "Installation fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private async void BtnRemoveExtension_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            {
+                var result = MessageBox.Show(
+                    $"Möchtest du die Erweiterung '{ext.Name}' wirklich entfernen?",
+                    "Erweiterung entfernen",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        await ext.RemoveAsync();
+                        await RefreshExtensionsListAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Fehler beim Entfernen der Erweiterung: {ex.Message}", "Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+
+        private async void ChkExtensionToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox chk && chk.Tag is CoreWebView2BrowserExtension ext)
+            {
+                try
+                {
+                    bool enable = chk.IsChecked ?? true;
+                    await ext.EnableAsync(enable);
+                    await RefreshExtensionsListAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Fehler beim Umschalten der Erweiterung: {ex.Message}", "Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        private void BtnOpenChromeWebStore_Click(object sender, RoutedEventArgs e)
+        {
+            popupExtensions.IsOpen = false;
+            AddNewTab("https://chromewebstore.google.com/");
         }
 
         private void BtnDownloads_Click(object sender, RoutedEventArgs e)
