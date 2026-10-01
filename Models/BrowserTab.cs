@@ -25,6 +25,7 @@ namespace EchoBrowser.Models
         public string Id { get; } = Guid.NewGuid().ToString();
 
         public WebView2? WebView { get; set; }
+        public string? CosmeticScriptId { get; set; }
 
         public string Title
         {

@@ -17,6 +17,7 @@ namespace EchoBrowser.Models
         public string FileName { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
         public DateTime StartTime { get; set; } = DateTime.Now;
+        public bool IsCrx => FileName.EndsWith(".crx", StringComparison.OrdinalIgnoreCase);
 
         public long BytesReceived
         {

@@ -884,6 +884,21 @@ namespace EchoBrowser.Services
                             </label>
                         </div>
                     </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">Sprache / Language</div>
+                                <div class=""row-desc"">Wähle die Sprache der Benutzeroberfläche von Echo-Browser.</div>
+                            </div>
+                            <select id=""selLanguage"" class=""select-dropdown"" style=""background: #1e2025; color: #e2e8f0; border: 1px solid #333842; padding: 6px 12px; border-radius: 6px; font-size: 13px; outline: none; cursor: pointer;"">
+                                <option value=""de"">🇩🇪 Deutsch</option>
+                                <option value=""en"">🇬🇧 English</option>
+                                <option value=""fr"">🇫🇷 Français</option>
+                                <option value=""es"">🇪🇸 Español</option>
+                            </select>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- 2. SUCHMASCHINE -->
@@ -1399,6 +1414,8 @@ namespace EchoBrowser.Services
             // General toggles
             document.getElementById('chkShowHomeButton').checked = s.ShowHomeButton !== false;
             document.getElementById('chkStartpageFavorites').checked = s.IsStartpageFavoritesVisible !== false;
+            const selLang = document.getElementById('selLanguage');
+            if (selLang) selLang.value = s.Language || 'de';
 
             // 2. Search
             document.querySelectorAll('#engineGrid .engine-card').forEach(el => {
@@ -1525,6 +1542,14 @@ namespace EchoBrowser.Services
             sendMessage({ type: 'updateSetting', key: 'IsStartpageFavoritesVisible', value: e.target.checked });
             showToast('Startseiten-Verknüpfungen aktualisiert');
         });
+
+        const selLanguageEl = document.getElementById('selLanguage');
+        if (selLanguageEl) {
+            selLanguageEl.addEventListener('change', (e) => {
+                sendMessage({ type: 'updateSetting', key: 'Language', value: e.target.value });
+                showToast('Sprache aktualisiert');
+            });
+        }
 
         // Search Engine Cards
         document.querySelectorAll('#engineGrid .engine-card').forEach(el => {

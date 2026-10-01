@@ -1,0 +1,201 @@
+<Window x:Class="EchoBrowser.Views.LanguageSetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Echo-Browser - Sprache auswählen"
+        Width="540" Height="650"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        FontFamily="Segoe UI, -apple-system, Roboto, sans-serif"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <!-- Modern Apple-Style Language Selection Card Style -->
+        <Style x:Key="LanguageCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#1A1C22"/>
+            <Setter Property="BorderBrush" Value="#2B2E38"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#22252D"/>
+                    <Setter Property="BorderBrush" Value="#3D4250"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SetupButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="#0F1014"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="23">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#CBD5E1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Outer Shadow & Background Frame -->
+    <Border Margin="14" 
+            Background="#121316" 
+            BorderBrush="#2A2D35" 
+            BorderThickness="1" 
+            CornerRadius="18">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="32" ShadowDepth="8" Opacity="0.65" Color="#000000"/>
+        </Border.Effect>
+
+        <Grid>
+            <!-- Top Drag & Window Controls -->
+            <DockPanel VerticalAlignment="Top" Height="40" Margin="14,10,14,0" LastChildFill="False" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <!-- Close Button -->
+                <Button DockPanel.Dock="Right" 
+                        Width="28" Height="28" 
+                        Click="BtnClose_Click" 
+                        ToolTip="Schließen" 
+                        Cursor="Hand"
+                        Background="Transparent" BorderThickness="0">
+                    <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
+                          Fill="#6B7280" Width="10" Height="10" Stretch="Uniform"/>
+                </Button>
+            </DockPanel>
+
+            <!-- Main Content -->
+            <StackPanel Margin="32,24,32,28">
+                <!-- Browser Brand Icon -->
+                <Border Width="48" Height="48" CornerRadius="24" Background="#1D2027" BorderBrush="#323744" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,16">
+                    <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" 
+                          Fill="#E2E8F0" Width="22" Height="22" Stretch="Uniform"/>
+                </Border>
+
+                <!-- Apple Style Animated Greeting / Word Container -->
+                <Grid Height="64" Margin="0,0,0,4">
+                    <TextBlock x:Name="txtAnimatedWord" 
+                               Text="Sprache" 
+                               FontSize="44" 
+                               FontWeight="Bold" 
+                               HorizontalAlignment="Center" 
+                               VerticalAlignment="Center">
+                        <TextBlock.Foreground>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#FFFFFF" Offset="0.0"/>
+                                <GradientStop Color="#CBD5E1" Offset="1.0"/>
+                            </LinearGradientBrush>
+                        </TextBlock.Foreground>
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform x:Name="transAnimatedWord" Y="0"/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                </Grid>
+
+                <TextBlock x:Name="txtLanguageSubLabel" 
+                           Text="Deutsch" 
+                           FontSize="12" 
+                           FontWeight="SemiBold" 
+                           Foreground="#94A3B8" 
+                           HorizontalAlignment="Center" 
+                           Margin="0,0,0,14"/>
+
+                <TextBlock x:Name="txtSubtitle" 
+                           Text="Wähle deine bevorzugte Sprache für Echo-Browser" 
+                           FontSize="13" 
+                           Foreground="#64748B" 
+                           HorizontalAlignment="Center" 
+                           TextAlignment="Center" 
+                           Margin="0,0,0,24"/>
+
+                <!-- Language Selection Cards -->
+                <StackPanel>
+                    <!-- German (DE) -->
+                    <Border x:Name="cardDe" Style="{StaticResource LanguageCardStyle}" MouseLeftButtonDown="Card_Click" Tag="de">
+                        <DockPanel LastChildFill="True">
+                            <TextBlock Text="🇩🇪" FontSize="20" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                            <Path x:Name="checkDe" DockPanel.Dock="Right" 
+                                  Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" 
+                                  Fill="#E2E8F0" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Deutsch" FontWeight="Bold" FontSize="14" Foreground="#F1F5F9"/>
+                                <TextBlock Text="Standard • Vollständige deutsche Übersetzung" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- English (EN) -->
+                    <Border x:Name="cardEn" Style="{StaticResource LanguageCardStyle}" MouseLeftButtonDown="Card_Click" Tag="en">
+                        <DockPanel LastChildFill="True">
+                            <TextBlock Text="🇬🇧" FontSize="20" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                            <Path x:Name="checkEn" DockPanel.Dock="Right" Visibility="Collapsed"
+                                  Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" 
+                                  Fill="#E2E8F0" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="English" FontWeight="Bold" FontSize="14" Foreground="#F1F5F9"/>
+                                <TextBlock Text="International • Full English interface" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- French (FR) -->
+                    <Border x:Name="cardFr" Style="{StaticResource LanguageCardStyle}" MouseLeftButtonDown="Card_Click" Tag="fr">
+                        <DockPanel LastChildFill="True">
+                            <TextBlock Text="🇫🇷" FontSize="20" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                            <Path x:Name="checkFr" DockPanel.Dock="Right" Visibility="Collapsed"
+                                  Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" 
+                                  Fill="#E2E8F0" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Français" FontWeight="Bold" FontSize="14" Foreground="#F1F5F9"/>
+                                <TextBlock Text="Traduction française complète" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Spanish (ES) -->
+                    <Border x:Name="cardEs" Style="{StaticResource LanguageCardStyle}" MouseLeftButtonDown="Card_Click" Tag="es">
+                        <DockPanel LastChildFill="True">
+                            <TextBlock Text="🇪🇸" FontSize="20" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                            <Path x:Name="checkEs" DockPanel.Dock="Right" Visibility="Collapsed"
+                                  Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" 
+                                  Fill="#E2E8F0" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Español" FontWeight="Bold" FontSize="14" Foreground="#F1F5F9"/>
+                                <TextBlock Text="Interfaz en español" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Primary Action Button -->
+                <Button x:Name="btnContinue" 
+                        Style="{StaticResource SetupButtonStyle}" 
+                        Content="Fortfahren →" 
+                        Margin="0,14,0,0" 
+                        Click="BtnContinue_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

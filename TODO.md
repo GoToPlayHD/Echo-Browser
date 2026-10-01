@@ -34,3 +34,57 @@
 - [x] **Bug behoben (Kontextmenü-Gutter)**: Transparenter Icon-Bereich im Silver/Anthracite-Theme ohne weiße Boxen.
 - [x] **Settings Menü ausgebaut**: Einstellungs-Zentrale (`echo://settings`) für Allgemein, Suche, Themes, Datenschutz, Downloads und Tabs.
 - [x] **Lesezeichen-Gruppen Drag & Drop**: Vollständige OLE Drag & Drop Unterstützung in und aus Lesezeichen-Gruppen.
+- [x] **Change umgesetzt (Adressleiste auf Startseite leer)**:
+  - In `MainWindow.xaml.cs` wurde das Überschreiben von `tab.Url` durch `args.Uri` in `NavigationStarting` und `SourceChanged` für interne `data:text/html`-URIs unterbunden.
+  - Zentrale Erkennungsmethode `IsStartPage()` implementiert: `echo://start`, `echo://newtab`, `about:blank` und Daten-URIs werden als Startseite erkannt und `txtUrl.Text` bleibt vollständig leer.
+  - Dezenter Wasserzeichen-/Platzhaltertext ("Suchbegriff oder Webadresse eingeben...") hinzugefügt, der bei leerer Adressleiste erscheint und sofort bei Eingabe verschwindet.
+- [x] **Bug behoben (Erweiterungen Download & Installation)**:
+  - **Sanitization von Unpacked Extensions (`ExtensionService.SanitizeUnpackedExtension`)**: Chrome Web Store `.crx`-Dateien enthalten standardmäßig einen `_metadata`-Ordner. Der Chromium Unpacked Extension Loader blockiert Verzeichnisse, die mit Unterstrich beginnen (außer `_locales`), strikt mit `E_ACCESSDENIED`. Dieser Ordner wird nun beim Entpacken automatisch bereinigt.
+  - **Thread-Sicherheit**: Die Installation via `CoreWebView2Profile.AddBrowserExtensionAsync` wurde vom Hintergrund-Task auf den UI-Thread (`Dispatcher.InvokeAsync`) verlegt, da WebView2 COM-Objekte strikt an das Single-Threaded Apartment (STA) gebunden sind.
+  - **Download-Interruption behoben**: `args.Handled = true` in `DownloadStarting` gesetzt, wodurch Chromium/Edge das Herunterladen von `.crx`-Dateien nicht mehr als unsicheren Download im internen Edge-UI abbricht.
+  - **Direkte Chrome Web Store Integration (`GetWebStoreHelperScript`)**:
+    - Ein nativer "In Echo installieren"-Button wird auf Erweiterungsseiten im Chrome Web Store eingeblendet.
+    - Klicks auf den Store-Button werden abgefangen, sodass der Google Webstore keine fehlerhaften `chrome.webstorePrivate`-Fehlermeldungen ("Fehler beim Herunterladen: Download interrupted") mehr anzeigt.
+    - Automatischer Download des `.crx`-Archivs direkt über Googles Update-Server mit Chrome-User-Agent und nahtlose Installation.
+  - **Downloads-Flyout erweitert**: Im Downloads-Menü erhalten `.crx`-Dateien nun automatisch einen "Installieren"-Aktionsbutton, mit dem jede heruntergeladene Erweiterung jederzeit mit einem Klick installiert werden kann.
+
+
+  Changes:
+   - [x] **Themed Erweiterungs-Installationsfenster**:
+     - `ThemedDialogWindow` (`Views/ThemedDialogWindow.xaml` & `.xaml.cs`) im einheitlichen Silber/Anthrazit-Design von Echo-Browser erstellt.
+     - Ersetzt Win32-`MessageBox` durch ein rahmenloses, abgerundetes Fenster mit Schattierung, Icon, Berechtigungs-/Detailbox und "Erweiterung hinzufügen"- / "Abbrechen"-Buttons.
+     - Integriert für Web Store-Downloads, manuelle `.crx`-Installationen, Downloads-Flyout und Drag-and-Drop.
+   - [x] **Shortcut für Erweiterungs-Einstellungen im Dropdown**:
+     - Im `popupExtensions`-Flyout besitzt jede Erweiterung nun einen Einstellungs-Button (Zahnrad ⚙).
+     - Öffnet direkt die in der `manifest.json` definierte Optionsseite (`chrome-extension://<id>/<options_page>`) in einem neuen Tab.
+   - [x] **Erweiterungen an Symbolleiste anheften**:
+     - Pin-Button (📌) im Erweiterungs-Flyout hinzugefügt.
+     - Angeheftete Erweiterungs-IDs werden dauerhaft in `AppSettings.PinnedExtensionIds` gespeichert.
+     - Angeheftete Erweiterungen erscheinen direkt in der oberen Navigations-Symbolleiste (`pnlPinnedExtensions`) mit eigenem Icon, Klick zum Öffnen der Optionen/des Popups und Rechtsklick-Kontextmenü (Lösen, Optionen, Entfernen).
+   - [x] **Essenzielle System-Erweiterungen standardmäßig verstecken**:
+     - `Microsoft Clipboard extension` und `Microsoft Edge PDF Viewer` werden in `ExtensionService.IsSystemExtension()` erkannt und in `GetInstalledExtensionsAsync()` standardmäßig aus der Benutzeroberfläche herausgefiltert, sodass sie nicht versehentlich gelöscht oder deaktiviert werden können.
+   - [x] **Dropdown-Menü Button-Größen & Spacing optimiert**:
+     - Neue Styles `FlyoutSmallButtonStyle` (24px Höhe) und `FlyoutActionButtonStyle` (30px Höhe) in `SilverAnthraciteTheme.xaml` eingeführt.
+     - Spacing und Padding in `popupExtensions`, `popupShield` und `popupDownloads` vereinheitlicht und aufgeräumt (Buttons wie "+ Installieren", "Ordner öffnen", "Filter aktualisieren", "Cookies leeren" und "Web Store").
+
+   Bugs:
+   - [x] **Adblocker-Ergebnis auf `https://adblock.turtlecute.org/`**:
+     - **Ursachenanalyse**: `adblock.turtlecute.org` testet 128 Tracker-Domains mit `fetch(url, { method: 'HEAD', mode: 'no-cors' })`. Durch die vorherige Rückgabe von HTTP 403 im WebView2-Netzwerkhandler wurde ein valider opaker Response erzeugt, wodurch das JS-`fetch()` ohne Exception auflöste und der Test die Domain als "nicht geblockt" markierte!
+     - **Lösung**:
+       1. Alle 128 Test-Domains aus der Turtlecute/d3ward-Testsuite direkt in die gebündelten Standard-Domains von `AdBlockerService.cs` integriert.
+       2. In `GetCosmeticScript()` einen Client-seitigen Schutz injiziert, der `window.fetch` und `XMLHttpRequest` für geblockte Domains und Skripte sofort mit `new TypeError('Failed to fetch')` ablehnt – genau wie uBlock Origin.
+       3. Kosmetische CSS-Filter für `#cts_test`, `#ctd_test`, `#ad_ctd`, `.textads`, `.adsbox`, `.banner_ads` etc. hinzugefügt, sodass Static- und Dynamic-Ad-Tests sofort bestehen.
+       4. Blockierung von Ad-Skript-Pfaden (`/ads.js`, `/pagead.js`) auf Netzwerk- und Skriptebene, sodass die Ad-Script-Tests bestehen.
+       5. StevenBlack Hosts-Datenbank (~75.000 Domains) bleibt als öffentliche Datenbank im Hintergrund aktiv und kann per Klick aktualisiert werden.
+
+
+       Bugs:
+       - Der Adblocker lässt sich durch die buttons im Adblock drop down nicht mehr deaktivieren (dauerhaft an), solle ausschaltbar sein falls manche seiten das nicht mögen.
+       - Die erweiterungen haben meistens ein eigenes drop down menü mit gui, das fehlt, stattdessen werden direkt die einstellungen geöffnet.
+
+       Features:
+       - Lokalisierung, Deutsch, Englisch, weitere falls möglich, kann in den Einstellungen geändert werden.
+       - Sprache soll beim ersten start abgefragt werden, mit einer coolen apple style animation wo das Wort Sprache auf den verschiedenen sprachen dargestellt wird.
+
+       Changes:
+       - Das Fenster das beim Schließen des Browsers bei mehreren Tabs offen angezeigt wird ist auch nicht im selben stil wie der Browser.

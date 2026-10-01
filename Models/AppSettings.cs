@@ -52,6 +52,16 @@ namespace EchoBrowser.Models
         // 7. Startpage Shortcuts
         public List<StartpageShortcut> StartpageShortcuts { get; set; } = new();
 
+        // 8. Extensions
+        public List<string> PinnedExtensionIds { get; set; } = new();
+
+        // 9. Localization
+        public string Language { get; set; } = "de"; // "de", "en", "fr", "es"
+        public bool HasCompletedFirstRunLanguageSetup { get; set; } = false;
+
+        // 10. Shield Whitelist (Domains where tracking protection is turned off)
+        public HashSet<string> WhitelistedShieldDomains { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
         public static string GetDefaultDownloadPath()
         {
             try

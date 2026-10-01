@@ -188,7 +188,8 @@
                         </ItemsControl>
 
                         <!-- Add New Tab Button (+) -->
-                        <Button Style="{DynamicResource IconButtonStyle}"
+                        <Button x:Name="btnNewTab" 
+                                Style="{DynamicResource IconButtonStyle}"
                                 Width="30" Height="30"
                                 Margin="4,0,0,3"
                                 VerticalAlignment="Center"
@@ -469,6 +470,9 @@
                         <ComboBoxItem Tag="startpage" Content="Startpage"/>
                     </ComboBox>
 
+                    <!-- Pinned Extensions Container -->
+                    <StackPanel x:Name="pnlPinnedExtensions" Orientation="Horizontal" Margin="0,0,2,0" VerticalAlignment="Center"/>
+
                     <!-- WebExtensions Button -->
                     <Button x:Name="btnExtensions" 
                             Style="{DynamicResource IconButtonStyle}" 
@@ -619,15 +623,35 @@
                             </StackPanel>
                         </Button>
 
-                        <!-- Address / Search Input TextBox -->
-                        <TextBox x:Name="txtUrl" 
-                                 Grid.Column="1"
-                                 Style="{DynamicResource OmniboxTextBoxStyle}"
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 KeyDown="TxtUrl_KeyDown"
-                                 GotFocus="TxtUrl_GotFocus"
-                                 LostFocus="TxtUrl_LostFocus"/>
+                        <!-- Address / Search Input TextBox & Placeholder -->
+                        <Grid Grid.Column="1">
+                            <TextBox x:Name="txtUrl" 
+                                     Style="{DynamicResource OmniboxTextBoxStyle}"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     KeyDown="TxtUrl_KeyDown"
+                                     GotFocus="TxtUrl_GotFocus"
+                                     LostFocus="TxtUrl_LostFocus"/>
+                            <TextBlock x:Name="txtUrlPlaceholder"
+                                       Text="Suchbegriff oder Webadresse eingeben..."
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       FontSize="13.5"
+                                       FontFamily="Segoe UI, Inter, sans-serif"
+                                       VerticalAlignment="Center"
+                                       Margin="10,0,0,0"
+                                       IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=txtUrl}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
 
                         <!-- Omnibox Bookmark Star Button -->
                         <Button x:Name="btnBookmark" 
@@ -977,10 +1001,8 @@
                                            VerticalAlignment="Center"/>
                                 <Button x:Name="btnUpdateFilterList" 
                                         DockPanel.Dock="Right" 
-                                        Style="{DynamicResource BookmarkChipStyle}" 
+                                        Style="{DynamicResource FlyoutSmallButtonStyle}" 
                                         Content="Filter aktualisieren" 
-                                        FontSize="11"
-                                        Padding="8,3"
                                         Click="BtnUpdateFilterList_Click"/>
                             </DockPanel>
                         </StackPanel>
@@ -1019,16 +1041,14 @@
                     <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
 
                     <!-- Clear Site Data Action -->
-                    <Button Style="{DynamicResource BookmarkChipStyle}" 
+                    <Button Style="{DynamicResource FlyoutActionButtonStyle}" 
                             HorizontalAlignment="Stretch" 
-                            Height="32"
-                            Background="{DynamicResource SurfaceHoverBrush}"
                             Click="BtnClearSiteData_Click">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" 
                                   Fill="{DynamicResource AccentSilverDimBrush}" 
-                                  Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0"/>
-                            <TextBlock Text="Cookies &amp; Websitedaten leeren" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                  Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Cookies &amp; Websitedaten leeren" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -1042,15 +1062,13 @@
                StaysOpen="False" 
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="360" MaxHeight="480" Margin="5">
+            <Border Style="{DynamicResource FlyoutCardStyle}" Width="380" MaxHeight="500" Margin="5">
                 <StackPanel>
                     <DockPanel LastChildFill="True" Margin="0,0,0,6">
-                        <TextBlock Text="Erweiterungen" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Erweiterungen" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         <Button DockPanel.Dock="Right" 
-                                Style="{DynamicResource BookmarkChipStyle}" 
+                                Style="{DynamicResource FlyoutSmallButtonStyle}" 
                                 Content="+ Installieren (.crx)" 
-                                Padding="8,3"
-                                FontSize="11"
                                 Click="BtnInstallExtensionFromFile_Click"
                                 ToolTip="Ungepackte Erweiterung oder .crx Datei installieren"/>
                     </DockPanel>
@@ -1066,41 +1084,87 @@
                                Margin="0,16"/>
 
                     <!-- Extensions List -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="260">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="280">
                         <ItemsControl x:Name="icExtensionsList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Background="{DynamicResource TabBackgroundBrush}" 
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
                                             CornerRadius="8" 
-                                            Padding="10" 
+                                            Padding="10,8" 
                                             Margin="0,0,0,6">
                                         <DockPanel LastChildFill="True">
-                                            <!-- Remove button -->
-                                            <Button DockPanel.Dock="Right" 
-                                                    Style="{DynamicResource IconButtonStyle}" 
-                                                    Width="26" Height="26" 
-                                                    Tag="{Binding}" 
-                                                    Click="BtnRemoveExtension_Click"
-                                                    ToolTip="Erweiterung entfernen">
-                                                <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" 
-                                                      Fill="{DynamicResource StatusDangerBrush}" 
-                                                      Width="11" Height="11" Stretch="Uniform"/>
-                                            </Button>
-                                            
-                                            <!-- Enable / Disable Toggle -->
-                                            <CheckBox DockPanel.Dock="Right" 
-                                                      Style="{DynamicResource ModernToggleSwitch}" 
-                                                      IsChecked="{Binding IsEnabled, Mode=OneWay}" 
-                                                      Tag="{Binding}" 
-                                                      Click="ChkExtensionToggle_Click"
-                                                      Margin="0,0,8,0"
-                                                      ToolTip="Aktivieren / Deaktivieren"/>
+                                            <!-- Right Action Buttons: Pin, Settings, Toggle, Delete -->
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Pin Button -->
+                                                <Button Style="{DynamicResource IconButtonStyle}" 
+                                                        Width="26" Height="26" 
+                                                        Tag="{Binding}" 
+                                                        Margin="0,0,2,0"
+                                                        Click="BtnTogglePinExtension_Click"
+                                                        ToolTip="In Symbolleiste anheften / lösen">
+                                                    <Path Data="M16 12V4H17V2H7V4H8V12L5 15V17H11V22H13V17H19V15L16 12Z" 
+                                                          Fill="{DynamicResource AccentSilverBrush}" 
+                                                          Width="11" Height="11" Stretch="Uniform"/>
+                                                </Button>
+
+                                                <!-- Open Popup GUI Button -->
+                                                <Button Style="{DynamicResource IconButtonStyle}" 
+                                                        Width="26" Height="26" 
+                                                        Tag="{Binding}" 
+                                                        Margin="0,0,2,0"
+                                                        Click="BtnOpenExtensionPopup_Click"
+                                                        ToolTip="Erweiterungs-Menü (Popup) öffnen">
+                                                    <Path Data="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" 
+                                                          Fill="{DynamicResource AccentSilverBrush}" 
+                                                          Width="11" Height="11" Stretch="Uniform"/>
+                                                </Button>
+
+                                                <!-- Options / Settings Button -->
+                                                <Button Style="{DynamicResource IconButtonStyle}" 
+                                                        Width="26" Height="26" 
+                                                        Tag="{Binding}" 
+                                                        Margin="0,0,4,0"
+                                                        Click="BtnOpenExtensionSettings_Click"
+                                                        ToolTip="Einstellungen der Erweiterung öffnen">
+                                                    <Path Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" 
+                                                          Fill="{DynamicResource AccentSilverBrush}" 
+                                                          Width="12" Height="12" Stretch="Uniform"/>
+                                                </Button>
+
+                                                <!-- Enable / Disable Toggle -->
+                                                <CheckBox Style="{DynamicResource ModernToggleSwitch}" 
+                                                          IsChecked="{Binding IsEnabled, Mode=OneWay}" 
+                                                          Tag="{Binding}" 
+                                                          Click="ChkExtensionToggle_Click"
+                                                          Margin="2,0,4,0"
+                                                          ToolTip="Aktivieren / Deaktivieren"/>
+
+                                                <!-- Remove button -->
+                                                <Button Style="{DynamicResource IconButtonStyle}" 
+                                                        Width="26" Height="26" 
+                                                        Tag="{Binding}" 
+                                                        Margin="2,0,0,0"
+                                                        Click="BtnRemoveExtension_Click"
+                                                        ToolTip="Erweiterung entfernen">
+                                                    <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" 
+                                                          Fill="{DynamicResource StatusDangerBrush}" 
+                                                          Width="11" Height="11" Stretch="Uniform"/>
+                                                </Button>
+                                            </StackPanel>
 
                                             <!-- Info -->
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Id}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
+                                            <DockPanel LastChildFill="True" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <Path Data="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z" 
+                                                      Fill="{DynamicResource AccentSilverDimBrush}" 
+                                                      Width="13" Height="13" Stretch="Uniform" 
+                                                      DockPanel.Dock="Left" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Id}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </DockPanel>
                                         </DockPanel>
                                     </Border>
                                 </DataTemplate>
@@ -1111,16 +1175,14 @@
                     <Separator Background="{DynamicResource BorderBrush}" Margin="0,8,0,10"/>
 
                     <!-- Web Store Link -->
-                    <Button Style="{DynamicResource BookmarkChipStyle}" 
+                    <Button Style="{DynamicResource FlyoutActionButtonStyle}" 
                             HorizontalAlignment="Stretch" 
-                            Height="32"
-                            Background="{DynamicResource SurfaceHoverBrush}"
                             Click="BtnOpenChromeWebStore_Click">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" 
                                   Fill="{DynamicResource AccentSilverDimBrush}" 
-                                  Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
-                            <TextBlock Text="Chrome Web Store durchsuchen" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                  Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Chrome Web Store durchsuchen" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -1137,9 +1199,9 @@
             <Border Style="{DynamicResource FlyoutCardStyle}" Width="360" MaxHeight="450" Margin="5">
                 <StackPanel>
                     <DockPanel LastChildFill="True" Margin="0,0,0,10">
-                        <TextBlock Text="Downloads" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Downloads" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         <Button DockPanel.Dock="Right" 
-                                Style="{DynamicResource BookmarkChipStyle}" 
+                                Style="{DynamicResource FlyoutSmallButtonStyle}" 
                                 Content="Ordner öffnen" 
                                 Click="BtnOpenDownloadsFolder_Click"/>
                     </DockPanel>
@@ -1159,8 +1221,10 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type models:DownloadItem}">
                                     <Border Background="{DynamicResource TabBackgroundBrush}" 
-                                            CornerRadius="6" 
-                                            Padding="10" 
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="7" 
+                                            Padding="10,8" 
                                             Margin="0,0,0,6">
                                         <StackPanel>
                                             <TextBlock Text="{Binding FileName}" 
@@ -1177,14 +1241,22 @@
                                             <DockPanel LastChildFill="True">
                                                 <TextBlock Text="{Binding ProgressText}" 
                                                            FontSize="11" 
-                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           VerticalAlignment="Center"/>
                                                 <Button DockPanel.Dock="Right" 
-                                                        Style="{DynamicResource BookmarkChipStyle}" 
-                                                        Content="Öffnen" 
-                                                        Height="22" 
-                                                        Padding="6,0" 
                                                         Click="BtnOpenDownloadFile_Click" 
-                                                        Tag="{Binding FilePath}"/>
+                                                        Tag="{Binding FilePath}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource FlyoutSmallButtonStyle}">
+                                                            <Setter Property="Content" Value="Öffnen"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsCrx}" Value="True">
+                                                                    <Setter Property="Content" Value="Installieren"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
                                             </DockPanel>
                                         </StackPanel>
                                     </Border>

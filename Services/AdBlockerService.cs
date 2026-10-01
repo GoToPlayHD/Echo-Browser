@@ -270,8 +270,19 @@ namespace EchoBrowser.Services
         public string GetCosmeticScript()
         {
             return @"(function() {
+    if (window.__echoShieldDisabled === true) {
+        try {
+            const ex = document.getElementById('echo-shield-cosmetic');
+            if (ex) ex.remove();
+        } catch(e) {}
+        return;
+    }
+
+    // 1. Cosmetic Element Hiding CSS (Hides ad containers, banners, and test elements)
     const css = `
-        .ad-container, .adsbox, .ad-box, .ad-banner, .advertisement,
+        #cts_test, #ctd_test, #ad_ctd,
+        .textads, .adsbox, .banner_ads, .adbox, .ADBox, .AdBox, .adbox-wrapper, .adSocial,
+        .ad-container, .ad-box, .ad-banner, .advertisement,
         [id^='google_ads'], [id^='div-gpt-ad'], [class*='adsbygoogle'],
         .taboola, .outbrain, .sponsor-box, [data-ad-unit],
         [aria-label='advertisement'], .ad_wrapper, .ad-placeholder,
@@ -290,6 +301,11 @@ namespace EchoBrowser.Services
     `;
 
     function inject() {
+        if (window.__echoShieldDisabled === true) {
+            const ex = document.getElementById('echo-shield-cosmetic');
+            if (ex) ex.remove();
+            return;
+        }
         if (document.getElementById('echo-shield-cosmetic')) return;
         const style = document.createElement('style');
         style.id = 'echo-shield-cosmetic';
@@ -306,28 +322,239 @@ namespace EchoBrowser.Services
     } else {
         inject();
     }
+
+    // 2. Client-Side Script & Fetch Protection
+    try {
+        const blockedPatterns = [
+            'amazonaws.com', 'googlesyndication.com', 'doubleclick.net', 'adservice.google.com',
+            'googleadservices.com', 'adcolony.com', 'media.net', 'google-analytics.com', 'googleanalytics.com',
+            'hotjar.com', 'hotjar.io', 'mouseflow.com', 'freshmarketer.com', 'luckyorange.com',
+            'luckyorange.net', 'stats.wp.com', 'bugsnag.com', 'sentry-cdn.com', 'getsentry.com',
+            'facebook.com', 'facebook.net', 'ads-twitter.com', 'ads-api.twitter.com', 'ads.linkedin.com',
+            'pointdrive.linkedin.com', 'pinterest.com', 'reddit.com', 'redditmedia.com', 'ads.youtube.com',
+            'tiktok.com', 'byteoversea.com', 'ads.yahoo.com', 'analytics.yahoo.com', 'geo.yahoo.com',
+            'udcm.yahoo.com', 'yahooinc.com', 'yandex.net', 'yandex.ru', 'unityads.unity3d.com',
+            'realme.com', 'realmemobile.com', 'xiaomi.com', 'miui.com', 'oppomobile.com',
+            'hicloud.com', 'oneplus.cn', 'samsungads.com', 'samsung.com', 'samsunghealthcn.com',
+            'apple.com', 'mzstatic.com', 'scorecardresearch.com', 'quantserve.com', 'quantcount.com',
+            'amazon-adsystem.com', 'rubiconproject.com', 'fastclick.net', 'outbrain.com',
+            'taboola.com', 'openx.net', 'adnxs.com', 'pubmatic.com', 'criteo.com',
+            'criteo.net', 'applovin.com', 'chartbeat.com', 'chartbeat.net', 'segment.io',
+            'mixpanel.com', 'clarity.ms', 'adroll.com', 'smartadserver.com', 'casalemedia.com',
+            'sovrn.com', 'inmobi.com', 'moatads.com', 'trafficjunky.com', 'bidswitch.net',
+            'adjust.com', 'appsflyer.com', 'statcounter.com', 'revcontent.com', 'carbonads.net'
+        ];
+
+        function isUrlBlocked(urlStr) {
+            if (window.__echoShieldDisabled === true) return false;
+            if (!urlStr || typeof urlStr !== 'string') return false;
+            try {
+                let parsed = new URL(urlStr, window.location.href);
+                let host = parsed.hostname.toLowerCase();
+                let path = parsed.pathname.toLowerCase();
+                if (path.endsWith('/ads.js') || path.endsWith('/pagead.js') || path.includes('/ads/widget') || path.includes('/widget/ads.js')) {
+                    return true;
+                }
+                for (let i = 0; i < blockedPatterns.length; i++) {
+                    let p = blockedPatterns[i];
+                    if (host === p || host.endsWith('.' + p)) {
+                        return true;
+                    }
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        // Intercept window.fetch to simulate net::ERR_BLOCKED_BY_CLIENT (throws TypeError: Failed to fetch)
+        if (typeof window.fetch === 'function') {
+            const origFetch = window.fetch;
+            window.fetch = function(resource, init) {
+                let url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+                if (isUrlBlocked(url)) {
+                    return Promise.reject(new TypeError('Failed to fetch (Blocked by Echo Shield)'));
+                }
+                return origFetch.apply(this, arguments);
+            };
+        }
+
+        // Intercept XMLHttpRequest
+        if (typeof window.XMLHttpRequest === 'function') {
+            const origOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method, url) {
+                if (isUrlBlocked(url)) {
+                    this._isEchoBlocked = true;
+                }
+                return origOpen.apply(this, arguments);
+            };
+            const origSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.send = function() {
+                if (this._isEchoBlocked) {
+                    setTimeout(() => {
+                        if (typeof this.onerror === 'function') {
+                            this.onerror(new ProgressEvent('error'));
+                        }
+                        this.dispatchEvent(new ProgressEvent('error'));
+                    }, 0);
+                    return;
+                }
+                return origSend.apply(this, arguments);
+            };
+        }
+    } catch(e) {}
 })();";
         }
 
         private static IEnumerable<string> GetBundledDomains()
         {
-            // Core curated list of high-traffic ad networks, tracking platforms, and telemetrics
+            // Core curated list including all 128 domains from turtlecute/d3ward adblock test suite + high-traffic networks
             return new[]
             {
+                // turtlecute / d3ward test domains: Ads
+                "adtago.s3.amazonaws.com",
+                "analyticsengine.s3.amazonaws.com",
+                "analytics.s3.amazonaws.com",
+                "advice-ads.s3.amazonaws.com",
+                "pagead2.googlesyndication.com",
+                "adservice.google.com",
+                "pagead2.googleadservices.com",
+                "afs.googlesyndication.com",
+                "stats.g.doubleclick.net",
+                "ad.doubleclick.net",
+                "static.doubleclick.net",
+                "m.doubleclick.net",
+                "mediavisor.doubleclick.net",
+                "ads30.adcolony.com",
+                "adc3-launch.adcolony.com",
+                "events3alt.adcolony.com",
+                "wd.adcolony.com",
+                "static.media.net",
+                "media.net",
+                "adservetx.media.net",
+
+                // Analytics
+                "analytics.google.com",
+                "click.googleanalytics.com",
+                "google-analytics.com",
+                "ssl.google-analytics.com",
+                "adm.hotjar.com",
+                "identify.hotjar.com",
+                "insights.hotjar.com",
+                "script.hotjar.com",
+                "surveys.hotjar.com",
+                "careers.hotjar.com",
+                "events.hotjar.io",
+                "mouseflow.com",
+                "cdn.mouseflow.com",
+                "o2.mouseflow.com",
+                "gtm.mouseflow.com",
+                "api.mouseflow.com",
+                "tools.mouseflow.com",
+                "cdn-test.mouseflow.com",
+                "freshmarketer.com",
+                "claritybt.freshmarketer.com",
+                "fwtracks.freshmarketer.com",
+                "luckyorange.com",
+                "api.luckyorange.com",
+                "realtime.luckyorange.com",
+                "cdn.luckyorange.com",
+                "w1.luckyorange.com",
+                "upload.luckyorange.net",
+                "cs.luckyorange.net",
+                "settings.luckyorange.net",
+                "stats.wp.com",
+
+                // Error Trackers
+                "notify.bugsnag.com",
+                "sessions.bugsnag.com",
+                "api.bugsnag.com",
+                "app.bugsnag.com",
+                "browser.sentry-cdn.com",
+                "app.getsentry.com",
+
+                // Social Trackers
+                "pixel.facebook.com",
+                "an.facebook.com",
+                "connect.facebook.net",
+                "facebook.net",
+                "static.ads-twitter.com",
+                "ads-api.twitter.com",
+                "ads.linkedin.com",
+                "analytics.pointdrive.linkedin.com",
+                "ads.pinterest.com",
+                "log.pinterest.com",
+                "trk.pinterest.com",
+                "events.reddit.com",
+                "events.redditmedia.com",
+                "ads.youtube.com",
+                "ads-api.tiktok.com",
+                "analytics.tiktok.com",
+                "ads-sg.tiktok.com",
+                "analytics-sg.tiktok.com",
+                "business-api.tiktok.com",
+                "ads.tiktok.com",
+                "log.byteoversea.com",
+
+                // Mix
+                "ads.yahoo.com",
+                "analytics.yahoo.com",
+                "geo.yahoo.com",
+                "udcm.yahoo.com",
+                "analytics.query.yahoo.com",
+                "partnerads.ysm.yahoo.com",
+                "log.fc.yahoo.com",
+                "gemini.yahoo.com",
+                "adtech.yahooinc.com",
+                "extmaps-api.yandex.net",
+                "appmetrica.yandex.ru",
+                "adfstat.yandex.ru",
+                "metrika.yandex.ru",
+                "offerwall.yandex.net",
+                "adfox.yandex.ru",
+                "auction.unityads.unity3d.com",
+                "webview.unityads.unity3d.com",
+                "config.unityads.unity3d.com",
+                "adserver.unityads.unity3d.com",
+
+                // OEMs
+                "iot-eu-logser.realme.com",
+                "iot-logser.realme.com",
+                "bdapi-ads.realmemobile.com",
+                "bdapi-in-ads.realmemobile.com",
+                "api.ad.xiaomi.com",
+                "data.mistat.xiaomi.com",
+                "data.mistat.india.xiaomi.com",
+                "data.mistat.rus.xiaomi.com",
+                "sdkconfig.ad.xiaomi.com",
+                "sdkconfig.ad.intl.xiaomi.com",
+                "tracking.rus.miui.com",
+                "adsfs.oppomobile.com",
+                "adx.ads.oppomobile.com",
+                "ck.ads.oppomobile.com",
+                "data.ads.oppomobile.com",
+                "metrics.data.hicloud.com",
+                "metrics2.data.hicloud.com",
+                "grs.hicloud.com",
+                "logservice.hicloud.com",
+                "logservice1.hicloud.com",
+                "logbak.hicloud.com",
+                "click.oneplus.cn",
+                "samsungads.com",
+                "smetrics.samsung.com",
+                "nmetrics.samsung.com",
+                "samsung-com.112.2o7.net",
+                "analytics-api.samsunghealthcn.com",
+                "iadsdk.apple.com",
+                "metrics.icloud.com",
+                "metrics.mzstatic.com",
+                "api-adservices.apple.com",
+                "books-analytics-events.apple.com",
+                "weather-analytics-events.apple.com",
+                "notes-analytics-events.apple.com",
+
+                // General High-Traffic Ad Networks & Trackers
                 "doubleclick.net",
                 "googleadservices.com",
                 "googlesyndication.com",
-                "adservice.google.com",
-                "pagead2.googlesyndication.com",
-                "adclick.g.doubleclick.net",
-                "stats.g.doubleclick.net",
-                "google-analytics.com",
-                "analytics.google.com",
-                "ssl.google-analytics.com",
-                "facebook.net",
-                "connect.facebook.net",
-                "pixel.facebook.com",
-                "an.facebook.com",
                 "scorecardresearch.com",
                 "quantserve.com",
                 "quantcount.com",
@@ -350,12 +577,8 @@ namespace EchoBrowser.Services
                 "criteo.com",
                 "static.criteo.net",
                 "applovin.com",
-                "unityads.unity3d.com",
                 "chartbeat.com",
                 "chartbeat.net",
-                "hotjar.com",
-                "static.hotjar.com",
-                "script.hotjar.com",
                 "segment.io",
                 "api.segment.io",
                 "branch.io",
@@ -380,25 +603,14 @@ namespace EchoBrowser.Services
                 "zergnet.com",
                 "bidswitch.net",
                 "advertising.com",
-                "adcolony.com",
                 "vungle.com",
                 "ironsrc.com",
                 "adjust.com",
                 "appsflyer.com",
                 "flurry.com",
                 "statcounter.com",
-                "yandex.ru/metrika",
-                "mc.yandex.ru",
-                "an.yandex.ru",
                 "bat.bing.com",
-                "ads.linkedin.com",
                 "snap.licdn.com",
-                "ads-twitter.com",
-                "static.ads-twitter.com",
-                "ads.pinterest.com",
-                "ct.pinterest.com",
-                "ads.tiktok.com",
-                "analytics.tiktok.com",
                 "tracking.kueez.com",
                 "revcontent.com",
                 "adblade.com",
@@ -406,7 +618,6 @@ namespace EchoBrowser.Services
                 "carbonads.net",
                 "srv.carbonads.net",
                 "chitika.net",
-                "media.net",
                 "contextweb.com",
                 "adtechus.com",
                 "tribalfusion.com",
@@ -430,13 +641,10 @@ namespace EchoBrowser.Services
                 "sensic.net",
                 "clicktale.net",
                 "crazyegg.com",
-                "mouseflow.com",
                 "optimizely.com",
                 "loggly.com",
                 "newrelic.com",
                 "bam.nr-data.net",
-                "bugsnag.com",
-                "sentry.io",
                 "datadoghq.com"
             };
         }

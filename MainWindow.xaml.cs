@@ -14,6 +14,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using EchoBrowser.Models;
 using EchoBrowser.Services;
+using EchoBrowser.Views;
+using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -28,6 +30,8 @@ namespace EchoBrowser
         private BrowserTab? _activeTab;
         private bool _isBookmarksBarVisible = true;
         private bool _isSyncingSearchEngine;
+        private bool _isUpdatingShieldUi;
+        private ExtensionPopupWindow? _activeExtensionPopup;
 
         // Drag & Drop State for Tabs and Bookmarks
         private Point _tabDragStartPoint;
@@ -267,6 +271,18 @@ namespace EchoBrowser
         {
             await InitializeBrowserEnvironmentAsync();
 
+            // 1. Initialize Localization from AppSettings
+            LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
+
+            // 2. Apple-Style Language Selection Onboarding on First Launch
+            if (!_isIncognito && !AppSettingsService.Instance.Settings.HasCompletedFirstRunLanguageSetup)
+            {
+                var setupWin = new LanguageSetupWindow { Owner = this };
+                setupWin.ShowDialog();
+            }
+
+            ApplyLocalizationToUi();
+
             var settings = AppSettingsService.Instance.Settings;
             if (!_isIncognito && settings.StartupBehavior == "restore_session")
             {
@@ -279,6 +295,35 @@ namespace EchoBrowser
             else
             {
                 AddNewTab(StartPageService.StartPageUrl);
+            }
+
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(600);
+                UpdatePinnedExtensionsToolbar();
+            });
+        }
+
+        private void ApplyLocalizationToUi()
+        {
+            try
+            {
+                btnBack.ToolTip = LocalizationService.Instance.GetString("Nav_Back", "Zurück (Alt+Links)");
+                btnForward.ToolTip = LocalizationService.Instance.GetString("Nav_Forward", "Vorwärts (Alt+Rechts)");
+                btnReload.ToolTip = LocalizationService.Instance.GetString("Nav_Reload", "Neu laden (F5)");
+                btnHome.ToolTip = LocalizationService.Instance.GetString("Nav_Home", "Startseite");
+                btnNewTab.ToolTip = LocalizationService.Instance.GetString("Nav_NewTab", "Neuer Tab (Strg+T)");
+                btnShield.ToolTip = LocalizationService.Instance.GetString("Nav_EchoShield", "Echo Shield Schutz");
+                btnExtensions.ToolTip = LocalizationService.Instance.GetString("Nav_Extensions", "Erweiterungen");
+                btnDownloads.ToolTip = LocalizationService.Instance.GetString("Nav_Downloads", "Downloads");
+                btnMenu.ToolTip = LocalizationService.Instance.GetString("Nav_Settings", "Einstellungen");
+                txtUrlPlaceholder.Text = LocalizationService.Instance.GetString("Nav_AddressPlaceholder", "Suchen oder Webadresse eingeben...");
+
+                UpdateShieldUi();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to apply localization: {ex.Message}");
             }
         }
 
@@ -422,7 +467,18 @@ namespace EchoBrowser
                     // Cosmetic element-hiding CSS injection
                     try
                     {
-                        await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
+                        bool isShieldActive = AppSettingsService.Instance.Settings.IsAdBlockerEnabled && tab.TrackingProtectionEnabled;
+                        if (isShieldActive)
+                        {
+                            tab.CosmeticScriptId = await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
+                        }
+                    }
+                    catch { }
+
+                    // Chrome Web Store Extension Helper Script
+                    try
+                    {
+                        await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(ExtensionService.GetWebStoreHelperScript());
                     }
                     catch { }
 
@@ -448,7 +504,19 @@ namespace EchoBrowser
                                     (reqUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) || 
                                      reqUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    if (AdBlockerService.Instance.IsBlocked(reqUri.Host))
+                                    bool shouldBlock = AdBlockerService.Instance.IsBlocked(reqUri.Host);
+                                    if (!shouldBlock)
+                                    {
+                                        string path = reqUri.AbsolutePath;
+                                        if (path.EndsWith("/ads.js", StringComparison.OrdinalIgnoreCase) ||
+                                            path.EndsWith("/pagead.js", StringComparison.OrdinalIgnoreCase) ||
+                                            path.Contains("/widget/ads.js", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            shouldBlock = true;
+                                        }
+                                    }
+
+                                    if (shouldBlock)
                                     {
                                         if (_webViewEnvironment != null)
                                         {
@@ -457,7 +525,7 @@ namespace EchoBrowser
                                         tab.BlockedTrackersCount++;
                                         if (tab == ActiveTab)
                                         {
-                                            Dispatcher.Invoke(() =>
+                                            Dispatcher.BeginInvoke(() =>
                                             {
                                                 UpdateShieldBadge();
                                                 if (popupShield.IsOpen)
@@ -532,6 +600,41 @@ namespace EchoBrowser
                                         {
                                             AppSettingsService.Instance.Settings.StartpageShortcuts = shortcuts;
                                             AppSettingsService.Instance.Save();
+                                        });
+                                    }
+                                }
+                                else if (type == "installExtensionFromWebStore")
+                                {
+                                    string extId = root.TryGetProperty("extensionId", out var idEl) ? (idEl.GetString() ?? "") : "";
+                                    string extName = root.TryGetProperty("extensionName", out var nameEl) ? (nameEl.GetString() ?? "Erweiterung") : "Erweiterung";
+
+                                    if (!string.IsNullOrWhiteSpace(extId))
+                                    {
+                                        Dispatcher.Invoke(async () =>
+                                        {
+                                            try
+                                             {
+                                                if (webView.CoreWebView2?.Profile != null)
+                                                {
+                                                    if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, extId))
+                                                    {
+                                                        await webView.CoreWebView2.ExecuteScriptAsync("window.onEchoExtensionInstallResult && window.onEchoExtensionInstallResult(false, 'Vom Benutzer abgebrochen');");
+                                                        return;
+                                                    }
+
+                                                    var ext = await ExtensionService.Instance.DownloadAndInstallExtensionAsync(webView.CoreWebView2.Profile, extId, extName);
+                                                    string finalName = ext?.Name ?? extName;
+                                                    await webView.CoreWebView2.ExecuteScriptAsync("window.onEchoExtensionInstallResult && window.onEchoExtensionInstallResult(true, 'Installiert');");
+                                                    ThemedDialogWindow.ShowExtensionInstalledSuccess(this, finalName, ext?.Id ?? extId);
+                                                    await RefreshExtensionsListAsync();
+                                                }
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                string safeMsg = ex.Message.Replace("'", "\\'").Replace("\r", "").Replace("\n", " ");
+                                                await webView.CoreWebView2.ExecuteScriptAsync($"window.onEchoExtensionInstallResult && window.onEchoExtensionInstallResult(false, '{safeMsg}');");
+                                                ThemedDialogWindow.ShowMessage(this, "Echo-Browser Erweiterungen", $"Fehler beim Herunterladen und Installieren der Erweiterung:\n{ex.Message}", MessageBoxImage.Error);
+                                            }
                                         });
                                     }
                                 }
@@ -641,6 +744,12 @@ namespace EchoBrowser
                                                 break;
                                             case "WarnOnClosingMultipleTabs":
                                                 settings.WarnOnClosingMultipleTabs = valEl.GetBoolean();
+                                                break;
+                                            case "Language":
+                                                string newLang = valEl.GetString() ?? "de";
+                                                settings.Language = newLang;
+                                                LocalizationService.Instance.SetLanguage(newLang);
+                                                ApplyLocalizationToUi();
                                                 break;
                                         }
                                         AppSettingsService.Instance.Save();
@@ -773,8 +882,7 @@ namespace EchoBrowser
                             });
                         }
                     };
-
-                    // Handle downloads
+                    // Handle downloads
                     webView.CoreWebView2.DownloadStarting += (s, args) =>
                     {
                         Dispatcher.Invoke(() =>
@@ -788,7 +896,27 @@ namespace EchoBrowser
 
                             if (AppSettingsService.Instance.Settings.AskDownloadLocation)
                             {
-                                args.Handled = false;
+                                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                                {
+                                    FileName = fileName,
+                                    InitialDirectory = !string.IsNullOrWhiteSpace(customFolder) && Directory.Exists(customFolder)
+                                        ? customFolder
+                                        : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads"
+                                };
+                                if (saveDialog.ShowDialog() == true)
+                                {
+                                    args.ResultFilePath = saveDialog.FileName;
+                                    args.Handled = true;
+                                }
+                                else
+                                {
+                                    args.Cancel = true;
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                args.Handled = true;
                             }
 
                             var download = new DownloadItem
@@ -825,26 +953,25 @@ namespace EchoBrowser
                                         // Auto-install CRX if it is a downloaded extension
                                         if (download.FilePath.EndsWith(".crx", StringComparison.OrdinalIgnoreCase) && File.Exists(download.FilePath))
                                         {
-                                            _ = Task.Run(async () =>
+                                            _ = Dispatcher.InvokeAsync(async () =>
                                             {
                                                 try
                                                 {
+                                                    await Task.Delay(250);
                                                     if (webView.CoreWebView2?.Profile != null)
                                                     {
-                                                        var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(webView.CoreWebView2.Profile, download.FilePath);
-                                                        Dispatcher.Invoke(() =>
+                                                        string extName = Path.GetFileNameWithoutExtension(download.FilePath);
+                                                        if (ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, download.FilePath))
                                                         {
-                                                            MessageBox.Show($"Erweiterung '{ext?.Name ?? Path.GetFileName(download.FilePath)}' erfolgreich installiert!", "Echo-Browser Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Information);
-                                                            _ = RefreshExtensionsListAsync();
-                                                        });
+                                                            var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(webView.CoreWebView2.Profile, download.FilePath);
+                                                            ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id);
+                                                            await RefreshExtensionsListAsync();
+                                                        }
                                                     }
                                                 }
                                                 catch (Exception ex)
                                                 {
-                                                    Dispatcher.Invoke(() =>
-                                                    {
-                                                        MessageBox.Show($"Automatische Installation der Erweiterung fehlgeschlagen:\n{ex.Message}", "Echo-Browser Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Warning);
-                                                    });
+                                                    ThemedDialogWindow.ShowMessage(this, "Echo-Browser Erweiterungen", $"Automatische Installation der Erweiterung fehlgeschlagen:\n{ex.Message}", MessageBoxImage.Warning);
                                                 }
                                             });
                                         }
@@ -894,15 +1021,54 @@ namespace EchoBrowser
                 }
 
                 // Navigation Starting
-                webView.NavigationStarting += (s, args) =>
+                webView.NavigationStarting += async (s, args) =>
                 {
+                    // Check domain whitelist
+                    if (Uri.TryCreate(args.Uri, UriKind.Absolute, out var navUri) && !string.IsNullOrEmpty(navUri.Host))
+                    {
+                        bool isWhitelisted = AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Contains(navUri.Host);
+                        tab.TrackingProtectionEnabled = !isWhitelisted;
+                    }
+
+                    bool shouldShieldBeActive = AppSettingsService.Instance.Settings.IsAdBlockerEnabled && tab.TrackingProtectionEnabled;
+                    if (webView.CoreWebView2 != null)
+                    {
+                        if (!shouldShieldBeActive)
+                        {
+                            if (tab.CosmeticScriptId != null)
+                            {
+                                try
+                                {
+                                    webView.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(tab.CosmeticScriptId);
+                                    tab.CosmeticScriptId = null;
+                                }
+                                catch { }
+                            }
+                        }
+                        else
+                        {
+                            if (tab.CosmeticScriptId == null)
+                            {
+                                try
+                                {
+                                    tab.CosmeticScriptId = await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+
                     Dispatcher.Invoke(() =>
                     {
                         tab.BlockedTrackersCount = 0;
                         tab.IsLoading = true;
-                        tab.Url = args.Uri;
+                        if (!args.Uri.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase))
+                        {
+                            tab.Url = args.Uri;
+                        }
                         if (tab == ActiveTab)
                         {
+                            txtUrl.Text = IsStartPage(tab.Url) ? "" : tab.Url;
                             UpdateNavigationControls();
                             UpdateShieldBadge();
                             if (popupShield.IsOpen)
@@ -929,7 +1095,8 @@ namespace EchoBrowser
                         if (!_isIncognito && !string.IsNullOrWhiteSpace(tab.Url) && 
                             tab.Url != StartPageService.StartPageUrl && 
                             tab.Url != SettingsPageService.SettingsPageUrl &&
-                            !tab.Url.StartsWith("echo://", StringComparison.OrdinalIgnoreCase))
+                            !tab.Url.StartsWith("echo://", StringComparison.OrdinalIgnoreCase) &&
+                            !tab.Url.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase))
                         {
                             _historyService.AddEntry(tab.Title, tab.Url);
                         }
@@ -948,7 +1115,7 @@ namespace EchoBrowser
                         }
                         if (tab == ActiveTab)
                         {
-                            txtUrl.Text = (tab.Url == StartPageService.StartPageUrl) ? "" : tab.Url;
+                            txtUrl.Text = IsStartPage(tab.Url) ? "" : tab.Url;
                             CheckBookmarkStatus();
                             UpdateShieldUi();
                         }
@@ -1031,7 +1198,7 @@ namespace EchoBrowser
         {
             if (ActiveTab == null) return;
 
-            txtUrl.Text = (ActiveTab.Url == StartPageService.StartPageUrl) ? "" : ActiveTab.Url;
+            txtUrl.Text = IsStartPage(ActiveTab.Url) ? "" : ActiveTab.Url;
             UpdateNavigationControls();
             CheckBookmarkStatus();
             UpdateShieldBadge();
@@ -1127,7 +1294,13 @@ namespace EchoBrowser
 
         private void CheckBookmarkStatus()
         {
-            if (ActiveTab == null) return;
+            if (ActiveTab == null || IsStartPage(ActiveTab.Url))
+            {
+                pathBookmarkStar.Data = Geometry.Parse("M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z");
+                pathBookmarkStar.Fill = FindResource("AccentSilverDimBrush") as Brush ?? Brushes.Gray;
+                btnBookmark.ToolTip = "Startseite kann nicht als Lesezeichen gespeichert werden";
+                return;
+            }
 
             bool isBookmarked = _bookmarkService.IsBookmarked(ActiveTab.Url);
             if (isBookmarked)
@@ -1146,7 +1319,7 @@ namespace EchoBrowser
 
         private void BtnBookmark_Click(object sender, RoutedEventArgs e)
         {
-            if (ActiveTab == null || string.IsNullOrWhiteSpace(ActiveTab.Url) || ActiveTab.Url == StartPageService.StartPageUrl) return;
+            if (ActiveTab == null || string.IsNullOrWhiteSpace(ActiveTab.Url) || IsStartPage(ActiveTab.Url)) return;
 
             string title = string.IsNullOrWhiteSpace(ActiveTab.Title) ? ActiveTab.Url : ActiveTab.Title;
             _bookmarkService.ToggleBookmark(title, ActiveTab.Url);
@@ -1866,6 +2039,15 @@ namespace EchoBrowser
             }
         }
 
+        public static bool IsStartPage(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return true;
+            return url.Equals(StartPageService.StartPageUrl, StringComparison.OrdinalIgnoreCase) ||
+                   url.Equals("echo://newtab", StringComparison.OrdinalIgnoreCase) ||
+                   url.Equals("about:blank", StringComparison.OrdinalIgnoreCase) ||
+                   url.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase);
+        }
+
         private void NavigateToInput(string input)
         {
             if (string.IsNullOrWhiteSpace(input) || ActiveTab?.WebView == null) return;
@@ -1941,7 +2123,7 @@ namespace EchoBrowser
             {
                 if (ActiveTab != null)
                 {
-                    txtUrl.Text = (ActiveTab.Url == StartPageService.StartPageUrl) ? "" : ActiveTab.Url;
+                    txtUrl.Text = IsStartPage(ActiveTab.Url) ? "" : ActiveTab.Url;
                 }
                 WebViewContainer.Focus();
             }
@@ -1956,7 +2138,7 @@ namespace EchoBrowser
         {
             if (ActiveTab != null && string.IsNullOrWhiteSpace(txtUrl.Text))
             {
-                txtUrl.Text = (ActiveTab.Url == StartPageService.StartPageUrl) ? "" : ActiveTab.Url;
+                txtUrl.Text = IsStartPage(ActiveTab.Url) ? "" : ActiveTab.Url;
             }
         }
 
@@ -1986,9 +2168,10 @@ namespace EchoBrowser
             }
             else
             {
-                if (ActiveTab.Url == StartPageService.StartPageUrl)
+                if (IsStartPage(ActiveTab.Url))
                 {
-                    ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml());
+                    ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
+                    txtUrl.Text = "";
                 }
                 else
                 {
@@ -1999,7 +2182,17 @@ namespace EchoBrowser
 
         private void BtnHome_Click(object sender, RoutedEventArgs e)
         {
-            NavigateToInput(StartPageService.StartPageUrl);
+            if (ActiveTab?.WebView == null) return;
+
+            if (IsStartPage(ActiveTab.Url))
+            {
+                ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
+                txtUrl.Text = "";
+            }
+            else
+            {
+                NavigateToInput(StartPageService.StartPageUrl);
+            }
         }
 
         #endregion
@@ -2146,7 +2339,7 @@ namespace EchoBrowser
             string url = ActiveTab.Url;
             string host = "Lokale Seite";
 
-            if (url == StartPageService.StartPageUrl)
+            if (IsStartPage(url))
             {
                 host = "Echo Startseite";
             }
@@ -2154,9 +2347,11 @@ namespace EchoBrowser
             {
                 try
                 {
-                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host))
                     {
                         host = uri.Host;
+                        bool isWhitelisted = AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Contains(host);
+                        ActiveTab.TrackingProtectionEnabled = !isWhitelisted;
                     }
                 }
                 catch { }
@@ -2164,7 +2359,7 @@ namespace EchoBrowser
 
             txtShieldHost.Text = string.IsNullOrWhiteSpace(host) ? "Echo-Browser" : host;
 
-            if (ActiveTab.IsSecure || url == StartPageService.StartPageUrl)
+            if (ActiveTab.IsSecure || IsStartPage(url))
             {
                 txtShieldStatus.Text = "Sichere Verbindung (TLS/HTTPS)";
                 txtShieldStatus.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
@@ -2175,37 +2370,45 @@ namespace EchoBrowser
                 txtShieldStatus.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
             }
 
-            bool isGlobalOn = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
-            bool isTabOn = ActiveTab.TrackingProtectionEnabled;
-            bool isProtectionActive = isGlobalOn && isTabOn;
-
-            chkGlobalShield.IsChecked = isGlobalOn;
-            chkTrackingProtection.IsChecked = isTabOn;
-            chkJavaScript.IsChecked = ActiveTab.JavaScriptEnabled;
-            chkPopups.IsChecked = ActiveTab.PopupsBlocked;
-
-            if (isProtectionActive)
+            _isUpdatingShieldUi = true;
+            try
             {
-                txtShieldActiveState.Text = "Echo Shield: Aktiviert";
-                txtShieldActiveState.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
-                pathShieldPopupIcon.Fill = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
+                bool isGlobalOn = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
+                bool isTabOn = ActiveTab.TrackingProtectionEnabled;
+                bool isProtectionActive = isGlobalOn && isTabOn;
+
+                chkGlobalShield.IsChecked = isGlobalOn;
+                chkTrackingProtection.IsChecked = isTabOn;
+                chkJavaScript.IsChecked = ActiveTab.JavaScriptEnabled;
+                chkPopups.IsChecked = ActiveTab.PopupsBlocked;
+
+                if (isProtectionActive)
+                {
+                    txtShieldActiveState.Text = LocalizationService.Instance.GetString("Shield_ActiveStateOn", "Echo Shield: Aktiviert");
+                    txtShieldActiveState.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
+                    pathShieldPopupIcon.Fill = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
+                }
+                else
+                {
+                    txtShieldActiveState.Text = LocalizationService.Instance.GetString("Shield_ActiveStateOff", "Echo Shield: Deaktiviert");
+                    txtShieldActiveState.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
+                    pathShieldPopupIcon.Fill = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
+                }
+
+                txtTrackersBlocked.Text = string.Format(LocalizationService.Instance.GetString("Shield_TrackersBlockedFormat", "{0} Tracker und Werbeanzeigen blockiert"), ActiveTab.BlockedTrackersCount);
+                txtFilterRuleCount.Text = string.Format(LocalizationService.Instance.GetString("Shield_FilterRuleCountFormat", "{0:N0} Filterregeln geladen"), AdBlockerService.Instance.BlockedDomainsCount);
+
+                UpdateShieldBadge();
             }
-            else
+            finally
             {
-                txtShieldActiveState.Text = "Echo Shield: Deaktiviert";
-                txtShieldActiveState.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
-                pathShieldPopupIcon.Fill = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
+                _isUpdatingShieldUi = false;
             }
-
-            txtTrackersBlocked.Text = $"{ActiveTab.BlockedTrackersCount} Tracker und Werbeanzeigen blockiert";
-            txtFilterRuleCount.Text = $"{AdBlockerService.Instance.BlockedDomainsCount:N0} Filterregeln geladen";
-
-            UpdateShieldBadge();
         }
 
-        private void ShieldOption_Changed(object sender, RoutedEventArgs e)
+        private async void ShieldOption_Changed(object sender, RoutedEventArgs e)
         {
-            if (ActiveTab == null) return;
+            if (_isUpdatingShieldUi || ActiveTab == null) return;
 
             bool prevGlobal = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
             bool newGlobal = chkGlobalShield.IsChecked ?? true;
@@ -2215,13 +2418,77 @@ namespace EchoBrowser
                 AppSettingsService.Instance.Save();
             }
 
-            ActiveTab.TrackingProtectionEnabled = chkTrackingProtection.IsChecked ?? true;
+            bool newTabShield = chkTrackingProtection.IsChecked ?? true;
+            ActiveTab.TrackingProtectionEnabled = newTabShield;
             ActiveTab.JavaScriptEnabled = chkJavaScript.IsChecked ?? true;
             ActiveTab.PopupsBlocked = chkPopups.IsChecked ?? true;
+
+            // Remember domain in whitelist if tracking protection is turned off
+            if (Uri.TryCreate(ActiveTab.Url, UriKind.Absolute, out var curUri) && !string.IsNullOrEmpty(curUri.Host))
+            {
+                if (!newTabShield)
+                {
+                    AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Add(curUri.Host);
+                }
+                else
+                {
+                    AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Remove(curUri.Host);
+                }
+                AppSettingsService.Instance.Save();
+            }
 
             ActiveTab.ApplyScriptSetting();
             UpdateShieldUi();
             UpdateShieldBadge();
+
+            // Immediately synchronize cosmetic script & DOM state on active tab
+            bool isProtectionActive = newGlobal && newTabShield;
+            if (ActiveTab.WebView?.CoreWebView2 != null)
+            {
+                if (!isProtectionActive)
+                {
+                    if (ActiveTab.CosmeticScriptId != null)
+                    {
+                        try
+                        {
+                            ActiveTab.WebView.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(ActiveTab.CosmeticScriptId);
+                            ActiveTab.CosmeticScriptId = null;
+                        }
+                        catch { }
+                    }
+
+                    try
+                    {
+                        await ActiveTab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            "window.__echoShieldDisabled = true; const s = document.getElementById('echo-shield-cosmetic'); if (s) s.remove();"
+                        );
+                    }
+                    catch { }
+                }
+                else
+                {
+                    if (ActiveTab.CosmeticScriptId == null)
+                    {
+                        try
+                        {
+                            ActiveTab.CosmeticScriptId = await ActiveTab.WebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
+                        }
+                        catch { }
+                    }
+
+                    try
+                    {
+                        await ActiveTab.WebView.CoreWebView2.ExecuteScriptAsync("window.__echoShieldDisabled = false;");
+                    }
+                    catch { }
+                }
+
+                // If on normal web page, reload tab so that scripts and ads load cleanly without blocked state
+                if (!IsStartPage(ActiveTab.Url) && !ActiveTab.Url.StartsWith("echo://", StringComparison.OrdinalIgnoreCase) && !ActiveTab.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActiveTab.WebView.Reload();
+                }
+            }
         }
 
         private async void BtnUpdateFilterList_Click(object sender, RoutedEventArgs e)
@@ -2306,10 +2573,246 @@ namespace EchoBrowser
                     txtEmptyExtensions.Visibility = Visibility.Collapsed;
                     icExtensionsList.ItemsSource = extensions;
                 }
+
+                UpdatePinnedExtensionsToolbar();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to refresh extensions: {ex.Message}");
+            }
+        }
+
+        private async void UpdatePinnedExtensionsToolbar()
+        {
+            try
+            {
+                pnlPinnedExtensions.Children.Clear();
+                var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
+                if (profile == null) return;
+
+                var pinnedIds = AppSettingsService.Instance.Settings.PinnedExtensionIds;
+                if (pinnedIds == null || pinnedIds.Count == 0) return;
+
+                var extensions = await ExtensionService.Instance.GetInstalledExtensionsAsync(profile);
+                foreach (var extId in pinnedIds.ToList())
+                {
+                    var ext = extensions.FirstOrDefault(e => e.Id.Equals(extId, StringComparison.OrdinalIgnoreCase));
+                    if (ext == null) continue;
+
+                    var btn = new Button
+                    {
+                        Style = (Style)FindResource("IconButtonStyle"),
+                        ToolTip = ext.Name,
+                        Tag = ext,
+                        Width = 28,
+                        Height = 28,
+                        Margin = new Thickness(0, 0, 2, 0)
+                    };
+
+                    string? iconPath = ExtensionService.Instance.GetExtensionIconPath(ext.Id, ext.Name);
+                    if (!string.IsNullOrEmpty(iconPath) && File.Exists(iconPath))
+                    {
+                        try
+                        {
+                            var img = new Image
+                            {
+                                Source = new BitmapImage(new Uri(iconPath, UriKind.Absolute)),
+                                Width = 15,
+                                Height = 15,
+                                Stretch = Stretch.Uniform
+                            };
+                            btn.Content = img;
+                        }
+                        catch
+                        {
+                            btn.Content = CreateDefaultExtensionIcon();
+                        }
+                    }
+                    else
+                    {
+                        btn.Content = CreateDefaultExtensionIcon();
+                    }
+
+                    // Left click opens extension popup GUI (or options if no popup)
+                    btn.Click += (s, e) =>
+                    {
+                        OpenExtensionPopup(ext, btn);
+                    };
+
+                    // Context Menu for pinned icon
+                    var ctx = new ContextMenu
+                    {
+                        Background = (Brush)FindResource("SurfaceBrush"),
+                        BorderBrush = (Brush)FindResource("BorderBrush"),
+                        Foreground = (Brush)FindResource("TextPrimaryBrush")
+                    };
+
+                    var miTitle = new MenuItem
+                    {
+                        Header = ext.Name,
+                        FontWeight = FontWeights.Bold,
+                        IsEnabled = false
+                    };
+                    ctx.Items.Add(miTitle);
+                    ctx.Items.Add(new Separator { Background = (Brush)FindResource("BorderSubtleBrush") });
+
+                    if (ExtensionService.Instance.HasPopup(ext.Id, ext.Name))
+                    {
+                        var miPopup = new MenuItem { Header = "Erweiterung öffnen (Popup)" };
+                        miPopup.Click += (s, e) => OpenExtensionPopup(ext, btn);
+                        ctx.Items.Add(miPopup);
+                    }
+
+                    var miOptions = new MenuItem { Header = "Optionen / Einstellungen" };
+                    miOptions.Click += (s, e) =>
+                    {
+                        string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
+                        if (!string.IsNullOrWhiteSpace(optPage))
+                        {
+                            AddNewTab($"chrome-extension://{ext.Id}/{optPage}");
+                        }
+                        else
+                        {
+                            ThemedDialogWindow.ShowMessage(this, ext.Name, $"Keine separate Einstellungsseite für '{ext.Name}' gefunden.");
+                        }
+                    };
+                    ctx.Items.Add(miOptions);
+
+                    var miUnpin = new MenuItem { Header = "Aus Symbolleiste lösen" };
+                    miUnpin.Click += (s, e) =>
+                    {
+                        AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(ext.Id);
+                        AppSettingsService.Instance.Save();
+                        UpdatePinnedExtensionsToolbar();
+                    };
+                    ctx.Items.Add(miUnpin);
+
+                    ctx.Items.Add(new Separator { Background = (Brush)FindResource("BorderSubtleBrush") });
+
+                    var miRemove = new MenuItem { Header = "Erweiterung entfernen..." };
+                    miRemove.Click += async (s, e) =>
+                    {
+                        if (ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name))
+                        {
+                            await ext.RemoveAsync();
+                            AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(ext.Id);
+                            AppSettingsService.Instance.Save();
+                            await RefreshExtensionsListAsync();
+                        }
+                    };
+                    ctx.Items.Add(miRemove);
+
+                    btn.ContextMenu = ctx;
+                    pnlPinnedExtensions.Children.Add(btn);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to update pinned extensions toolbar: {ex.Message}");
+            }
+        }
+
+        private FrameworkElement CreateDefaultExtensionIcon()
+        {
+            return new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse("M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z"),
+                Fill = (Brush)FindResource("AccentSilverBrush"),
+                Width = 13,
+                Height = 13,
+                Stretch = Stretch.Uniform
+            };
+        }
+
+        private void BtnTogglePinExtension_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            {
+                var pinned = AppSettingsService.Instance.Settings.PinnedExtensionIds;
+                if (pinned.Contains(ext.Id))
+                {
+                    pinned.Remove(ext.Id);
+                }
+                else
+                {
+                    pinned.Add(ext.Id);
+                }
+                AppSettingsService.Instance.Save();
+                UpdatePinnedExtensionsToolbar();
+            }
+        }
+
+        private void BtnOpenExtensionSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            {
+                popupExtensions.IsOpen = false;
+                string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
+                if (!string.IsNullOrWhiteSpace(optPage))
+                {
+                    AddNewTab($"chrome-extension://{ext.Id}/{optPage}");
+                }
+                else
+                {
+                    ThemedDialogWindow.ShowMessage(this, ext.Name, $"Für '{ext.Name}' ist keine separate Einstellungsseite definiert.");
+                }
+            }
+        }
+
+        private async void OpenExtensionPopup(CoreWebView2BrowserExtension ext, FrameworkElement anchor)
+        {
+            if (_webViewEnvironment == null) return;
+
+            if (_activeExtensionPopup != null)
+            {
+                bool isSame = _activeExtensionPopup.ExtensionId.Equals(ext.Id, StringComparison.OrdinalIgnoreCase);
+                try { _activeExtensionPopup.Close(); } catch { }
+                _activeExtensionPopup = null;
+                if (isSame) return;
+            }
+
+            string? popupPage = ExtensionService.Instance.GetExtensionPopupPage(ext.Id, ext.Name);
+            if (string.IsNullOrWhiteSpace(popupPage))
+            {
+                string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
+                if (!string.IsNullOrWhiteSpace(optPage))
+                {
+                    AddNewTab($"chrome-extension://{ext.Id}/{optPage}");
+                }
+                else
+                {
+                    ThemedDialogWindow.ShowMessage(this, ext.Name, $"Die Erweiterung '{ext.Name}' ist aktiv. Es wurde kein separates Aktionsmenü (Popup) definiert.");
+                }
+                return;
+            }
+
+            string popupUrl = $"chrome-extension://{ext.Id}/{popupPage}";
+            string? optPageFallback = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
+            string? iconPath = ExtensionService.Instance.GetExtensionIconPath(ext.Id, ext.Name);
+
+            var win = new ExtensionPopupWindow
+            {
+                Owner = this
+            };
+
+            win.OpenOptionsRequested += (id, options) =>
+            {
+                AddNewTab($"chrome-extension://{id}/{options}");
+            };
+
+            win.PositionUnderneath(anchor);
+            win.Show();
+            _activeExtensionPopup = win;
+
+            await win.InitializeAndNavigateAsync(_webViewEnvironment, ext.Id, ext.Name, popupUrl, optPageFallback, iconPath);
+        }
+
+        private void BtnOpenExtensionPopup_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            {
+                popupExtensions.IsOpen = false;
+                OpenExtensionPopup(ext, btn);
             }
         }
 
@@ -2318,7 +2821,7 @@ namespace EchoBrowser
             var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
             if (profile == null)
             {
-                MessageBox.Show("Das Browser-Profil ist noch nicht bereit.", "Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedDialogWindow.ShowMessage(this, "Erweiterungen", "Das Browser-Profil ist noch nicht bereit.", MessageBoxImage.Warning);
                 return;
             }
 
@@ -2330,15 +2833,19 @@ namespace EchoBrowser
 
             if (dlg.ShowDialog() == true)
             {
-                try
+                string extName = Path.GetFileNameWithoutExtension(dlg.FileName);
+                if (ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, dlg.FileName))
                 {
-                    var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, dlg.FileName);
-                    MessageBox.Show($"Erweiterung '{ext?.Name ?? Path.GetFileName(dlg.FileName)}' erfolgreich installiert!", "Echo-Browser Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Information);
-                    await RefreshExtensionsListAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Fehler beim Installieren der Erweiterung:\n{ex.Message}", "Installation fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+                    try
+                    {
+                        var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, dlg.FileName);
+                        ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id);
+                        await RefreshExtensionsListAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        ThemedDialogWindow.ShowMessage(this, "Installation fehlgeschlagen", $"Fehler beim Installieren der Erweiterung:\n{ex.Message}", MessageBoxImage.Error);
+                    }
                 }
             }
         }
@@ -2347,22 +2854,18 @@ namespace EchoBrowser
         {
             if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
             {
-                var result = MessageBox.Show(
-                    $"Möchtest du die Erweiterung '{ext.Name}' wirklich entfernen?",
-                    "Erweiterung entfernen",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
+                if (ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name))
                 {
                     try
                     {
                         await ext.RemoveAsync();
+                        AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(ext.Id);
+                        AppSettingsService.Instance.Save();
                         await RefreshExtensionsListAsync();
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Fehler beim Entfernen der Erweiterung: {ex.Message}", "Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Error);
+                        ThemedDialogWindow.ShowMessage(this, "Erweiterungen", $"Fehler beim Entfernen der Erweiterung: {ex.Message}", MessageBoxImage.Error);
                     }
                 }
             }
@@ -2380,7 +2883,7 @@ namespace EchoBrowser
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Fehler beim Umschalten der Erweiterung: {ex.Message}", "Erweiterungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ThemedDialogWindow.ShowMessage(this, "Erweiterungen", $"Fehler beim Umschalten der Erweiterung: {ex.Message}", MessageBoxImage.Warning);
                 }
             }
         }
@@ -2605,7 +3108,7 @@ namespace EchoBrowser
             }
 
             // If current tab is clean start page, navigate within it
-            if (ActiveTab != null && (ActiveTab.Url == StartPageService.StartPageUrl || string.IsNullOrWhiteSpace(ActiveTab.Url)))
+            if (ActiveTab != null && (IsStartPage(ActiveTab.Url) || string.IsNullOrWhiteSpace(ActiveTab.Url)))
             {
                 NavigateToSettingsPage(ActiveTab);
             }
@@ -2774,13 +3277,13 @@ namespace EchoBrowser
         {
             if (!_isIncognito && Tabs.Count > 1 && AppSettingsService.Instance.Settings.WarnOnClosingMultipleTabs)
             {
-                var result = MessageBox.Show(
-                    $"Möchtest du wirklich alle {Tabs.Count} geöffneten Tabs schließen?",
-                    "Echo-Browser beenden",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                string title = LocalizationService.Instance.GetString("Dialog_CloseBrowserTitle", "Echo-Browser beenden");
+                string msg = string.Format(LocalizationService.Instance.GetString("Dialog_CloseMultipleTabsMessage", "Möchtest du wirklich alle {0} geöffneten Tabs schließen?"), Tabs.Count);
+                string confirm = LocalizationService.Instance.GetString("Dialog_CloseAllTabs", "Alle Tabs schließen");
+                string cancel = LocalizationService.Instance.GetString("Dialog_Cancel", "Abbrechen");
 
-                if (result != MessageBoxResult.Yes)
+                bool confirmed = ThemedDialogWindow.ShowConfirm(this, title, msg, confirm, cancel);
+                if (!confirmed)
                 {
                     e.Cancel = true;
                     return;
@@ -2813,10 +3316,34 @@ namespace EchoBrowser
 
         #endregion
 
-        private void BtnOpenDownloadFile_Click(object sender, RoutedEventArgs e)
+        private async void BtnOpenDownloadFile_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string filePath && File.Exists(filePath))
             {
+                if (filePath.EndsWith(".crx", StringComparison.OrdinalIgnoreCase))
+                {
+                    var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
+                    if (profile != null)
+                    {
+                        try
+                        {
+                            string extName = Path.GetFileNameWithoutExtension(filePath);
+                            if (ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, filePath))
+                            {
+                                var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, filePath);
+                                ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id);
+                                await RefreshExtensionsListAsync();
+                            }
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            ThemedDialogWindow.ShowMessage(this, "Echo-Browser Erweiterungen", $"Fehler beim Installieren der Erweiterung:\n{ex.Message}", MessageBoxImage.Error);
+                            return;
+                        }
+                    }
+                }
+
                 try
                 {
                     Process.Start("explorer.exe", $"/select,\"{filePath}\"");
