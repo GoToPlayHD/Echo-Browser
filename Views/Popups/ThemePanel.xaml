@@ -1,0 +1,68 @@
+﻿<UserControl x:Class="EchoBrowser.Views.Popups.ThemePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:EchoBrowser.Services"
+             x:Name="root">
+    <Border Style="{DynamicResource FlyoutCardStyle}" Width="300" Margin="5">
+        <StackPanel>
+            <TextBlock Text="{loc:Loc Theme_Title}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+            <TextBlock Text="{loc:Loc Theme_Presets}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,6"/>
+
+            <!-- Preset 1: Silver & Anthracite (Default) -->
+            <Button Style="{DynamicResource BookmarkChipStyle}" 
+                    HorizontalAlignment="Stretch" Height="30" Margin="0,2"
+                    Background="{DynamicResource TabBackgroundBrush}"
+                    Click="BtnThemePreset_Click" Tag="SilverAnthracite">
+                <DockPanel LastChildFill="True">
+                    <Ellipse Width="12" Height="12" Fill="#C4C7CC" Stroke="#1C1D21" StrokeThickness="1" Margin="0,0,8,0"/>
+                    <TextBlock Text="{loc:Loc Theme_SilverAnthracite}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </DockPanel>
+            </Button>
+
+            <!-- Preset 2: Midnight OLED -->
+            <Button Style="{DynamicResource BookmarkChipStyle}" 
+                    HorizontalAlignment="Stretch" Height="30" Margin="0,2"
+                    Background="{DynamicResource TabBackgroundBrush}"
+                    Click="BtnThemePreset_Click" Tag="MidnightOled">
+                <DockPanel LastChildFill="True">
+                    <Ellipse Width="12" Height="12" Fill="#FFFFFF" Stroke="#000000" StrokeThickness="1" Margin="0,0,8,0"/>
+                    <TextBlock Text="{loc:Loc Theme_MidnightOled}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </DockPanel>
+            </Button>
+
+            <!-- Preset 3: Titanium Light -->
+            <Button Style="{DynamicResource BookmarkChipStyle}" 
+                    HorizontalAlignment="Stretch" Height="30" Margin="0,2"
+                    Background="{DynamicResource TabBackgroundBrush}"
+                    Click="BtnThemePreset_Click" Tag="TitaniumLight">
+                <DockPanel LastChildFill="True">
+                    <Ellipse Width="12" Height="12" Fill="#ECEFF2" Stroke="#8A8F99" StrokeThickness="1" Margin="0,0,8,0"/>
+                    <TextBlock Text="{loc:Loc Theme_TitaniumLight}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </DockPanel>
+            </Button>
+
+            <!-- Preset 4: Cobalt Slate -->
+            <Button Style="{DynamicResource BookmarkChipStyle}" 
+                    HorizontalAlignment="Stretch" Height="30" Margin="0,2"
+                    Background="{DynamicResource TabBackgroundBrush}"
+                    Click="BtnThemePreset_Click" Tag="CobaltSlate">
+                <DockPanel LastChildFill="True">
+                    <Ellipse Width="12" Height="12" Fill="#60A5FA" Stroke="#111827" StrokeThickness="1" Margin="0,0,8,0"/>
+                    <TextBlock Text="{loc:Loc Theme_CobaltSlate}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </DockPanel>
+            </Button>
+
+            <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+            <TextBlock Text="{loc:Loc Theme_AccentColor}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,6"/>
+            <WrapPanel Margin="0,2">
+                <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="24" Height="24" Margin="3" Background="#C4C7CC" Click="BtnAccentColor_Click" Tag="#C4C7CC" ToolTip="{loc:Loc Color_Silver}"/>
+                <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="24" Height="24" Margin="3" Background="#38BDF8" Click="BtnAccentColor_Click" Tag="#38BDF8" ToolTip="{loc:Loc Color_IceBlue}"/>
+                <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="24" Height="24" Margin="3" Background="#34D399" Click="BtnAccentColor_Click" Tag="#34D399" ToolTip="{loc:Loc Color_Emerald}"/>
+                <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="24" Height="24" Margin="3" Background="#F59E0B" Click="BtnAccentColor_Click" Tag="#F59E0B" ToolTip="{loc:Loc Color_Amber}"/>
+                <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="24" Height="24" Margin="3" Background="#F43F5E" Click="BtnAccentColor_Click" Tag="#F43F5E" ToolTip="{loc:Loc Color_Ruby}"/>
+                <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="24" Height="24" Margin="3" Background="#A855F7" Click="BtnAccentColor_Click" Tag="#A855F7" ToolTip="{loc:Loc Color_Amethyst}"/>
+            </WrapPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

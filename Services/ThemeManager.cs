@@ -227,6 +227,36 @@ namespace EchoBrowser.Services
             };
         }
 
+        /// <summary>Preset anwenden und in den Einstellungen speichern. Unbekannte Namen werden ignoriert.</summary>
+        public bool ApplyAndSavePreset(string presetName)
+        {
+            if (!Enum.TryParse<ThemePreset>(presetName, out var preset)) return false;
+
+            ApplyPreset(preset);
+            AppSettingsService.Instance.Settings.ThemePreset = presetName;
+            AppSettingsService.Instance.Save();
+            return true;
+        }
+
+        /// <summary>Akzentfarbe (#RRGGBB) anwenden und speichern. Ungültige Werte werden ignoriert.</summary>
+        public bool ApplyAndSaveAccentColor(string hex)
+        {
+            Color color;
+            try
+            {
+                color = ColorFromHex(hex);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+
+            SetAccentColor(color);
+            AppSettingsService.Instance.Settings.AccentColor = hex;
+            AppSettingsService.Instance.Save();
+            return true;
+        }
+
         public static Color ColorFromHex(string hex)
         {
             hex = hex.Replace("#", "").Trim();

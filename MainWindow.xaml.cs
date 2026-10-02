@@ -80,6 +80,7 @@ namespace EchoBrowser
             InitializeToolbarContextMenus();
             InitializeHistoryPanel();
             InitializeDownloadsPanel();
+            themePanel.SelectionMade += () => popupTheme.IsOpen = false;
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -389,36 +390,6 @@ private void MenuSettings_Click(object sender, RoutedEventArgs e)
         {
             popupMenu.IsOpen = false;
             OpenSettingsTab();
-        }
-
-        private void BtnThemePreset_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string presetName)
-            {
-                if (Enum.TryParse<ThemePreset>(presetName, out var preset))
-                {
-                    ThemeManager.Instance.ApplyPreset(preset);
-                    AppSettingsService.Instance.Settings.ThemePreset = presetName;
-                    AppSettingsService.Instance.Save();
-                }
-                popupTheme.IsOpen = false;
-            }
-        }
-
-        private void BtnAccentColor_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string hex)
-            {
-                try
-                {
-                    Color color = ThemeManager.ColorFromHex(hex);
-                    ThemeManager.Instance.SetAccentColor(color);
-                    AppSettingsService.Instance.Settings.AccentColor = hex;
-                    AppSettingsService.Instance.Save();
-                }
-                catch { }
-                popupTheme.IsOpen = false;
-            }
         }
 
 #endregion
