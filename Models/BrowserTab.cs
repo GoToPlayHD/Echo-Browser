@@ -26,6 +26,7 @@ namespace EchoBrowser.Models
 
         public WebView2? WebView { get; set; }
         public string? CosmeticScriptId { get; set; }
+        public bool IsAdBlockFilterRegistered { get; set; }
 
         public string Title
         {

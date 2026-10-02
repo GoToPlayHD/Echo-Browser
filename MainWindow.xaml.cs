@@ -31,6 +31,7 @@ namespace EchoBrowser
         private bool _isBookmarksBarVisible = true;
         private bool _isSyncingSearchEngine;
         private bool _isUpdatingShieldUi;
+        private bool _shieldBadgeUpdatePending;
         private ExtensionPopupWindow? _activeExtensionPopup;
 
         // Drag & Drop State for Tabs and Bookmarks
@@ -464,16 +465,8 @@ namespace EchoBrowser
                     webView.CoreWebView2.Settings.IsScriptEnabled = tab.JavaScriptEnabled;
                     webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
-                    // Cosmetic element-hiding CSS injection
-                    try
-                    {
-                        bool isShieldActive = AppSettingsService.Instance.Settings.IsAdBlockerEnabled && tab.TrackingProtectionEnabled;
-                        if (isShieldActive)
-                        {
-                            tab.CosmeticScriptId = await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
-                        }
-                    }
-                    catch { }
+                    // Cosmetic element-hiding + Netzwerkfilter (nur wenn Shield aktiv)
+                    await SyncShieldStateAsync(tab);
 
                     // Chrome Web Store Extension Helper Script
                     try
@@ -482,17 +475,23 @@ namespace EchoBrowser
                     }
                     catch { }
 
-                    // Allow extension downloads without prompt interruptions
+                    // Allow extension downloads without prompt interruptions.
+                    // Nur für .crx – alle anderen Dateitypen (z.B. .exe/.msi) durchlaufen weiterhin die Chromium-Sicherheitsprüfung.
                     webView.CoreWebView2.SaveFileSecurityCheckStarting += (s, args) =>
                     {
-                        args.CancelSave = false;
-                        args.SuppressDefaultPolicy = true;
+                        string ext = (args.FileExtension ?? "").TrimStart('.');
+                        if (ext.Equals("crx", StringComparison.OrdinalIgnoreCase))
+                        {
+                            args.CancelSave = false;
+                            args.SuppressDefaultPolicy = true;
+                        }
                     };
 
-                    // Network-level Ad and Tracker blocking
+                    // Network-level Ad and Tracker blocking.
+                    // Der Filter selbst wird in SyncShieldStateAsync nur bei aktivem Shield registriert,
+                    // sonst würde jede Anfrage (Bilder, Fonts, ...) über den UI-Thread laufen.
                     try
                     {
-                        webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
                         webView.CoreWebView2.WebResourceRequested += (s, args) =>
                         {
                             if (!AppSettingsService.Instance.Settings.IsAdBlockerEnabled) return;
@@ -525,14 +524,7 @@ namespace EchoBrowser
                                         tab.BlockedTrackersCount++;
                                         if (tab == ActiveTab)
                                         {
-                                            Dispatcher.BeginInvoke(() =>
-                                            {
-                                                UpdateShieldBadge();
-                                                if (popupShield.IsOpen)
-                                                {
-                                                    UpdateShieldUi();
-                                                }
-                                            });
+                                            ScheduleShieldBadgeUpdate();
                                         }
                                     }
                                 }
@@ -562,9 +554,19 @@ namespace EchoBrowser
                             string json = args.WebMessageAsJson;
                             using var doc = JsonDocument.Parse(json);
                             var root = doc.RootElement;
-                            if (root.TryGetProperty("type", out var typeProp))
+                            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("type", out var typeProp))
                             {
                                 string type = typeProp.GetString() ?? "";
+
+                                // Jede Webseite kann postMessage aufrufen: nur interne Seiten (mit Token)
+                                // und der Chrome Web Store (nur Installationsanfragen) werden akzeptiert.
+                                if (!InternalPageSecurity.IsTrustedInternalMessage(args.Source, root) &&
+                                    !InternalPageSecurity.IsAllowedFromWebStore(args.Source, type))
+                                {
+                                    Debug.WriteLine($"[Echo] WebMessage '{type}' von nicht vertrauenswürdiger Quelle verworfen: {args.Source}");
+                                    return;
+                                }
+
                                 if (type == "navigate" && root.TryGetProperty("url", out var urlEl))
                                 {
                                     string url = urlEl.GetString() ?? "";
@@ -730,6 +732,7 @@ namespace EchoBrowser
                                                 break;
                                             case "IsAdBlockerEnabled":
                                                 settings.IsAdBlockerEnabled = valEl.GetBoolean();
+                                                _ = SyncShieldStateForAllTabsAsync();
                                                 UpdateShieldBadge();
                                                 if (popupShield.IsOpen) UpdateShieldUi();
                                                 break;
@@ -1030,33 +1033,7 @@ namespace EchoBrowser
                         tab.TrackingProtectionEnabled = !isWhitelisted;
                     }
 
-                    bool shouldShieldBeActive = AppSettingsService.Instance.Settings.IsAdBlockerEnabled && tab.TrackingProtectionEnabled;
-                    if (webView.CoreWebView2 != null)
-                    {
-                        if (!shouldShieldBeActive)
-                        {
-                            if (tab.CosmeticScriptId != null)
-                            {
-                                try
-                                {
-                                    webView.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(tab.CosmeticScriptId);
-                                    tab.CosmeticScriptId = null;
-                                }
-                                catch { }
-                            }
-                        }
-                        else
-                        {
-                            if (tab.CosmeticScriptId == null)
-                            {
-                                try
-                                {
-                                    tab.CosmeticScriptId = await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
-                                }
-                                catch { }
-                            }
-                        }
-                    }
+                    await SyncShieldStateAsync(tab);
 
                     Dispatcher.Invoke(() =>
                     {
@@ -2406,6 +2383,82 @@ namespace EchoBrowser
             }
         }
 
+        /// <summary>
+        /// Bringt Cosmetic-Script und Netzwerkfilter eines Tabs in Einklang mit dem Shield-Status
+        /// (global aktiv UND für die aktuelle Website nicht deaktiviert).
+        /// </summary>
+        private async Task SyncShieldStateAsync(BrowserTab tab)
+        {
+            var core = tab.WebView?.CoreWebView2;
+            if (core == null) return;
+
+            bool shouldBeActive = AppSettingsService.Instance.Settings.IsAdBlockerEnabled && tab.TrackingProtectionEnabled;
+
+            // Netzwerkfilter nur registrieren, wenn wirklich geblockt werden soll
+            try
+            {
+                if (shouldBeActive && !tab.IsAdBlockFilterRegistered)
+                {
+                    core.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+                    tab.IsAdBlockFilterRegistered = true;
+                }
+                else if (!shouldBeActive && tab.IsAdBlockFilterRegistered)
+                {
+                    core.RemoveWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+                    tab.IsAdBlockFilterRegistered = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Echo] Shield-Netzwerkfilter konnte nicht aktualisiert werden: {ex.Message}");
+            }
+
+            // Cosmetic element-hiding script
+            try
+            {
+                if (shouldBeActive && tab.CosmeticScriptId == null)
+                {
+                    tab.CosmeticScriptId = await core.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
+                }
+                else if (!shouldBeActive && tab.CosmeticScriptId != null)
+                {
+                    core.RemoveScriptToExecuteOnDocumentCreated(tab.CosmeticScriptId);
+                    tab.CosmeticScriptId = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Echo] Shield-Cosmetic-Script konnte nicht aktualisiert werden: {ex.Message}");
+            }
+        }
+
+        private async Task SyncShieldStateForAllTabsAsync()
+        {
+            foreach (var t in Tabs.ToList())
+            {
+                await SyncShieldStateAsync(t);
+            }
+        }
+
+        /// <summary>
+        /// Fasst Badge-Updates zusammen: bei vielen geblockten Requests wird die UI
+        /// einmal pro Dispatcher-Durchlauf statt einmal pro Request aktualisiert.
+        /// </summary>
+        private void ScheduleShieldBadgeUpdate()
+        {
+            if (_shieldBadgeUpdatePending) return;
+            _shieldBadgeUpdatePending = true;
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+            {
+                _shieldBadgeUpdatePending = false;
+                UpdateShieldBadge();
+                if (popupShield.IsOpen)
+                {
+                    UpdateShieldUi();
+                }
+            }));
+        }
+
         private async void ShieldOption_Changed(object sender, RoutedEventArgs e)
         {
             if (_isUpdatingShieldUi || ActiveTab == null) return;
@@ -2441,22 +2494,22 @@ namespace EchoBrowser
             UpdateShieldUi();
             UpdateShieldBadge();
 
-            // Immediately synchronize cosmetic script & DOM state on active tab
+            // Netzwerkfilter & Cosmetic-Script synchronisieren: der globale Schalter betrifft alle Tabs
+            if (prevGlobal != newGlobal)
+            {
+                await SyncShieldStateForAllTabsAsync();
+            }
+            else
+            {
+                await SyncShieldStateAsync(ActiveTab);
+            }
+
+            // Immediately synchronize DOM state on active tab
             bool isProtectionActive = newGlobal && newTabShield;
-            if (ActiveTab.WebView?.CoreWebView2 != null)
+            if (ActiveTab?.WebView?.CoreWebView2 != null)
             {
                 if (!isProtectionActive)
                 {
-                    if (ActiveTab.CosmeticScriptId != null)
-                    {
-                        try
-                        {
-                            ActiveTab.WebView.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(ActiveTab.CosmeticScriptId);
-                            ActiveTab.CosmeticScriptId = null;
-                        }
-                        catch { }
-                    }
-
                     try
                     {
                         await ActiveTab.WebView.CoreWebView2.ExecuteScriptAsync(
@@ -2467,15 +2520,6 @@ namespace EchoBrowser
                 }
                 else
                 {
-                    if (ActiveTab.CosmeticScriptId == null)
-                    {
-                        try
-                        {
-                            ActiveTab.CosmeticScriptId = await ActiveTab.WebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(AdBlockerService.Instance.GetCosmeticScript());
-                        }
-                        catch { }
-                    }
-
                     try
                     {
                         await ActiveTab.WebView.CoreWebView2.ExecuteScriptAsync("window.__echoShieldDisabled = false;");
@@ -3131,7 +3175,7 @@ namespace EchoBrowser
                                .ToList();
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string file = Path.Combine(appData, "EchoBrowser", "session.json");
-                File.WriteAllText(file, JsonSerializer.Serialize(urls));
+                AtomicFile.WriteAllText(file, JsonSerializer.Serialize(urls));
             }
             catch { }
         }
@@ -3491,6 +3535,12 @@ namespace EchoBrowser
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+
+            // Ausstehende (verzögerte) Verlaufsänderungen sofort schreiben
+            if (!_isIncognito)
+            {
+                _historyService.SaveHistory();
+            }
 
             foreach (var tab in Tabs.ToList())
             {

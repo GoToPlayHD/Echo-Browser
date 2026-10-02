@@ -64,7 +64,7 @@ namespace EchoBrowser.Services
             {
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(Bookmarks, options);
-                File.WriteAllText(_filePath, json);
+                AtomicFile.WriteAllText(_filePath, json);
             }
             catch
             {

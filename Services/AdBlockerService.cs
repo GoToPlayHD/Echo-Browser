@@ -213,7 +213,7 @@ namespace EchoBrowser.Services
                 {
                     sb.AppendLine(d);
                 }
-                File.WriteAllText(_cacheFilePath, sb.ToString());
+                AtomicFile.WriteAllText(_cacheFilePath, sb.ToString());
             }
             catch (Exception ex)
             {

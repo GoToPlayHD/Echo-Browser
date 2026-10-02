@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows.Threading;
 using EchoBrowser.Models;
 
 namespace EchoBrowser.Services
@@ -11,6 +13,12 @@ namespace EchoBrowser.Services
     {
         private readonly string _filePath;
         private const int MaxEntries = 1000;
+        private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
+
+        // Bündelt Schreibvorgänge: statt bei jedem Seitenaufruf die komplette Datei
+        // synchron auf dem UI-Thread zu schreiben, wird kurz nach der letzten Änderung gespeichert.
+        private readonly DispatcherTimer _saveTimer;
+        private readonly object _writeLock = new();
 
         public ObservableCollection<HistoryItem> Entries { get; } = new();
 
@@ -20,6 +28,14 @@ namespace EchoBrowser.Services
             string folder = Path.Combine(appData, "EchoBrowser");
             Directory.CreateDirectory(folder);
             _filePath = Path.Combine(folder, "history.json");
+
+            _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _saveTimer.Tick += (s, e) =>
+            {
+                _saveTimer.Stop();
+                SaveHistoryInBackground();
+            };
+
             LoadHistory();
         }
 
@@ -48,17 +64,40 @@ namespace EchoBrowser.Services
             }
         }
 
+        /// <summary>Plant ein verzögertes Speichern (Debounce).</summary>
+        public void ScheduleSave()
+        {
+            _saveTimer.Stop();
+            _saveTimer.Start();
+        }
+
+        /// <summary>Speichert sofort und synchron, z.B. beim Schließen des Fensters.</summary>
         public void SaveHistory()
         {
-            try
+            _saveTimer.Stop();
+            WriteSnapshot(Entries.ToList());
+        }
+
+        private void SaveHistoryInBackground()
+        {
+            // Snapshot auf dem UI-Thread ziehen, Serialisieren + Schreiben im Hintergrund
+            var snapshot = Entries.ToList();
+            _ = Task.Run(() => WriteSnapshot(snapshot));
+        }
+
+        private void WriteSnapshot(System.Collections.Generic.List<HistoryItem> snapshot)
+        {
+            lock (_writeLock)
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(Entries, options);
-                File.WriteAllText(_filePath, json);
-            }
-            catch
-            {
-                // Suppress file write issues
+                try
+                {
+                    string json = JsonSerializer.Serialize(snapshot, JsonOptions);
+                    AtomicFile.WriteAllText(_filePath, json);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Echo] Verlauf konnte nicht gespeichert werden: {ex.Message}");
+                }
             }
         }
 
@@ -89,7 +128,7 @@ namespace EchoBrowser.Services
                     if (!string.IsNullOrWhiteSpace(title) && title != cleanUrl)
                     {
                         mostRecent.Title = title;
-                        SaveHistory();
+                        ScheduleSave();
                     }
                 }
                 return;
@@ -106,7 +145,7 @@ namespace EchoBrowser.Services
                 Entries.RemoveAt(Entries.Count - 1);
             }
 
-            SaveHistory();
+            ScheduleSave();
         }
 
         public void RemoveEntry(HistoryItem item)
