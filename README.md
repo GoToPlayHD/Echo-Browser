@@ -25,7 +25,7 @@
 - **Einstellungsseite** (`echo://settings`) für Startverhalten, Suche, Design, Datenschutz, Downloads und Tabs
 - **Themes**: Silber & Anthrazit, Midnight OLED, Titanium Light, Cobalt Slate – plus frei wählbare Akzentfarbe
 - **Anpassbare Symbolleiste** – Schaltflächen per Rechtsklick ein- und ausblenden
-- **Mehrsprachig**: Deutsch und Englisch vollständig, Französisch und Spanisch teilweise; Sprachwechsel ohne Neustart
+- **Mehrsprachig**: Deutsch, Englisch, Französisch und Spanisch; Sprachwechsel ohne Neustart
 
 ## Voraussetzungen
 
