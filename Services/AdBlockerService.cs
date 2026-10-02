@@ -168,41 +168,9 @@ namespace EchoBrowser.Services
                 newSet.Add(d);
             }
 
-            using (var reader = new StringReader(content))
+            foreach (var domain in ParseHostsList(content))
             {
-                string? line;
-                while ((line = reader.ReadLine()) != null)
-                {
-                    line = line.Trim();
-                    if (string.IsNullOrEmpty(line) || line.StartsWith('#') || line.StartsWith('!'))
-                        continue;
-
-                    // Parse hosts file format: 0.0.0.0 domain.com or 127.0.0.1 domain.com
-                    string domain = line;
-                    if (domain.StartsWith("0.0.0.0", StringComparison.OrdinalIgnoreCase) ||
-                        domain.StartsWith("127.0.0.1", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var parts = domain.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length >= 2)
-                        {
-                            domain = parts[1];
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-
-                    domain = domain.Trim().TrimEnd('.');
-                    if (domain.Length > 0 &&
-                        !domain.Equals("localhost", StringComparison.OrdinalIgnoreCase) &&
-                        !domain.Equals("local", StringComparison.OrdinalIgnoreCase) &&
-                        !domain.Equals("broadcasthost", StringComparison.OrdinalIgnoreCase) &&
-                        domain.Contains('.'))
-                    {
-                        newSet.Add(domain);
-                    }
-                }
+                newSet.Add(domain);
             }
 
             // Save to cache file
@@ -233,6 +201,42 @@ namespace EchoBrowser.Services
             return newSet.Count;
         }
 
+        /// <summary>
+        /// Liest eine Blockliste im Hosts-Format ("0.0.0.0 ads.example.com") oder als reine Domainliste.
+        /// Kommentare (#, !), localhost-Einträge und Namen ohne Punkt werden übersprungen.
+        /// </summary>
+        internal static IEnumerable<string> ParseHostsList(string content)
+        {
+            using var reader = new StringReader(content);
+            string? line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                line = line.Trim();
+                if (line.Length == 0 || line.StartsWith('#') || line.StartsWith('!'))
+                    continue;
+
+                // Hosts-Format: 0.0.0.0 domain.com oder 127.0.0.1 domain.com
+                string domain = line;
+                if (domain.StartsWith("0.0.0.0", StringComparison.OrdinalIgnoreCase) ||
+                    domain.StartsWith("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = domain.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 2) continue;
+                    domain = parts[1];
+                }
+
+                domain = domain.Trim().TrimEnd('.');
+                if (domain.Length > 0 &&
+                    !domain.Equals("localhost", StringComparison.OrdinalIgnoreCase) &&
+                    !domain.Equals("local", StringComparison.OrdinalIgnoreCase) &&
+                    !domain.Equals("broadcasthost", StringComparison.OrdinalIgnoreCase) &&
+                    domain.Contains('.'))
+                {
+                    yield return domain;
+                }
+            }
+        }
+
         private void LoadFromFile(string filePath)
         {
             if (!File.Exists(filePath)) return;
@@ -256,7 +260,7 @@ namespace EchoBrowser.Services
             }
         }
 
-        private void LoadBundledDefaults()
+        internal void LoadBundledDefaults()
         {
             lock (_lock)
             {

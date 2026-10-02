@@ -57,6 +57,15 @@ dotnet publish -c Release -r win-x64 --self-contained false
 
 Alternativ kann `EchoBrowser.csproj` direkt in Visual Studio 2022 oder JetBrains Rider geöffnet werden.
 
+## Tests
+
+Automatische Tests (xUnit) liegen in `tests/EchoBrowser.Tests` und prüfen u. a. den Schutz der Host-Bridge,
+das Einlesen der Blockliste, die Sprachdateien (alle Sprachen vollständig, Platzhalter korrekt) und die Hilfsfunktionen.
+
+```bash
+dotnet test tests/EchoBrowser.Tests
+```
+
 ## Tastenkürzel
 
 | Kürzel | Aktion |
@@ -91,7 +100,8 @@ Alternativ kann `EchoBrowser.csproj` direkt in Visual Studio 2022 oder JetBrains
 │   └── …                      Einstellungen, Verlauf, Lesezeichen, Themes, AtomicFile
 ├── Views/                     Weitere Fenster (Dialoge, Sprachauswahl, Erweiterungs-Popup)
 ├── Themes/                    Farben & Styles
-└── Localization/              Sprachdateien (de.json, en.json, …)
+├── Localization/              Sprachdateien (de.json, en.json, …)
+└── tests/EchoBrowser.Tests/    Automatische Tests
 ```
 
 Benutzerdaten (Einstellungen, Lesezeichen, Verlauf, Erweiterungen, Browserprofil) liegen unter
