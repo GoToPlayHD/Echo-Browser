@@ -94,13 +94,13 @@
 - [x] **Performance**: Netzwerkfilter des Adblockers nur bei aktivem Shield, gebündelte Badge-Updates, Verlauf wird verzögert im Hintergrund gespeichert, alle JSON-Dateien werden atomar geschrieben (`AtomicFile`).
 - [x] **Struktur**: `WebMessageRouter`, `MainWindow` in thematische Teildateien aufgeteilt, `.gitignore`, `bin/`/`obj/` aus dem Repo entfernt, WebView2-Version fixiert.
 - [x] **Bug (Adblocker lässt sich nicht deaktivieren)**: Shield-Schalter (global & pro Website) funktionieren wieder; der globale Schalter wirkt jetzt auf alle Tabs.
-- [x] **Lokalisierung**: Alle Texte (XAML, Code, Start- & Einstellungsseite) kommen aus `Localization/<sprache>.json`. Deutsch & Englisch vollständig, Französisch & Spanisch teilweise (fehlende Texte fallen auf Englisch zurück). Sprachwechsel wirkt sofort ohne Neustart.
+- [x] **Lokalisierung**: Alle Texte (XAML, Code, Start- & Einstellungsseite) kommen aus `Localization/<sprache>.json`. Deutsch, Englisch, Französisch & Spanisch vollständig (fehlende Texte fallen auf Englisch zurück). Sprachwechsel wirkt sofort ohne Neustart.
   - XAML: `Text="{loc:Loc Key}"`, C#: `Tr.Get("Key")` / `Tr.Format("Key", arg)`, HTML-Seiten: `{{t:Key}}` bzw. `{{js:Key}}`.
   - Neue Sprache: JSON-Datei in `Localization/` anlegen und in der Sprachauswahl ergänzen.
 - [x] **Change**: Verbliebene Windows-Standarddialoge (Verlauf leeren, Shield-Meldungen, Favorit) durch `ThemedDialogWindow` ersetzt.
 
 ## Offen:
-- [ ] Französische und spanische Übersetzung vervollständigen (`Localization/fr.json`, `es.json`).
+- [x] Französische und spanische Übersetzung vervollständigt (`Localization/fr.json`, `es.json`).
 - [x] **Bug (Erweiterungen öffnen Einstellungen statt Popup)**: Ursache war die Zuordnung WebView2-ID ↔ entpackter Ordner (IDs stimmen nicht mit der Store-ID überein, Namen stehen oft als `__MSG_...__` im Manifest). Zuordnung wird jetzt bei der Installation gespeichert (`extensions-index.json`), ältere Installationen werden über den aufgelösten Namen gefunden. Zusätzlich `page_action`-Popups und `default_icon` unterstützt; beim Entfernen wird die entpackte Kopie gelöscht.
 - [x] Rechtsklick-Menü der Symbolleiste stand 10x identisch in `MainWindow.xaml` – wird jetzt einmal im Code erzeugt (`MainWindow.Toolbar.cs`).
 - [ ] Popups (Shield, Downloads, Erweiterungen, Verlauf) als eigene UserControls.
