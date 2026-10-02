@@ -247,26 +247,6 @@
                 BorderBrush="{DynamicResource BorderSubtleBrush}" 
                 BorderThickness="0,0,0,1"
                 Padding="8,5">
-            <Border.ContextMenu>
-                <ContextMenu Background="{DynamicResource SurfaceBrush}" 
-                             BorderBrush="{DynamicResource BorderBrush}" 
-                             Foreground="{DynamicResource TextPrimaryBrush}">
-                    <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                        <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                        <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                        <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                    </MenuItem>
-                    <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                    <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                </ContextMenu>
-            </Border.ContextMenu>
             <DockPanel LastChildFill="True">
                 
                 <!-- Left Navigational Controls -->
@@ -276,26 +256,6 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnToggleSidebar_Click"
                             ToolTip="{loc:Loc Toolbar_ToggleSidebarTooltip}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Sidebar" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Path Data="M3 3h18v18H3V3zm6 2v14h12V5H9z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -307,26 +267,6 @@
                             Click="BtnBack_Click"
                             IsEnabled="{Binding ActiveTab.CanGoBack, RelativeSource={RelativeSource AncestorType=Window}}"
                             ToolTip="{loc:Loc Nav_Back}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Back" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Path Data="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -338,26 +278,6 @@
                             Click="BtnForward_Click"
                             IsEnabled="{Binding ActiveTab.CanGoForward, RelativeSource={RelativeSource AncestorType=Window}}"
                             ToolTip="{loc:Loc Nav_Forward}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Forward" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Path Data="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -368,26 +288,6 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnReload_Click"
                             ToolTip="{loc:Loc Nav_Reload}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Reload" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Grid>
                             <!-- Reload Arrow (When Idle) -->
                             <Path x:Name="pathReload"
@@ -408,26 +308,6 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnHome_Click"
                             ToolTip="{loc:Loc Nav_Home}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Home" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Path Data="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -443,26 +323,6 @@
                               Margin="0,0,6,0"
                               SelectionChanged="CmbSearchEngine_SelectionChanged"
                               ToolTip="{loc:Loc Nav_SearchEngineTooltip}">
-                        <ComboBox.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="SearchEngine" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </ComboBox.ContextMenu>
                         <ComboBoxItem Tag="duckduckgo" Content="DuckDuckGo"/>
                         <ComboBoxItem Tag="google" Content="Google"/>
                         <ComboBoxItem Tag="bing" Content="Bing"/>
@@ -479,26 +339,6 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnExtensions_Click"
                             ToolTip="{loc:Loc Nav_Extensions}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Extensions" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Path Data="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>
@@ -509,26 +349,6 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnDownloads_Click"
                             ToolTip="{loc:Loc Nav_DownloadsTooltip}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_HideButton}" Tag="Downloads" Click="MenuHideToolbarButton_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Grid>
                             <Path Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" 
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -547,24 +367,6 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnMenu_Click"
                             ToolTip="{loc:Loc Nav_Settings}">
-                        <Button.ContextMenu>
-                            <ContextMenu Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
-                                <MenuItem Header="{loc:Loc Toolbar_Customize}" SubmenuOpened="MenuToolbarSubmenu_Opened">
-                                    <MenuItem Header="{loc:Loc Toolbar_Sidebar}" Tag="Sidebar" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Back}" Tag="Back" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Forward}" Tag="Forward" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Reload}" Tag="Reload" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_Home}" Tag="Home" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                    <MenuItem Header="{loc:Loc Toolbar_SearchEngine}" Tag="SearchEngine" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Ext_Title}" Tag="Extensions" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                    <MenuItem Header="{loc:Loc Nav_Downloads}" Tag="Downloads" IsCheckable="True" Click="MenuToolbarButton_Toggle"/>
-                                </MenuItem>
-                                <MenuItem Header="{loc:Loc Toolbar_ShowAll}" Click="MenuShowAllToolbarButtons_Click"/>
-                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                <MenuItem Header="{loc:Loc Toolbar_OpenSettings}" Click="MenuOpenToolbarSettings_Click"/>
-                            </ContextMenu>
-                        </Button.ContextMenu>
                         <Path Data="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" 
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                               Width="14" Height="14" Stretch="Uniform"/>

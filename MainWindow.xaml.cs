@@ -79,6 +79,7 @@ namespace EchoBrowser
             // Sprache vor InitializeComponent setzen, damit die XAML-Texte direkt richtig erscheinen
             LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
             InitializeComponent();
+            InitializeToolbarContextMenus();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -131,108 +132,6 @@ namespace EchoBrowser
                 }
                 catch { }
             }
-        }
-
-        public void ApplyToolbarButtonVisibilities()
-        {
-            var s = AppSettingsService.Instance.Settings;
-            btnToggleSidebar.Visibility = s.ShowSidebarButton ? Visibility.Visible : Visibility.Collapsed;
-            btnBack.Visibility = s.ShowBackButton ? Visibility.Visible : Visibility.Collapsed;
-            btnForward.Visibility = s.ShowForwardButton ? Visibility.Visible : Visibility.Collapsed;
-            btnReload.Visibility = s.ShowReloadButton ? Visibility.Visible : Visibility.Collapsed;
-            btnHome.Visibility = s.ShowHomeButton ? Visibility.Visible : Visibility.Collapsed;
-            cmbSearchEngine.Visibility = s.ShowSearchEngineSelector ? Visibility.Visible : Visibility.Collapsed;
-            btnExtensions.Visibility = s.ShowExtensionsButton ? Visibility.Visible : Visibility.Collapsed;
-            btnDownloads.Visibility = s.ShowDownloadsButton ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private void MenuHideToolbarButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem item && item.Tag is string tag)
-            {
-                var s = AppSettingsService.Instance.Settings;
-                switch (tag)
-                {
-                    case "Sidebar": s.ShowSidebarButton = false; break;
-                    case "Back": s.ShowBackButton = false; break;
-                    case "Forward": s.ShowForwardButton = false; break;
-                    case "Reload": s.ShowReloadButton = false; break;
-                    case "Home": s.ShowHomeButton = false; break;
-                    case "SearchEngine": s.ShowSearchEngineSelector = false; break;
-                    case "Extensions": s.ShowExtensionsButton = false; break;
-                    case "Downloads": s.ShowDownloadsButton = false; break;
-                }
-                AppSettingsService.Instance.Save();
-                ApplyToolbarButtonVisibilities();
-            }
-        }
-
-        private void MenuToolbarSubmenu_Opened(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem parent)
-            {
-                var s = AppSettingsService.Instance.Settings;
-                foreach (var child in parent.Items)
-                {
-                    if (child is MenuItem mi && mi.Tag is string tag)
-                    {
-                        mi.IsChecked = tag switch
-                        {
-                            "Sidebar" => s.ShowSidebarButton,
-                            "Back" => s.ShowBackButton,
-                            "Forward" => s.ShowForwardButton,
-                            "Reload" => s.ShowReloadButton,
-                            "Home" => s.ShowHomeButton,
-                            "SearchEngine" => s.ShowSearchEngineSelector,
-                            "Extensions" => s.ShowExtensionsButton,
-                            "Downloads" => s.ShowDownloadsButton,
-                            _ => mi.IsChecked
-                        };
-                    }
-                }
-            }
-        }
-
-        private void MenuToolbarButton_Toggle(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem mi && mi.Tag is string tag)
-            {
-                var s = AppSettingsService.Instance.Settings;
-                bool isChecked = mi.IsChecked;
-                switch (tag)
-                {
-                    case "Sidebar": s.ShowSidebarButton = isChecked; break;
-                    case "Back": s.ShowBackButton = isChecked; break;
-                    case "Forward": s.ShowForwardButton = isChecked; break;
-                    case "Reload": s.ShowReloadButton = isChecked; break;
-                    case "Home": s.ShowHomeButton = isChecked; break;
-                    case "SearchEngine": s.ShowSearchEngineSelector = isChecked; break;
-                    case "Extensions": s.ShowExtensionsButton = isChecked; break;
-                    case "Downloads": s.ShowDownloadsButton = isChecked; break;
-                }
-                AppSettingsService.Instance.Save();
-                ApplyToolbarButtonVisibilities();
-            }
-        }
-
-        private void MenuShowAllToolbarButtons_Click(object sender, RoutedEventArgs e)
-        {
-            var s = AppSettingsService.Instance.Settings;
-            s.ShowSidebarButton = true;
-            s.ShowBackButton = true;
-            s.ShowForwardButton = true;
-            s.ShowReloadButton = true;
-            s.ShowHomeButton = true;
-            s.ShowSearchEngineSelector = true;
-            s.ShowExtensionsButton = true;
-            s.ShowDownloadsButton = true;
-            AppSettingsService.Instance.Save();
-            ApplyToolbarButtonVisibilities();
-        }
-
-        private void MenuOpenToolbarSettings_Click(object sender, RoutedEventArgs e)
-        {
-            OpenSettingsTab();
         }
 
         private void SyncSearchEngineComboBox()

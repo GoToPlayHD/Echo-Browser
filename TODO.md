@@ -102,5 +102,5 @@
 ## Offen:
 - [ ] Französische und spanische Übersetzung vervollständigen (`Localization/fr.json`, `es.json`).
 - [ ] Erweiterungen: eigenes Popup-Menü der Erweiterung anzeigen statt direkt die Einstellungen zu öffnen.
-- [ ] Rechtsklick-Menü der Symbolleiste steht 10x identisch in `MainWindow.xaml` – als gemeinsame Ressource auslagern.
+- [x] Rechtsklick-Menü der Symbolleiste stand 10x identisch in `MainWindow.xaml` – wird jetzt einmal im Code erzeugt (`MainWindow.Toolbar.cs`).
 - [ ] Popups (Shield, Downloads, Erweiterungen, Verlauf) als eigene UserControls.
