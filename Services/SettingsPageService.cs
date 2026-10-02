@@ -16,6 +16,7 @@ namespace EchoBrowser.Services
             html = html.Replace("##SETTINGS_JSON##", settingsJson);
             html = html.Replace("##WEBVIEW_VERSION##", webViewVersion);
             html = html.Replace("##APP_VERSION##", appVersion);
+            html = InternalPageSecurity.InjectToken(html);
 
             return html;
         }
@@ -1385,6 +1386,7 @@ namespace EchoBrowser.Services
 
         function sendMessage(msg) {
             if (window.chrome && window.chrome.webview) {
+                msg.__echoToken = '##ECHO_BRIDGE_TOKEN##';
                 window.chrome.webview.postMessage(msg);
             }
         }

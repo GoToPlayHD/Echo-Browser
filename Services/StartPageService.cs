@@ -34,6 +34,7 @@ namespace EchoBrowser.Services
             html = html.Replace("##SHORTCUTS_SECTION_CLASS##", showFavorites ? "" : "hidden");
             html = html.Replace("##TOGGLE_TEXT##", showFavorites ? "Verknüpfungen verbergen" : "Verknüpfungen anzeigen");
             html = html.Replace("##SHORTCUTS_JSON##", shortcutsJson);
+            html = InternalPageSecurity.InjectToken(html);
 
             return html;
         }
@@ -862,6 +863,7 @@ namespace EchoBrowser.Services
 
         function postHostMessage(msgObj) {
             if (window.chrome && window.chrome.webview) {
+                msgObj.__echoToken = '##ECHO_BRIDGE_TOKEN##';
                 window.chrome.webview.postMessage(msgObj);
             }
         }
