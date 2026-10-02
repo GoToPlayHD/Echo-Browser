@@ -721,141 +721,7 @@
                StaysOpen="False" 
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="340" Margin="5">
-                <StackPanel>
-                    <!-- Header with Host & Security Status -->
-                    <DockPanel LastChildFill="True" Margin="0,0,0,12">
-                        <Border DockPanel.Dock="Left" 
-                                Width="36" Height="36" 
-                                CornerRadius="18" 
-                                Background="{DynamicResource TabBackgroundBrush}" 
-                                Margin="0,0,12,0">
-                            <Path x:Name="pathShieldPopupIcon"
-                                  Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
-                                  Fill="{DynamicResource StatusSuccessBrush}" 
-                                  Width="18" Height="18" Stretch="Uniform" 
-                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock x:Name="txtShieldHost" Text="{loc:Loc Shield_StartPageHost}" 
-                                       FontWeight="Bold" FontSize="14" 
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock x:Name="txtShieldStatus" Text="{loc:Loc Security_Secure}" 
-                                       FontSize="11" 
-                                       Foreground="{DynamicResource StatusSuccessBrush}"/>
-                        </StackPanel>
-                    </DockPanel>
-
-                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,10"/>
-
-                    <!-- Shield Status Banner Card -->
-                    <Border Background="{DynamicResource TabBackgroundBrush}" CornerRadius="8" Padding="12,10" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock x:Name="txtShieldActiveState" Text="{loc:Loc Shield_ActiveStateOn}" 
-                                       FontWeight="Bold" FontSize="13" 
-                                       Foreground="{DynamicResource StatusSuccessBrush}"/>
-                            <TextBlock Text="{loc:Loc Shield_SubtitleOn}" FontSize="11" 
-                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Primary Protection Toggles -->
-                    <CheckBox x:Name="chkTrackingProtection" 
-                              Style="{DynamicResource ModernToggleSwitch}" 
-                              IsChecked="True" 
-                              Margin="0,4"
-                              Checked="ShieldOption_Changed"
-                              Unchecked="ShieldOption_Changed">
-                        <StackPanel>
-                            <TextBlock Text="{loc:Loc Shield_SiteToggle}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:Loc Shield_SiteToggleDesc}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </CheckBox>
-
-                    <CheckBox x:Name="chkGlobalShield" 
-                              Style="{DynamicResource ModernToggleSwitch}" 
-                              IsChecked="True" 
-                              Margin="0,4"
-                              Checked="ShieldOption_Changed"
-                              Unchecked="ShieldOption_Changed">
-                        <StackPanel>
-                            <TextBlock Text="{loc:Loc Shield_GlobalToggle}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:Loc Shield_GlobalToggleDesc}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </CheckBox>
-
-                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
-
-                    <!-- Session Statistic Section -->
-                    <Border Background="{DynamicResource OmniboxBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <DockPanel LastChildFill="True">
-                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
-                                      Fill="{DynamicResource ShieldActiveBrush}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtTrackersBlocked" 
-                                           Text="{loc:Loc Shield_TrackersBlockedZero}" 
-                                           FontWeight="Bold" FontSize="12" 
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            </DockPanel>
-                            <DockPanel LastChildFill="True" Margin="0,8,0,0">
-                                <TextBlock x:Name="txtFilterRuleCount" 
-                                           Text="{loc:Loc Shield_FilterListReady}" 
-                                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}" 
-                                           VerticalAlignment="Center"/>
-                                <Button x:Name="btnUpdateFilterList" 
-                                        DockPanel.Dock="Right" 
-                                        Style="{DynamicResource FlyoutSmallButtonStyle}" 
-                                        Content="{loc:Loc Shield_UpdateFilters}" 
-                                        Click="BtnUpdateFilterList_Click"/>
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Additional Permissions -->
-                    <TextBlock Text="{loc:Loc Shield_AdvancedHeader}" 
-                               FontSize="10" FontWeight="Bold" 
-                               Foreground="{DynamicResource TextMutedBrush}" 
-                               Margin="0,4,0,6"/>
-
-                    <CheckBox x:Name="chkJavaScript" 
-                              Style="{DynamicResource ModernToggleSwitch}" 
-                              IsChecked="True" 
-                              Margin="0,4"
-                              Checked="ShieldOption_Changed"
-                              Unchecked="ShieldOption_Changed">
-                        <StackPanel>
-                            <TextBlock Text="{loc:Loc Shield_JavaScript}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:Loc Shield_JavaScriptDesc}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </CheckBox>
-
-                    <CheckBox x:Name="chkPopups" 
-                              Style="{DynamicResource ModernToggleSwitch}" 
-                              IsChecked="True" 
-                              Margin="0,4"
-                              Checked="ShieldOption_Changed"
-                              Unchecked="ShieldOption_Changed">
-                        <StackPanel>
-                            <TextBlock Text="{loc:Loc Shield_Popups}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:Loc Shield_PopupsDesc}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </CheckBox>
-
-                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
-
-                    <!-- Clear Site Data Action -->
-                    <Button Style="{DynamicResource FlyoutActionButtonStyle}" 
-                            HorizontalAlignment="Stretch" 
-                            Click="BtnClearSiteData_Click">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" 
-                                  Fill="{DynamicResource AccentSilverDimBrush}" 
-                                  Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{loc:Loc Shield_ClearCookies}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Border>
+            <popups:ShieldPanel x:Name="shieldPanel"/>
         </Popup>
 
         <!-- 2. EXTENSIONS POPUP -->
@@ -865,131 +731,7 @@
                StaysOpen="False" 
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="380" MaxHeight="500" Margin="5">
-                <StackPanel>
-                    <DockPanel LastChildFill="True" Margin="0,0,0,6">
-                        <TextBlock Text="{loc:Loc Ext_Title}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                        <Button DockPanel.Dock="Right" 
-                                Style="{DynamicResource FlyoutSmallButtonStyle}" 
-                                Content="{loc:Loc Ext_InstallCrx}" 
-                                Click="BtnInstallExtensionFromFile_Click"
-                                ToolTip="{loc:Loc Ext_InstallCrxTooltip}"/>
-                    </DockPanel>
-                    <TextBlock Text="{loc:Loc Ext_Subtitle}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
-
-                    <!-- Empty State -->
-                    <TextBlock x:Name="txtEmptyExtensions" 
-                               Text="{loc:Loc Ext_Empty}" 
-                               FontSize="12" 
-                               Foreground="{DynamicResource TextMutedBrush}" 
-                               HorizontalAlignment="Center" 
-                               Margin="0,16"/>
-
-                    <!-- Extensions List -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="280">
-                        <ItemsControl x:Name="icExtensionsList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{DynamicResource TabBackgroundBrush}" 
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="8" 
-                                            Padding="10,8" 
-                                            Margin="0,0,0,6">
-                                        <DockPanel LastChildFill="True">
-                                            <!-- Right Action Buttons: Pin, Settings, Toggle, Delete -->
-                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <!-- Pin Button -->
-                                                <Button Style="{DynamicResource IconButtonStyle}" 
-                                                        Width="26" Height="26" 
-                                                        Tag="{Binding}" 
-                                                        Margin="0,0,2,0"
-                                                        Click="BtnTogglePinExtension_Click"
-                                                        ToolTip="{loc:Loc Ext_PinTooltip}">
-                                                    <Path Data="M16 12V4H17V2H7V4H8V12L5 15V17H11V22H13V17H19V15L16 12Z" 
-                                                          Fill="{DynamicResource AccentSilverBrush}" 
-                                                          Width="11" Height="11" Stretch="Uniform"/>
-                                                </Button>
-
-                                                <!-- Open Popup GUI Button -->
-                                                <Button Style="{DynamicResource IconButtonStyle}" 
-                                                        Width="26" Height="26" 
-                                                        Tag="{Binding}" 
-                                                        Margin="0,0,2,0"
-                                                        Click="BtnOpenExtensionPopup_Click"
-                                                        ToolTip="{loc:Loc Ext_OpenPopupTooltip}">
-                                                    <Path Data="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" 
-                                                          Fill="{DynamicResource AccentSilverBrush}" 
-                                                          Width="11" Height="11" Stretch="Uniform"/>
-                                                </Button>
-
-                                                <!-- Options / Settings Button -->
-                                                <Button Style="{DynamicResource IconButtonStyle}" 
-                                                        Width="26" Height="26" 
-                                                        Tag="{Binding}" 
-                                                        Margin="0,0,4,0"
-                                                        Click="BtnOpenExtensionSettings_Click"
-                                                        ToolTip="{loc:Loc Ext_OpenOptionsTooltip}">
-                                                    <Path Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" 
-                                                          Fill="{DynamicResource AccentSilverBrush}" 
-                                                          Width="12" Height="12" Stretch="Uniform"/>
-                                                </Button>
-
-                                                <!-- Enable / Disable Toggle -->
-                                                <CheckBox Style="{DynamicResource ModernToggleSwitch}" 
-                                                          IsChecked="{Binding IsEnabled, Mode=OneWay}" 
-                                                          Tag="{Binding}" 
-                                                          Click="ChkExtensionToggle_Click"
-                                                          Margin="2,0,4,0"
-                                                          ToolTip="{loc:Loc Ext_ToggleTooltip}"/>
-
-                                                <!-- Remove button -->
-                                                <Button Style="{DynamicResource IconButtonStyle}" 
-                                                        Width="26" Height="26" 
-                                                        Tag="{Binding}" 
-                                                        Margin="2,0,0,0"
-                                                        Click="BtnRemoveExtension_Click"
-                                                        ToolTip="{loc:Loc Ext_RemoveTitle}">
-                                                    <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" 
-                                                          Fill="{DynamicResource StatusDangerBrush}" 
-                                                          Width="11" Height="11" Stretch="Uniform"/>
-                                                </Button>
-                                            </StackPanel>
-
-                                            <!-- Info -->
-                                            <DockPanel LastChildFill="True" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                <Path Data="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z" 
-                                                      Fill="{DynamicResource AccentSilverDimBrush}" 
-                                                      Width="13" Height="13" Stretch="Uniform" 
-                                                      DockPanel.Dock="Left" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Id}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </DockPanel>
-                                        </DockPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-
-                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,8,0,10"/>
-
-                    <!-- Web Store Link -->
-                    <Button Style="{DynamicResource FlyoutActionButtonStyle}" 
-                            HorizontalAlignment="Stretch" 
-                            Click="BtnOpenChromeWebStore_Click">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" 
-                                  Fill="{DynamicResource AccentSilverDimBrush}" 
-                                  Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{loc:Loc Ext_ChromeStore}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Border>
+            <popups:ExtensionsPanel x:Name="extensionsPanel"/>
         </Popup>
 
         <!-- 3. DOWNLOADS FLYOUT -->
@@ -1060,47 +802,7 @@
                StaysOpen="False" 
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="310" Margin="10,0,0,0">
-                <StackPanel>
-                    <TextBlock Text="{loc:Loc Sidebar_AddFavoriteTitle}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
-                    
-                    <TextBlock Text="{loc:Loc Sidebar_NameLabel}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="txtAddFavTitle" Style="{DynamicResource OmniboxTextBoxStyle}" Height="30" Padding="8,2" Margin="0,0,0,10"/>
-
-                    <TextBlock Text="{loc:Loc Sidebar_UrlLabel}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="txtAddFavUrl" Text="https://" Style="{DynamicResource OmniboxTextBoxStyle}" Height="30" Padding="8,2" Margin="0,0,0,10"/>
-
-                    <TextBlock Text="{loc:Loc Sidebar_IconLabel}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
-                    <WrapPanel Margin="0,0,0,12">
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="google" ToolTip="Google">
-                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5.46 8.18H12v2.73h3.14c-.28 1.48-1.55 2.59-3.14 2.59-1.89 0-3.42-1.54-3.42-3.42s1.53-3.42 3.42-3.42c.86 0 1.63.32 2.23.85l1.96-1.96C17.06 6.8 14.7 6 12 6 8.69 6 6 8.69 6 12s2.69 6 6 6c3.47 0 5.76-2.44 5.76-5.87 0-.41-.04-.8-.11-1.13h-.19z" Fill="{DynamicResource AccentSilverBrush}" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="youtube" ToolTip="YouTube">
-                            <Path Data="M21.58 7.19a2.76 2.76 0 0 0-1.94-1.96C17.93 4.75 12 4.75 12 4.75s-5.93 0-7.64.48a2.76 2.76 0 0 0-1.94 1.96C1.94 8.9 1.94 12 1.94 12s0 3.1.48 4.81a2.76 2.76 0 0 0 1.94 1.96c1.71.48 7.64.48 7.64.48s5.93 0 7.64-.48a2.76 2.76 0 0 0 1.94-1.96c.48-1.71.48-4.81.48-4.81s0-3.1-.48-4.81zM10 15V9l5.2 3L10 15z" Fill="#FF4444" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="github" ToolTip="GitHub">
-                            <Path Data="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" Fill="{DynamicResource TextPrimaryBrush}" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="chatgpt" ToolTip="ChatGPT">
-                            <Path Data="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A6 6 0 0 1 7.07 13H7a1 1 0 0 1 0-2h.07A6 6 0 0 1 11 7.07V7a1 1 0 0 1 2 0v.07A6 6 0 0 1 16.93 11H17a1 1 0 0 1 0 2h-.07A6 6 0 0 1 13 16.93z" Fill="#34D399" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="reddit" ToolTip="Reddit">
-                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm6.2 11.23c.04.26.06.52.06.77 0 2.46-2.86 4.45-6.26 4.45s-6.26-1.99-6.26-4.45c0-.25.02-.51.06-.77A1.737 1.737 0 0 1 5 11.5c0-.96.78-1.74 1.74-1.74.52 0 .98.23 1.3.6 1.07-.73 2.52-1.2 4.13-1.26l.84-3.95 2.75.59c.1.58.61 1.02 1.22 1.02.69 0 1.25-.56 1.25-1.25S16.67 4.26 15.98 4.26c-.46 0-.86.25-1.07.62l-3.08-.66a.434.434 0 0 0-.51.34l-.94 4.44c-1.65.05-3.13.52-4.22 1.27.32-.38.79-.62 1.32-.62.96 0 1.74.78 1.74 1.74 0 .5-.21.95-.55 1.26z" Fill="#FF6633" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="wikipedia" ToolTip="Wikipedia">
-                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.5h-2L9.2 9H7V7.5h4.5V9h-1.3l1.3 5.3 1.7-6.8H12V7.5h3.5V9h-1.2l-1.3 7.5z" Fill="{DynamicResource AccentSilverBrush}" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                        <Button Style="{DynamicResource SmallRoundButtonStyle}" Width="28" Height="28" Margin="3" Click="SelectFavIcon_Click" Tag="globe" ToolTip="{loc:Loc Sidebar_IconGlobe}">
-                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" Fill="{DynamicResource AccentSilverBrush}" Width="14" Height="14" Stretch="Uniform"/>
-                        </Button>
-                    </WrapPanel>
-
-                    <DockPanel LastChildFill="True">
-                        <Button DockPanel.Dock="Left" Style="{DynamicResource BookmarkChipStyle}" Content="{loc:Loc Dialog_Cancel}" Click="BtnCancelAddFavorite_Click"/>
-                        <Button DockPanel.Dock="Right" Style="{DynamicResource BookmarkChipStyle}" Background="{DynamicResource ButtonHoverBackgroundBrush}" Content="{loc:Loc Common_Save}" Click="BtnSaveAddFavorite_Click"/>
-                    </DockPanel>
-                </StackPanel>
-            </Border>
+            <popups:AddFavoritePanel x:Name="addFavoritePanel"/>
         </Popup>
 
         <!-- 7. ADD BOOKMARK FLYOUT -->
@@ -1110,30 +812,7 @@
                StaysOpen="False"
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="320" Margin="5">
-                <StackPanel>
-                    <TextBlock Text="{loc:Loc Bookmark_AddTitle}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
-
-                    <TextBlock Text="{loc:Loc Bookmark_Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="txtAddBmTitle" Style="{DynamicResource OmniboxTextBoxStyle}" Height="34" Margin="0,0,0,10"/>
-
-                    <TextBlock Text="{loc:Loc Bookmark_Url}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="txtAddBmUrl" Style="{DynamicResource OmniboxTextBoxStyle}" Height="34" Margin="0,0,0,10"/>
-
-                    <TextBlock Text="{loc:Loc Bookmark_GroupFolder}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="cmbAddBmGroup" 
-                              Height="32" 
-                              Margin="0,0,0,16"
-                              Background="{DynamicResource SurfaceBrush}"
-                              Foreground="{DynamicResource TextPrimaryBrush}"
-                              BorderBrush="{DynamicResource BorderBrush}"/>
-
-                    <DockPanel LastChildFill="True">
-                        <Button DockPanel.Dock="Left" Style="{DynamicResource BookmarkChipStyle}" Content="{loc:Loc Dialog_Cancel}" Click="BtnCancelAddBm_Click"/>
-                        <Button DockPanel.Dock="Right" Style="{DynamicResource BookmarkChipStyle}" Background="{DynamicResource ButtonHoverBackgroundBrush}" Content="{loc:Loc Common_Add}" Click="BtnSaveAddBm_Click"/>
-                    </DockPanel>
-                </StackPanel>
-            </Border>
+            <popups:AddBookmarkPanel x:Name="addBookmarkPanel"/>
         </Popup>
 
         <!-- 8. ADD BOOKMARK GROUP FLYOUT -->
@@ -1143,19 +822,7 @@
                StaysOpen="False"
                AllowsTransparency="True"
                PopupAnimation="Fade">
-            <Border Style="{DynamicResource FlyoutCardStyle}" Width="300" Margin="5">
-                <StackPanel>
-                    <TextBlock Text="{loc:Loc Bookmark_NewGroupTitle}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
-
-                    <TextBlock Text="{loc:Loc Bookmark_GroupName}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="txtAddGroupName" Style="{DynamicResource OmniboxTextBoxStyle}" Height="34" Margin="0,0,0,14"/>
-
-                    <DockPanel LastChildFill="True">
-                        <Button DockPanel.Dock="Left" Style="{DynamicResource BookmarkChipStyle}" Content="{loc:Loc Dialog_Cancel}" Click="BtnCancelAddGroup_Click"/>
-                        <Button DockPanel.Dock="Right" Style="{DynamicResource BookmarkChipStyle}" Background="{DynamicResource ButtonHoverBackgroundBrush}" Content="{loc:Loc Bookmark_CreateGroup}" Click="BtnSaveAddGroup_Click"/>
-                    </DockPanel>
-                </StackPanel>
-            </Border>
+            <popups:AddGroupPanel x:Name="addGroupPanel"/>
         </Popup>
 
         <!-- 8b. BOOKMARK GROUP CONTENT FLYOUT (DRAG & DROP SUPPORTED) -->

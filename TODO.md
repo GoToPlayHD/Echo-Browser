@@ -103,4 +103,6 @@
 - [x] Französische und spanische Übersetzung vervollständigt (`Localization/fr.json`, `es.json`).
 - [x] **Bug (Erweiterungen öffnen Einstellungen statt Popup)**: Ursache war die Zuordnung WebView2-ID ↔ entpackter Ordner (IDs stimmen nicht mit der Store-ID überein, Namen stehen oft als `__MSG_...__` im Manifest). Zuordnung wird jetzt bei der Installation gespeichert (`extensions-index.json`), ältere Installationen werden über den aufgelösten Namen gefunden. Zusätzlich `page_action`-Popups und `default_icon` unterstützt; beim Entfernen wird die entpackte Kopie gelöscht.
 - [x] Rechtsklick-Menü der Symbolleiste stand 10x identisch in `MainWindow.xaml` – wird jetzt einmal im Code erzeugt (`MainWindow.Toolbar.cs`).
-- [ ] Popups (Shield, Downloads, Erweiterungen, Verlauf) als eigene UserControls.
+- [x] Popups als eigene UserControls (`Views/Popups/`): Verlauf, Downloads, Theme, Shield, Erweiterungen sowie die Formulare für Favorit, Lesezeichen und Gruppe. Jedes Panel meldet Aktionen per Ereignis an das Hauptfenster.
+  - Bewusst im Hauptfenster geblieben: das Hauptmenü (ruft nur Hauptfenster-Funktionen auf) und die Lesezeichen-Gruppe (Drag & Drop ist eng mit der Lesezeichenleiste verzahnt).
+- [x] **Bug (Shield „Cookies & Websitedaten leeren“)**: löschte die Cookies aller Websites statt nur der aktuellen Seite.

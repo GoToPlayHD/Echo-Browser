@@ -1,0 +1,19 @@
+﻿<UserControl x:Class="EchoBrowser.Views.Popups.AddGroupPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:EchoBrowser.Services"
+             x:Name="root">
+    <Border Style="{DynamicResource FlyoutCardStyle}" Width="300" Margin="5">
+        <StackPanel>
+            <TextBlock Text="{loc:Loc Bookmark_NewGroupTitle}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+
+            <TextBlock Text="{loc:Loc Bookmark_GroupName}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+            <TextBox x:Name="txtAddGroupName" Style="{DynamicResource OmniboxTextBoxStyle}" Height="34" Margin="0,0,0,14"/>
+
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Left" Style="{DynamicResource BookmarkChipStyle}" Content="{loc:Loc Dialog_Cancel}" Click="BtnCancelAddGroup_Click"/>
+                <Button DockPanel.Dock="Right" Style="{DynamicResource BookmarkChipStyle}" Background="{DynamicResource ButtonHoverBackgroundBrush}" Content="{loc:Loc Bookmark_CreateGroup}" Click="BtnSaveAddGroup_Click"/>
+            </DockPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

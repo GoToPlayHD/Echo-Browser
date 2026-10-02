@@ -37,22 +37,11 @@ namespace EchoBrowser
                 var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
                 if (profile == null)
                 {
-                    txtEmptyExtensions.Visibility = Visibility.Visible;
-                    icExtensionsList.ItemsSource = null;
+                    extensionsPanel.ShowExtensions(null);
                     return;
                 }
 
-                var extensions = await ExtensionService.Instance.GetInstalledExtensionsAsync(profile);
-                if (extensions.Count == 0)
-                {
-                    txtEmptyExtensions.Visibility = Visibility.Visible;
-                    icExtensionsList.ItemsSource = null;
-                }
-                else
-                {
-                    txtEmptyExtensions.Visibility = Visibility.Collapsed;
-                    icExtensionsList.ItemsSource = extensions;
-                }
+                extensionsPanel.ShowExtensions(await ExtensionService.Instance.GetInstalledExtensionsAsync(profile));
 
                 UpdatePinnedExtensionsToolbar();
             }
@@ -170,20 +159,7 @@ namespace EchoBrowser
                     ctx.Items.Add(new Separator { Background = (Brush)FindResource("BorderSubtleBrush") });
 
                     var miRemove = new MenuItem { Header = Tr.Get("Ext_MenuRemove") };
-                    miRemove.Click += async (s, e) =>
-                    {
-                        if (ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name))
-                        {
-                            try
-                            {
-                                await RemoveExtensionAsync(ext);
-                            }
-                            catch (Exception ex)
-                            {
-                                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_RemoveError", ex.Message), MessageBoxImage.Error);
-                            }
-                        }
-                    };
+                    miRemove.Click += async (s, e) => await ConfirmAndRemoveExtensionAsync(ext);
                     ctx.Items.Add(miRemove);
 
                     btn.ContextMenu = ctx;
@@ -219,38 +195,28 @@ namespace EchoBrowser
             };
         }
 
-        private void BtnTogglePinExtension_Click(object sender, RoutedEventArgs e)
+        private void TogglePinExtension(CoreWebView2BrowserExtension ext)
         {
-            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            var pinned = AppSettingsService.Instance.Settings.PinnedExtensionIds;
+            if (!pinned.Remove(ext.Id))
             {
-                var pinned = AppSettingsService.Instance.Settings.PinnedExtensionIds;
-                if (pinned.Contains(ext.Id))
-                {
-                    pinned.Remove(ext.Id);
-                }
-                else
-                {
-                    pinned.Add(ext.Id);
-                }
-                AppSettingsService.Instance.Save();
-                UpdatePinnedExtensionsToolbar();
+                pinned.Add(ext.Id);
             }
+            AppSettingsService.Instance.Save();
+            UpdatePinnedExtensionsToolbar();
         }
 
-        private void BtnOpenExtensionSettings_Click(object sender, RoutedEventArgs e)
+        private void OpenExtensionSettings(CoreWebView2BrowserExtension ext)
         {
-            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            popupExtensions.IsOpen = false;
+            string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
+            if (!string.IsNullOrWhiteSpace(optPage))
             {
-                popupExtensions.IsOpen = false;
-                string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
-                if (!string.IsNullOrWhiteSpace(optPage))
-                {
-                    AddNewTab($"chrome-extension://{ext.Id}/{optPage}");
-                }
-                else
-                {
-                    ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoOptionsDefined", ext.Name));
-                }
+                AddNewTab($"chrome-extension://{ext.Id}/{optPage}");
+            }
+            else
+            {
+                ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoOptionsDefined", ext.Name));
             }
         }
 
@@ -302,16 +268,26 @@ namespace EchoBrowser
             await win.InitializeAndNavigateAsync(_webViewEnvironment, ext.Id, ext.Name, popupUrl, optPageFallback, iconPath);
         }
 
-        private void BtnOpenExtensionPopup_Click(object sender, RoutedEventArgs e)
+        private void InitializeExtensionsPanel()
         {
-            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            extensionsPanel.PinToggleRequested += TogglePinExtension;
+            extensionsPanel.OpenSettingsRequested += OpenExtensionSettings;
+            extensionsPanel.OpenPopupRequested += (ext, anchor) =>
             {
                 popupExtensions.IsOpen = false;
-                OpenExtensionPopup(ext, btn);
-            }
+                OpenExtensionPopup(ext, anchor);
+            };
+            extensionsPanel.EnableRequested += async (ext, enable) => await SetExtensionEnabledAsync(ext, enable);
+            extensionsPanel.RemoveRequested += async ext => await ConfirmAndRemoveExtensionAsync(ext);
+            extensionsPanel.InstallFromFileRequested += async () => await InstallExtensionFromFileAsync();
+            extensionsPanel.OpenWebStoreRequested += () =>
+            {
+                popupExtensions.IsOpen = false;
+                AddNewTab("https://chromewebstore.google.com/");
+            };
         }
 
-        private async void BtnInstallExtensionFromFile_Click(object sender, RoutedEventArgs e)
+        private async Task InstallExtensionFromFileAsync()
         {
             var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
             if (profile == null)
@@ -323,7 +299,7 @@ namespace EchoBrowser
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Title = Tr.Get("Ext_SelectCrxFile"),
-                Filter = "Chromium Extension (*.crx)|*.crx|Alle Dateien (*.*)|*.*"
+                Filter = $"{Tr.Get("Ext_CrxFileFilter")} (*.crx)|*.crx|{Tr.Get("Common_AllFiles")} (*.*)|*.*"
             };
 
             if (dlg.ShowDialog() == true)
@@ -345,45 +321,32 @@ namespace EchoBrowser
             }
         }
 
-        private async void BtnRemoveExtension_Click(object sender, RoutedEventArgs e)
+        private async Task ConfirmAndRemoveExtensionAsync(CoreWebView2BrowserExtension ext)
         {
-            if (sender is Button btn && btn.Tag is CoreWebView2BrowserExtension ext)
+            if (!ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name)) return;
+
+            try
             {
-                if (ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name))
-                {
-                    try
-                    {
-                        await RemoveExtensionAsync(ext);
-                    }
-                    catch (Exception ex)
-                    {
-                        ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_RemoveError", ex.Message), MessageBoxImage.Error);
-                    }
-                }
+                await RemoveExtensionAsync(ext);
+            }
+            catch (Exception ex)
+            {
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_RemoveError", ex.Message), MessageBoxImage.Error);
             }
         }
 
-        private async void ChkExtensionToggle_Click(object sender, RoutedEventArgs e)
+        private async Task SetExtensionEnabledAsync(CoreWebView2BrowserExtension ext, bool enable)
         {
-            if (sender is CheckBox chk && chk.Tag is CoreWebView2BrowserExtension ext)
+            try
             {
-                try
-                {
-                    bool enable = chk.IsChecked ?? true;
-                    await ext.EnableAsync(enable);
-                    await RefreshExtensionsListAsync();
-                }
-                catch (Exception ex)
-                {
-                    ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_ToggleError", ex.Message), MessageBoxImage.Warning);
-                }
+                await ext.EnableAsync(enable);
+                await RefreshExtensionsListAsync();
+            }
+            catch (Exception ex)
+            {
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_ToggleError", ex.Message), MessageBoxImage.Warning);
             }
         }
 
-        private void BtnOpenChromeWebStore_Click(object sender, RoutedEventArgs e)
-        {
-            popupExtensions.IsOpen = false;
-            AddNewTab("https://chromewebstore.google.com/");
-        }
     }
 }

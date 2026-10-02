@@ -61,61 +61,20 @@ namespace EchoBrowser
             }
         }
 
+        private void InitializeAddFavoritePanel()
+        {
+            addFavoritePanel.FavoriteCreated += (title, url, iconKey, color) =>
+            {
+                _sidebarService.AddFavorite(title, url, iconKey, color);
+                popupAddFavorite.IsOpen = false;
+            };
+            addFavoritePanel.Cancelled += () => popupAddFavorite.IsOpen = false;
+        }
+
         private void BtnAddSidebarFavorite_Click(object sender, RoutedEventArgs e)
         {
-            txtAddFavTitle.Text = "";
-            txtAddFavUrl.Text = "https://";
-            _selectedFavIconKey = "globe";
-            _selectedFavColor = "#C4C7CC";
             popupAddFavorite.IsOpen = true;
-            txtAddFavTitle.Focus();
-        }
-
-        private void SelectFavIcon_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string iconKey)
-            {
-                _selectedFavIconKey = iconKey;
-                _selectedFavColor = iconKey switch
-                {
-                    "youtube" => "#FF4444",
-                    "reddit" => "#FF6633",
-                    "chatgpt" => "#34D399",
-                    "google" => "#4285F4",
-                    _ => "#C4C7CC"
-                };
-            }
-        }
-
-        private void BtnSaveAddFavorite_Click(object sender, RoutedEventArgs e)
-        {
-            string title = txtAddFavTitle.Text.Trim();
-            string url = txtAddFavUrl.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(title))
-            {
-                title = url.Replace("https://", "").Replace("http://", "").TrimEnd('/');
-            }
-
-            if (string.IsNullOrWhiteSpace(url) || url == "https://" || url == "http://")
-            {
-                ThemedDialogWindow.ShowMessage(this, Tr.Get("Sidebar_AddFavoriteTitle"), Tr.Get("Sidebar_InvalidUrl"), MessageBoxImage.Warning);
-                return;
-            }
-
-            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
-                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                url = "https://" + url;
-            }
-
-            _sidebarService.AddFavorite(title, url, _selectedFavIconKey, _selectedFavColor);
-            popupAddFavorite.IsOpen = false;
-        }
-
-        private void BtnCancelAddFavorite_Click(object sender, RoutedEventArgs e)
-        {
-            popupAddFavorite.IsOpen = false;
+            addFavoritePanel.Prepare();
         }
 
         #endregion
