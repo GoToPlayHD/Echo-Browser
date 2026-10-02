@@ -81,6 +81,7 @@ namespace EchoBrowser
             InitializeAddFavoritePanel();
             InitializeBookmarkFormPanels();
             InitializeShieldPanel();
+            InitializeExtensionsPanel();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
