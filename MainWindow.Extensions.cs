@@ -174,10 +174,14 @@ namespace EchoBrowser
                     {
                         if (ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name))
                         {
-                            await ext.RemoveAsync();
-                            AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(ext.Id);
-                            AppSettingsService.Instance.Save();
-                            await RefreshExtensionsListAsync();
+                            try
+                            {
+                                await RemoveExtensionAsync(ext);
+                            }
+                            catch (Exception ex)
+                            {
+                                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_RemoveError", ex.Message), MessageBoxImage.Error);
+                            }
                         }
                     };
                     ctx.Items.Add(miRemove);
@@ -190,6 +194,17 @@ namespace EchoBrowser
             {
                 Debug.WriteLine($"Failed to update pinned extensions toolbar: {ex.Message}");
             }
+        }
+
+        /// <summary>Erweiterung entfernen, vom Anheften lösen und die entpackte Kopie aufräumen.</summary>
+        private async Task RemoveExtensionAsync(CoreWebView2BrowserExtension ext)
+        {
+            string id = ext.Id;
+            await ext.RemoveAsync();
+            AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(id);
+            AppSettingsService.Instance.Save();
+            ExtensionService.Instance.ForgetExtension(id);
+            await RefreshExtensionsListAsync();
         }
 
         private FrameworkElement CreateDefaultExtensionIcon()
@@ -338,10 +353,7 @@ namespace EchoBrowser
                 {
                     try
                     {
-                        await ext.RemoveAsync();
-                        AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(ext.Id);
-                        AppSettingsService.Instance.Save();
-                        await RefreshExtensionsListAsync();
+                        await RemoveExtensionAsync(ext);
                     }
                     catch (Exception ex)
                     {
