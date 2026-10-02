@@ -367,9 +367,18 @@
                             Style="{DynamicResource IconButtonStyle}" 
                             Click="BtnMenu_Click"
                             ToolTip="{loc:Loc Nav_Settings}">
-                        <Path Data="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" 
-                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
-                              Width="14" Height="14" Stretch="Uniform"/>
+                        <Grid>
+                            <Path Data="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" 
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                                  Width="14" Height="14" Stretch="Uniform"/>
+                            <Ellipse x:Name="menuUpdateBadge"
+                                     Width="7" Height="7"
+                                     HorizontalAlignment="Right"
+                                     VerticalAlignment="Top"
+                                     Margin="0,-2,-2,0"
+                                     Fill="{DynamicResource ShieldActiveBrush}"
+                                     Visibility="Collapsed"/>
+                        </Grid>
                     </Button>
                 </StackPanel>
 
@@ -780,6 +789,25 @@
                     
                     <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
                     
+                    <MenuItem x:Name="menuItemUpdate" 
+                              Header="{loc:Loc Menu_CheckForUpdates}" 
+                              Click="MenuUpdate_Click" 
+                              Foreground="{DynamicResource TextPrimaryBrush}">
+                        <MenuItem.Icon>
+                            <Grid Width="16" Height="16">
+                                <Path x:Name="pathMenuUpdateIcon" 
+                                      Data="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" 
+                                      Fill="{DynamicResource AccentSilverBrush}" 
+                                      Width="13" Height="13" Stretch="Uniform"/>
+                                <Ellipse x:Name="menuFlyoutUpdateBadge" 
+                                         Width="6" Height="6" 
+                                         HorizontalAlignment="Right" VerticalAlignment="Top" 
+                                         Fill="{DynamicResource ShieldActiveBrush}" 
+                                         Visibility="Collapsed"/>
+                            </Grid>
+                        </MenuItem.Icon>
+                    </MenuItem>
+
                     <MenuItem Header="{loc:Loc Menu_SettingsAbout}" InputGestureText="Ctrl+," Click="MenuSettings_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </StackPanel>
             </Border>

@@ -62,6 +62,11 @@ namespace EchoBrowser.Models
         // 10. Shield Whitelist (Domains where tracking protection is turned off)
         public HashSet<string> WhitelistedShieldDomains { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+        // 11. Updates (Velopack)
+        public bool AutoCheckForUpdates { get; set; } = true;
+        public string UpdateUrl { get; set; } = "https://github.com/GoToPlayHD/Echo-Browser";
+        public bool CheckPrereleaseUpdates { get; set; } = false;
+
         public static string GetDefaultDownloadPath()
         {
             try

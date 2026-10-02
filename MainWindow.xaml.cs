@@ -208,6 +208,11 @@ namespace EchoBrowser
                 await Task.Delay(600);
                 UpdatePinnedExtensionsToolbar();
             });
+
+            // 3. Velopack Update-Infrastruktur initialisieren & Hintergrund-Timer starten
+            UpdateService.Instance.StatusChanged += OnUpdateStatusChanged;
+            UpdateService.Instance.StartAutoCheckTimer();
+            UpdateUiForUpdateStatus(UpdateService.Instance.Status, UpdateService.Instance.StatusMessage, UpdateService.Instance.DownloadProgress, UpdateService.Instance.AvailableVersion);
         }
 
         /// <summary>
@@ -387,10 +392,146 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
             ActiveTab?.WebView?.CoreWebView2?.OpenDevToolsWindow();
         }
 
-private void MenuSettings_Click(object sender, RoutedEventArgs e)
+        private void MenuSettings_Click(object sender, RoutedEventArgs e)
         {
             popupMenu.IsOpen = false;
             OpenSettingsTab();
+        }
+
+        private async void MenuUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            popupMenu.IsOpen = false;
+
+            if (UpdateService.Instance.IsUpdateReadyToRestart)
+            {
+                bool confirmed = ThemedDialogWindow.ShowConfirm(
+                    this,
+                    Tr.Get("Update_PromptHeadline"),
+                    Tr.Format("Update_PromptMessage", UpdateService.Instance.AvailableVersion ?? ""),
+                    Tr.Get("Update_RestartNow"),
+                    Tr.Get("Update_Later")
+                );
+
+                if (confirmed)
+                {
+                    SaveCurrentSession();
+                    UpdateService.Instance.RestartAndApplyUpdate();
+                }
+                return;
+            }
+
+            if (UpdateService.Instance.Status == UpdateStatus.Downloading)
+            {
+                ThemedDialogWindow.ShowMessage(
+                    this,
+                    Tr.Get("Update_Title"),
+                    Tr.Format("Update_DownloadingPercent", UpdateService.Instance.AvailableVersion ?? "", UpdateService.Instance.DownloadProgress),
+                    MessageBoxImage.Information
+                );
+                return;
+            }
+
+            if (UpdateService.Instance.Status == UpdateStatus.Checking)
+            {
+                ThemedDialogWindow.ShowMessage(
+                    this,
+                    Tr.Get("Update_Title"),
+                    Tr.Get("Update_Checking"),
+                    MessageBoxImage.Information
+                );
+                return;
+            }
+
+            // Manuelle Prüfung anstoßen
+            var result = await UpdateService.Instance.CheckForUpdatesAsync(isManualCheck: true);
+
+            if (result.Status == UpdateStatus.ReadyToRestart)
+            {
+                bool confirmed = ThemedDialogWindow.ShowConfirm(
+                    this,
+                    Tr.Get("Update_PromptHeadline"),
+                    Tr.Format("Update_PromptMessage", result.AvailableVersion ?? ""),
+                    Tr.Get("Update_RestartNow"),
+                    Tr.Get("Update_Later")
+                );
+
+                if (confirmed)
+                {
+                    SaveCurrentSession();
+                    UpdateService.Instance.RestartAndApplyUpdate();
+                }
+            }
+            else if (result.Status == UpdateStatus.UpToDate)
+            {
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Update_Title"), result.Message, MessageBoxImage.Information);
+            }
+            else if (result.Status == UpdateStatus.NotInstalled)
+            {
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Update_Title"), result.Message, MessageBoxImage.Information);
+            }
+            else if (result.Status == UpdateStatus.Error)
+            {
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Update_Title"), result.Message, MessageBoxImage.Warning);
+            }
+        }
+
+        private void OnUpdateStatusChanged(object? sender, UpdateStatusEventArgs e)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                UpdateUiForUpdateStatus(e.Status, e.Message, e.Progress, e.AvailableVersion);
+
+                // Geöffnete Einstellungsseiten in Tabs synchronisieren
+                string statusJson = JsonSerializer.Serialize(new
+                {
+                    status = e.Status.ToString(),
+                    message = e.Message,
+                    progress = e.Progress,
+                    version = e.AvailableVersion
+                });
+
+                foreach (var tab in Tabs)
+                {
+                    if (tab.Url.Equals(SettingsPageService.SettingsPageUrl, StringComparison.OrdinalIgnoreCase))
+                    {
+                        tab.WebView?.CoreWebView2?.ExecuteScriptAsync($"window.onUpdateStatusChanged && window.onUpdateStatusChanged({statusJson});");
+                    }
+                }
+            });
+        }
+
+        private void UpdateUiForUpdateStatus(UpdateStatus status, string message, int progress, string? version)
+        {
+            switch (status)
+            {
+                case UpdateStatus.ReadyToRestart:
+                    menuUpdateBadge.Visibility = Visibility.Visible;
+                    menuFlyoutUpdateBadge.Visibility = Visibility.Visible;
+                    menuItemUpdate.Header = Tr.Get("Menu_UpdateReadyRestart");
+                    pathMenuUpdateIcon.Fill = (Brush)FindResource("ShieldActiveBrush");
+                    break;
+
+                case UpdateStatus.Downloading:
+                    menuUpdateBadge.Visibility = Visibility.Collapsed;
+                    menuFlyoutUpdateBadge.Visibility = Visibility.Visible;
+                    menuItemUpdate.Header = Tr.Format("Menu_DownloadingUpdate", progress);
+                    pathMenuUpdateIcon.Fill = (Brush)FindResource("AccentSilverBrush");
+                    break;
+
+                case UpdateStatus.Checking:
+                    menuUpdateBadge.Visibility = Visibility.Collapsed;
+                    menuFlyoutUpdateBadge.Visibility = Visibility.Collapsed;
+                    menuItemUpdate.Header = Tr.Get("Menu_CheckingForUpdates");
+                    pathMenuUpdateIcon.Fill = (Brush)FindResource("AccentSilverBrush");
+                    break;
+
+                default:
+                    menuUpdateBadge.Visibility = Visibility.Collapsed;
+                    menuFlyoutUpdateBadge.Visibility = Visibility.Collapsed;
+                    menuItemUpdate.Header = Tr.Get("Menu_CheckForUpdates");
+                    pathMenuUpdateIcon.Fill = (Brush)FindResource("AccentSilverBrush");
+                    break;
+            }
         }
 
 #endregion

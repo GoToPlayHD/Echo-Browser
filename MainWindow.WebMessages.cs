@@ -42,6 +42,8 @@ namespace EchoBrowser
             _webMessageRouter.Register("clearBrowsingData", OnClearBrowsingDataMessage);
             _webMessageRouter.Register("resetSettings", OnResetSettingsMessage);
             _webMessageRouter.Register("updateAdBlockFilter", OnUpdateAdBlockFilterMessage);
+            _webMessageRouter.Register("checkForUpdates", OnCheckForUpdatesMessage);
+            _webMessageRouter.Register("restartToApplyUpdate", OnRestartToApplyUpdateMessage);
         }
 
         #region Startseite
@@ -322,6 +324,17 @@ namespace EchoBrowser
         {
             await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(AppSettingsService.Instance.Settings.AdBlockerFilterUrl, force: true);
             await ctx.CallPageAsync("onAdBlockFilterUpdated", AdBlockerService.Instance.BlockedDomainsCount);
+        }
+
+        private async Task OnCheckForUpdatesMessage(WebMessageContext ctx)
+        {
+            await UpdateService.Instance.CheckForUpdatesAsync(isManualCheck: true);
+        }
+
+        private void OnRestartToApplyUpdateMessage(WebMessageContext ctx)
+        {
+            SaveCurrentSession();
+            UpdateService.Instance.RestartAndApplyUpdate();
         }
 
         #endregion

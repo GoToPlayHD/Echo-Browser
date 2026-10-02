@@ -764,6 +764,37 @@ namespace EchoBrowser.Services
             width: fit-content;
             margin-top: 4px;
         }
+
+        .about-status.checking {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .about-status.warning {
+            background: rgba(251, 191, 36, 0.15);
+            color: #FBBF24;
+        }
+
+        .about-status.ready {
+            background: rgba(52, 211, 153, 0.25);
+            color: #34D399;
+        }
+
+        .update-progress-bar {
+            height: 5px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+            width: 240px;
+        }
+
+        .update-progress-fill {
+            height: 100%;
+            background: var(--accent-blue);
+            width: 0%;
+            transition: width 0.2s ease;
+        }
     </style>
 </head>
 <body>
@@ -1335,10 +1366,42 @@ namespace EchoBrowser.Services
                             <div class=""about-meta"">Version ##APP_VERSION## (Silver/Anthracite Edition) • 64-Bit</div>
                             <div class=""about-meta"">Chromium-Engine / WebView2: ##WEBVIEW_VERSION##</div>
                             <div class=""about-meta"">{{t:Settings_AboutPlatform}}</div>
-                            <div class=""about-status"">
-                                <svg width=""12"" height=""12"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""3""><path d=""M20 6L9 17l-5-5""/></svg>
-                                <span>{{t:Settings_AboutUpToDate}}</span>
+                            <div id=""aboutStatusBox"" class=""about-status"">
+                                <svg id=""svgStatusIcon"" width=""12"" height=""12"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""3""><path d=""M20 6L9 17l-5-5""/></svg>
+                                <span id=""lblAboutStatus"">{{t:Settings_AboutUpToDate}}</span>
                             </div>
+                            <div id=""updateProgressContainer"" class=""update-progress-bar"" style=""display:none;"">
+                                <div id=""updateProgressBar"" class=""update-progress-fill""></div>
+                            </div>
+                            <div style=""margin-top: 10px; display: flex; gap: 10px; align-items: center;"">
+                                <button id=""btnCheckUpdates"" class=""btn btn-primary"">
+                                    <svg width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2""><path d=""M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15""/></svg>
+                                    <span>{{t:Settings_CheckForUpdates}}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"" style=""margin-top: 14px;"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_AutoCheckUpdates}}</div>
+                                <div class=""row-desc"">{{t:Settings_AutoCheckUpdatesDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkAutoCheckUpdates"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_CheckPrereleaseUpdates}}</div>
+                                <div class=""row-desc"">{{t:Settings_CheckPrereleaseUpdatesDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkCheckPrereleases"">
+                                <span class=""toggle-slider""></span>
+                            </label>
                         </div>
                     </div>
                 </section>
@@ -1489,6 +1552,10 @@ namespace EchoBrowser.Services
             // 6. Tabs
             document.getElementById('chkOpenTabsInBackground').checked = s.OpenNewTabInBackground === true;
             document.getElementById('chkWarnCloseTabs').checked = s.WarnOnClosingMultipleTabs !== false;
+
+            // 7. Updates
+            if (document.getElementById('chkAutoCheckUpdates')) document.getElementById('chkAutoCheckUpdates').checked = s.AutoCheckForUpdates !== false;
+            if (document.getElementById('chkCheckPrereleases')) document.getElementById('chkCheckPrereleases').checked = s.CheckPrereleaseUpdates === true;
         }
 
         applySettingsToUI(initialSettings);
@@ -1757,7 +1824,80 @@ namespace EchoBrowser.Services
             }
         });
 
+        // Updates
+        if (document.getElementById('chkAutoCheckUpdates')) {
+            document.getElementById('chkAutoCheckUpdates').addEventListener('change', (e) => {
+                sendMessage({ type: 'updateSetting', key: 'AutoCheckForUpdates', value: e.target.checked });
+            });
+        }
+
+        if (document.getElementById('chkCheckPrereleases')) {
+            document.getElementById('chkCheckPrereleases').addEventListener('change', (e) => {
+                sendMessage({ type: 'updateSetting', key: 'CheckPrereleaseUpdates', value: e.target.checked });
+            });
+        }
+
+        const btnCheckUpdates = document.getElementById('btnCheckUpdates');
+        if (btnCheckUpdates) {
+            btnCheckUpdates.addEventListener('click', () => {
+                if (btnCheckUpdates.getAttribute('data-action') === 'restart') {
+                    sendMessage({ type: 'restartToApplyUpdate' });
+                } else {
+                    sendMessage({ type: 'checkForUpdates' });
+                }
+            });
+        }
+
         // Host callbacks
+        window.onUpdateStatusChanged = function(data) {
+            const box = document.getElementById('aboutStatusBox');
+            const lbl = document.getElementById('lblAboutStatus');
+            const btn = document.getElementById('btnCheckUpdates');
+            const progCont = document.getElementById('updateProgressContainer');
+            const progBar = document.getElementById('updateProgressBar');
+
+            if (!box || !lbl || !btn) return;
+
+            const btnSpan = btn.querySelector('span') || btn;
+            box.className = 'about-status';
+            if (progCont) progCont.style.display = 'none';
+            btn.removeAttribute('data-action');
+            btn.disabled = false;
+
+            if (data.status === 'Checking') {
+                box.classList.add('checking');
+                lbl.innerText = data.message || {{js:Update_Checking}};
+                btn.disabled = true;
+                btnSpan.innerText = {{js:Update_Checking}};
+            } else if (data.status === 'Downloading') {
+                box.classList.add('checking');
+                lbl.innerText = data.message || (data.progress + '%');
+                if (progCont) progCont.style.display = 'block';
+                if (progBar) progBar.style.width = (data.progress || 0) + '%';
+                btn.disabled = true;
+                btnSpan.innerText = (data.progress || 0) + '%';
+            } else if (data.status === 'ReadyToRestart') {
+                box.classList.add('ready');
+                lbl.innerText = data.message || {{js:Update_Ready}};
+                btn.setAttribute('data-action', 'restart');
+                btnSpan.innerText = {{js:Update_RestartNow}};
+            } else if (data.status === 'UpToDate') {
+                lbl.innerText = data.message || {{js:Settings_AboutUpToDate}};
+                btnSpan.innerText = {{js:Settings_CheckForUpdates}};
+            } else if (data.status === 'NotInstalled') {
+                box.classList.add('warning');
+                lbl.innerText = data.message || {{js:Update_DevMode}};
+                btnSpan.innerText = {{js:Settings_CheckForUpdates}};
+            } else if (data.status === 'Error') {
+                box.classList.add('warning');
+                lbl.innerText = data.message || {{js:Update_Error}};
+                btnSpan.innerText = {{js:Settings_CheckForUpdates}};
+            } else {
+                lbl.innerText = {{js:Settings_AboutUpToDate}};
+                btnSpan.innerText = {{js:Settings_CheckForUpdates}};
+            }
+        };
+
         window.onSettingUpdatedFromHost = function(newSettings) {
             applySettingsToUI(newSettings);
             showToast({{js:Settings_ToastSynced}});

@@ -48,7 +48,7 @@ namespace EchoBrowser
             tab.Url = SettingsPageService.SettingsPageUrl;
             tab.Title = Tr.Get("Tab_Settings");
             string webViewVer = _webViewEnvironment?.BrowserVersionString ?? "120.0";
-            string html = SettingsPageService.GetSettingsPageHtml(AppSettingsService.Instance.Settings, webViewVer, "1.2");
+            string html = SettingsPageService.GetSettingsPageHtml(AppSettingsService.Instance.Settings, webViewVer, UpdateService.Instance.CurrentVersion);
             tab.WebView.NavigateToString(html);
             if (tab == ActiveTab)
             {

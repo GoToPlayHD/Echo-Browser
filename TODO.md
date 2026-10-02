@@ -98,6 +98,12 @@
   - XAML: `Text="{loc:Loc Key}"`, C#: `Tr.Get("Key")` / `Tr.Format("Key", arg)`, HTML-Seiten: `{{t:Key}}` bzw. `{{js:Key}}`.
   - Neue Sprache: JSON-Datei in `Localization/` anlegen und in der Sprachauswahl ergänzen.
 - [x] **Change**: Verbliebene Windows-Standarddialoge (Verlauf leeren, Shield-Meldungen, Favorit) durch `ThemedDialogWindow` ersetzt.
+- [x] **Update-Infrastruktur mit Velopack**:
+  - `VelopackApp.Build().Run()` wird ganz am Anfang der Anwendung in `App.Main()` ausgeführt (`App.xaml` als `Page` mit `StartupObject`).
+  - `UpdateService`: Asynchrone Hintergrundprüfung, Delta-Patch-Downloads, Fortschrittsanzeige (0-100%), Vorbereitung für nahtlose Installation bei Beendigung (`WaitExitThenApplyUpdates`) sowie Sofort-Neustart (`ApplyUpdatesAndRestart`). Update-Server fest an `https://github.com/GoToPlayHD/Echo-Browser` gebunden (`GithubSource`).
+  - Menü-Integration: Status- und Aktionsmenüpunkt "Nach Updates suchen..." / "Update wird heruntergeladen (X%)..." / "Echo neu starten zum Aktualisieren" mit Update-Badge auf dem 3-Punkte-Menübutton und im Dropdown.
+  - Einstellungsseite (`echo://settings` -> "Über Echo-Browser"): Live-Status, Fortschrittsbalken, Update-Prüfbutton und Schalter für automatische Hintergrundprüfungen & Pre-Releases.
+  - Vollständige Lokalisierung (Deutsch, Englisch, Französisch, Spanisch) und begleitende Komponententests.
 
 ## Offen:
 - [x] Französische und spanische Übersetzung vervollständigt (`Localization/fr.json`, `es.json`).
