@@ -26,96 +26,60 @@ namespace EchoBrowser
     {
         #region Keyboard Shortcuts
 
-        private void Window_KeyDown(object sender, KeyEventArgs e)
+        /// <summary>
+        /// Alle Tastenkürzel des Fensters. Läuft in der Preview-Phase, damit Kürzel auch greifen,
+        /// wenn ein Steuerelement (z.B. die Adressleiste) die Taste sonst selbst verarbeiten würde.
+        /// WebView2 leitet Tasten aus der Webseite ebenfalls hierher weiter.
+        /// </summary>
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Ctrl+T: New Tab
-            if (e.Key == Key.T && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            // Bei gedrückter Alt-Taste meldet WPF Key.System, die eigentliche Taste steht in SystemKey
+            Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+            const ModifierKeys Ctrl = ModifierKeys.Control;
+            const ModifierKeys CtrlShift = ModifierKeys.Control | ModifierKeys.Shift;
+
+            Action? action = (key, Keyboard.Modifiers) switch
             {
-                AddNewTab(StartPageService.StartPageUrl);
+                (Key.T, Ctrl) => () => AddNewTab(StartPageService.StartPageUrl),
+                (Key.W, Ctrl) => () => { if (ActiveTab != null) CloseTab(ActiveTab); },
+                (Key.N, Ctrl) => () => new MainWindow().Show(),
+                (Key.N, CtrlShift) => OpenNewIncognitoWindow,
+                (Key.L, Ctrl) or (Key.D, ModifierKeys.Alt) => FocusAddressBar,
+                (Key.D, Ctrl) => () => BtnBookmark_Click(this, e),
+                (Key.B, CtrlShift) => () => MenuToggleBookmarksBar_Click(this, e),
+                (Key.J, Ctrl) => () => popupDownloads.IsOpen = !popupDownloads.IsOpen,
+                (Key.H, Ctrl) => () => ToggleHistoryPopup(e),
+                (Key.OemComma, Ctrl) => OpenSettingsTab,
+                (Key.F5, ModifierKeys.None) or (Key.R, Ctrl) => () => BtnReload_Click(this, e),
+                (Key.F12, ModifierKeys.None) => () => ActiveTab?.WebView?.CoreWebView2?.OpenDevToolsWindow(),
+                // Esc in der Adressleiste setzt deren Text zurück (TxtUrl_KeyDown) – dort nicht abfangen
+                (Key.Escape, ModifierKeys.None) when ActiveTab?.IsLoading == true && !txtUrl.IsKeyboardFocusWithin
+                    => () => ActiveTab?.WebView?.Stop(),
+                _ => null
+            };
+
+            if (action != null)
+            {
+                action();
                 e.Handled = true;
             }
-            // Ctrl+W: Close Tab
-            else if (e.Key == Key.W && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        }
+
+        private void FocusAddressBar()
+        {
+            txtUrl.Focus();
+            txtUrl.SelectAll();
+        }
+
+        private void ToggleHistoryPopup(RoutedEventArgs e)
+        {
+            if (popupHistory.IsOpen)
             {
-                if (ActiveTab != null) CloseTab(ActiveTab);
-                e.Handled = true;
+                popupHistory.IsOpen = false;
             }
-            // Ctrl+Shift+N: New Incognito Window
-            else if (e.Key == Key.N && 
-                     (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
-                     (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            else
             {
-                OpenNewIncognitoWindow();
-                e.Handled = true;
-            }
-            // Ctrl+N: New Window
-            else if (e.Key == Key.N && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                var win = new MainWindow();
-                win.Show();
-                e.Handled = true;
-            }
-            // Ctrl+L or Alt+D: Focus Omnibox
-            else if ((e.Key == Key.L && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) ||
-                     (e.Key == Key.D && (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt))
-            {
-                txtUrl.Focus();
-                txtUrl.SelectAll();
-                e.Handled = true;
-            }
-            // Ctrl+D: Bookmark Current Page
-            else if (e.Key == Key.D && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                BtnBookmark_Click(sender, e);
-                e.Handled = true;
-            }
-            // Ctrl+Shift+B: Toggle Bookmarks Bar
-            else if (e.Key == Key.B && 
-                     (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && 
-                     (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
-            {
-                MenuToggleBookmarksBar_Click(sender, e);
-                e.Handled = true;
-            }
-            // Ctrl+J: Open Downloads
-            else if (e.Key == Key.J && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                popupDownloads.IsOpen = !popupDownloads.IsOpen;
-                e.Handled = true;
-            }
-            // Ctrl+H: Open History
-            else if (e.Key == Key.H && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                if (popupHistory.IsOpen)
-                {
-                    popupHistory.IsOpen = false;
-                }
-                else
-                {
-                    MenuHistory_Click(sender, e);
-                }
-                e.Handled = true;
-            }
-            // F12: Open DevTools
-            else if (e.Key == Key.F12)
-            {
-                ActiveTab?.WebView?.CoreWebView2?.OpenDevToolsWindow();
-                e.Handled = true;
-            }
-            // F5 or Ctrl+R: Reload
-            else if (e.Key == Key.F5 || (e.Key == Key.R && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control))
-            {
-                BtnReload_Click(sender, e);
-                e.Handled = true;
-            }
-            // Esc: Stop Loading
-            else if (e.Key == Key.Escape)
-            {
-                if (ActiveTab?.IsLoading == true)
-                {
-                    ActiveTab.WebView?.Stop();
-                    e.Handled = true;
-                }
+                MenuHistory_Click(this, e);
             }
         }
 
