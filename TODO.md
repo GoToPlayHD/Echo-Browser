@@ -88,3 +88,19 @@
 
        Changes:
        - Das Fenster das beim Schließen des Browsers bei mehreren Tabs offen angezeigt wird ist auch nicht im selben stil wie der Browser.
+
+## Erledigt (Oktober 2026):
+- [x] **Sicherheit**: Host-Bridge (`WebMessageReceived`) nimmt privilegierte Nachrichten nur noch von internen Seiten mit Sitzungs-Token an (`InternalPageSecurity`), Installationsanfragen nur vom Chrome Web Store. Download-Sicherheitsprüfung wird nur noch für `.crx` ausgehebelt.
+- [x] **Performance**: Netzwerkfilter des Adblockers nur bei aktivem Shield, gebündelte Badge-Updates, Verlauf wird verzögert im Hintergrund gespeichert, alle JSON-Dateien werden atomar geschrieben (`AtomicFile`).
+- [x] **Struktur**: `WebMessageRouter`, `MainWindow` in thematische Teildateien aufgeteilt, `.gitignore`, `bin/`/`obj/` aus dem Repo entfernt, WebView2-Version fixiert.
+- [x] **Bug (Adblocker lässt sich nicht deaktivieren)**: Shield-Schalter (global & pro Website) funktionieren wieder; der globale Schalter wirkt jetzt auf alle Tabs.
+- [x] **Lokalisierung**: Alle Texte (XAML, Code, Start- & Einstellungsseite) kommen aus `Localization/<sprache>.json`. Deutsch & Englisch vollständig, Französisch & Spanisch teilweise (fehlende Texte fallen auf Englisch zurück). Sprachwechsel wirkt sofort ohne Neustart.
+  - XAML: `Text="{loc:Loc Key}"`, C#: `Tr.Get("Key")` / `Tr.Format("Key", arg)`, HTML-Seiten: `{{t:Key}}` bzw. `{{js:Key}}`.
+  - Neue Sprache: JSON-Datei in `Localization/` anlegen und in der Sprachauswahl ergänzen.
+- [x] **Change**: Verbliebene Windows-Standarddialoge (Verlauf leeren, Shield-Meldungen, Favorit) durch `ThemedDialogWindow` ersetzt.
+
+## Offen:
+- [ ] Französische und spanische Übersetzung vervollständigen (`Localization/fr.json`, `es.json`).
+- [ ] Erweiterungen: eigenes Popup-Menü der Erweiterung anzeigen statt direkt die Einstellungen zu öffnen.
+- [ ] Rechtsklick-Menü der Symbolleiste steht 10x identisch in `MainWindow.xaml` – als gemeinsame Ressource auslagern.
+- [ ] Popups (Shield, Downloads, Erweiterungen, Verlauf) als eigene UserControls.

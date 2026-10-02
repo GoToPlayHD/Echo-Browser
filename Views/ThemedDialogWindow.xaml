@@ -1,6 +1,7 @@
 <Window x:Class="EchoBrowser.Views.ThemedDialogWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:EchoBrowser.Services"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -31,7 +32,7 @@
                         Style="{DynamicResource ChromeCloseButtonStyle}" 
                         Width="26" Height="26" 
                         Click="BtnClose_Click" 
-                        ToolTip="Schließen">
+                        ToolTip="{loc:Loc Common_Close}">
                     <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
                           Fill="{DynamicResource AccentSilverBrush}" 
                           Width="10" Height="10" Stretch="Uniform"/>
@@ -77,14 +78,14 @@
                 <!-- Headline and Description -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock x:Name="txtHeadline" 
-                               Text="Erweiterung installieren" 
+                               Text="{loc:Loc Ext_InstallTitle}" 
                                FontWeight="Bold" 
                                FontSize="15" 
                                Foreground="{DynamicResource TextPrimaryBrush}" 
                                TextWrapping="Wrap" 
                                Margin="0,0,0,6"/>
                     <TextBlock x:Name="txtMessage" 
-                               Text="Möchtest du diese Erweiterung zu Echo-Browser hinzufügen?" 
+                               Text="{loc:Loc Ext_InstallQuestion}" 
                                FontSize="12.5" 
                                Foreground="{DynamicResource TextSecondaryBrush}" 
                                TextWrapping="Wrap" 
@@ -103,7 +104,7 @@
                     Visibility="Collapsed">
                 <StackPanel>
                     <TextBlock x:Name="txtDetailsLabel" 
-                               Text="Berechtigungen &amp; Details:" 
+                               Text="{loc:Loc Ext_PermissionsDetails}" 
                                FontSize="11" 
                                FontWeight="SemiBold" 
                                Foreground="{DynamicResource TextMutedBrush}" 
@@ -120,7 +121,7 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <!-- Cancel / Secondary Button -->
                 <Button x:Name="btnSecondary" 
-                        Content="Abbrechen" 
+                        Content="{loc:Loc Dialog_Cancel}" 
                         Height="32" 
                         MinWidth="85" 
                         Padding="12,0" 
@@ -159,7 +160,7 @@
 
                 <!-- Primary Action Button -->
                 <Button x:Name="btnPrimary" 
-                        Content="Installieren" 
+                        Content="{loc:Loc Ext_Install}" 
                         Height="32" 
                         MinWidth="95" 
                         Padding="14,0" 

@@ -21,18 +21,19 @@ namespace EchoBrowser.Services
                             <path d=""M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z""/>
                             <circle cx=""12"" cy=""12"" r=""3""/>
                         </svg>
-                        <span>Inkognito-Modus</span>
+                        <span>{{t:Start_Incognito}}</span>
                     </div>
-                    <p class=""incognito-notice"">Im Inkognito-Modus werden dein Verlauf, Cookies und Website-Daten beim Schließen nicht gespeichert.</p>"
+                    <p class=""incognito-notice"">{{t:Start_IncognitoNotice}}</p>"
                 : "";
 
-            string html = RawHtmlTemplate;
-            html = html.Replace("##TITLE##", isIncognito ? "Neuer Tab (Inkognito)" : "Neuer Tab");
+            // Erst übersetzen, dann Nutzerdaten (Verknüpfungen) einsetzen – so werden darin keine Platzhalter ersetzt
+            string html = RawHtmlTemplate.Replace("##INCOGNITO_EXTRA##", incognitoExtra);
+            html = PageLocalizer.Apply(html);
+            html = html.Replace("##TITLE##", System.Net.WebUtility.HtmlEncode(Tr.Get(isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab")));
             html = html.Replace("##CURRENT_ENGINE##", currentEngine);
-            html = html.Replace("##INCOGNITO_EXTRA##", incognitoExtra);
             html = html.Replace("##SHOW_FAVORITES##", showFavorites ? "true" : "false");
             html = html.Replace("##SHORTCUTS_SECTION_CLASS##", showFavorites ? "" : "hidden");
-            html = html.Replace("##TOGGLE_TEXT##", showFavorites ? "Verknüpfungen verbergen" : "Verknüpfungen anzeigen");
+            html = html.Replace("##TOGGLE_TEXT##", System.Net.WebUtility.HtmlEncode(Tr.Get(showFavorites ? "Start_HideShortcuts" : "Start_ShowShortcuts")));
             html = html.Replace("##SHORTCUTS_JSON##", shortcutsJson);
             html = InternalPageSecurity.InjectToken(html);
 
@@ -40,7 +41,7 @@ namespace EchoBrowser.Services
         }
 
         private const string RawHtmlTemplate = @"<!DOCTYPE html>
-<html lang=""de"">
+<html lang=""{{lang}}"">
 <head>
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
@@ -596,14 +597,14 @@ namespace EchoBrowser.Services
                 <input type=""text"" 
                        id=""searchInput"" 
                        class=""search-input"" 
-                       placeholder=""Im Web suchen oder Adresse eingeben..."" 
+                       placeholder=""{{t:Start_SearchPlaceholder}}"" 
                        autocomplete=""off"" 
                        autofocus>
-                <button id=""clearBtn"" class=""clear-btn"" title=""Löschen"">&#x2715;</button>
+                <button id=""clearBtn"" class=""clear-btn"" title=""{{t:Start_Delete}}"">&#x2715;</button>
 
                 <!-- Search Engine Selector Dropdown -->
                 <div class=""engine-dropdown-wrap"">
-                    <select id=""engineSelect"" class=""engine-select"" title=""Suchmaschine wählen"">
+                    <select id=""engineSelect"" class=""engine-select"" title=""{{t:Start_ChooseEngine}}"">
                         <option value=""duckduckgo"">DuckDuckGo</option>
                         <option value=""google"">Google</option>
                         <option value=""bing"">Bing</option>
@@ -618,7 +619,7 @@ namespace EchoBrowser.Services
         <!-- Controls Row: Search Submit & Toggle Shortcuts -->
         <div class=""controls-row"">
             <button id=""btnSearch"" class=""search-submit-btn"">
-                <span>Suche</span>
+                <span>{{t:Start_Search}}</span>
             </button>
             <button id=""btnToggleShortcuts"" class=""toggle-shortcuts-btn"">
                 <span id=""toggleShortcutsText"">##TOGGLE_TEXT##</span>
@@ -636,19 +637,19 @@ namespace EchoBrowser.Services
     <!-- Modal Dialog for Add / Edit Shortcut -->
     <div id=""shortcutModal"" class=""modal-overlay"">
         <div class=""modal-card"">
-            <h3 id=""modalHeading"" class=""modal-title"">Verknüpfung hinzufügen</h3>
+            <h3 id=""modalHeading"" class=""modal-title"">{{t:Start_AddShortcut}}</h3>
             <div class=""modal-field"">
-                <label class=""modal-label"">Name</label>
-                <input type=""text"" id=""modalTitleInput"" class=""modal-input"" placeholder=""z. B. YouTube"">
+                <label class=""modal-label"">{{t:Bookmark_Name}}</label>
+                <input type=""text"" id=""modalTitleInput"" class=""modal-input"" placeholder=""{{t:Start_NameExample}}"">
             </div>
             <div class=""modal-field"">
-                <label class=""modal-label"">Adresse (URL)</label>
+                <label class=""modal-label"">{{t:Bookmark_Url}}</label>
                 <input type=""text"" id=""modalUrlInput"" class=""modal-input"" placeholder=""https://"">
             </div>
             <div class=""modal-actions"">
-                <button id=""modalDeleteBtn"" class=""modal-btn modal-btn-delete"" style=""display:none;"">Löschen</button>
-                <button id=""modalCancelBtn"" class=""modal-btn modal-btn-cancel"">Abbrechen</button>
-                <button id=""modalSaveBtn"" class=""modal-btn modal-btn-save"">Speichern</button>
+                <button id=""modalDeleteBtn"" class=""modal-btn modal-btn-delete"" style=""display:none;"">{{t:Start_Delete}}</button>
+                <button id=""modalCancelBtn"" class=""modal-btn modal-btn-cancel"">{{t:Dialog_Cancel}}</button>
+                <button id=""modalSaveBtn"" class=""modal-btn modal-btn-save"">{{t:Common_Save}}</button>
             </div>
         </div>
     </div>
@@ -736,10 +737,10 @@ namespace EchoBrowser.Services
             isShortcutsVisible = !isShortcutsVisible;
             if (isShortcutsVisible) {
                 shortcutsSection.classList.remove('hidden');
-                toggleShortcutsText.textContent = 'Verknüpfungen verbergen';
+                toggleShortcutsText.textContent = {{js:Start_HideShortcuts}};
             } else {
                 shortcutsSection.classList.add('hidden');
-                toggleShortcutsText.textContent = 'Verknüpfungen anzeigen';
+                toggleShortcutsText.textContent = {{js:Start_ShowShortcuts}};
             }
             postHostMessage({ type: 'toggleStartpageFavorites', visible: isShortcutsVisible });
         });
@@ -760,7 +761,7 @@ namespace EchoBrowser.Services
                         <span style=""font-weight:700; font-size:15px; color:#C4C7CC;"">${displayInitial}</span>
                     </div>
                     <span class=""shortcut-title"">${escapeHtml(item.Title)}</span>
-                    <button class=""shortcut-edit-btn"" title=""Bearbeiten"">&#x270E;</button>
+                    <button class=""shortcut-edit-btn"" title=""{{t:Start_Edit}}"">&#x270E;</button>
                 `;
 
                 // Left click on item navigates
@@ -782,12 +783,12 @@ namespace EchoBrowser.Services
             // Add button tile
             const addTile = document.createElement('div');
             addTile.className = 'shortcut-item';
-            addTile.title = 'Verknüpfung hinzufügen';
+            addTile.title = {{js:Start_AddShortcut}};
             addTile.innerHTML = `
                 <div class=""shortcut-icon-circle shortcut-add-circle"">
                     <span style=""font-size:20px; color:#A0A4AB;"">+</span>
                 </div>
-                <span class=""shortcut-title"" style=""color:#A0A4AB;"">Hinzufügen</span>
+                <span class=""shortcut-title"" style=""color:#A0A4AB;"">{{t:Start_Add}}</span>
             `;
             addTile.addEventListener('click', () => {
                 openAddModal();
@@ -797,7 +798,7 @@ namespace EchoBrowser.Services
 
         function openAddModal() {
             currentEditingIndex = -1;
-            modalHeading.textContent = 'Verknüpfung hinzufügen';
+            modalHeading.textContent = {{js:Start_AddShortcut}};
             modalTitleInput.value = '';
             modalUrlInput.value = 'https://';
             modalDeleteBtn.style.display = 'none';
@@ -808,7 +809,7 @@ namespace EchoBrowser.Services
         function openEditModal(index) {
             currentEditingIndex = index;
             const item = shortcuts[index];
-            modalHeading.textContent = 'Verknüpfung bearbeiten';
+            modalHeading.textContent = {{js:Start_EditShortcut}};
             modalTitleInput.value = item.Title;
             modalUrlInput.value = item.Url;
             modalDeleteBtn.style.display = 'block';

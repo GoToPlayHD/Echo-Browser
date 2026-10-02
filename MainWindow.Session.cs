@@ -26,11 +26,27 @@ namespace EchoBrowser
     {
         #region Settings & Session Management
 
+        /// <summary>Startseite bzw. Einstellungsseite eines Tabs neu erzeugen (z.B. nach Sprachwechsel).</summary>
+        private void RefreshInternalPage(BrowserTab tab)
+        {
+            if (tab.WebView == null) return;
+
+            if (tab.Url == SettingsPageService.SettingsPageUrl)
+            {
+                NavigateToSettingsPage(tab);
+            }
+            else if (tab.Url == StartPageService.StartPageUrl)
+            {
+                tab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
+                tab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
+            }
+        }
+
         public void NavigateToSettingsPage(BrowserTab? tab)
         {
             if (tab?.WebView == null) return;
             tab.Url = SettingsPageService.SettingsPageUrl;
-            tab.Title = "Einstellungen";
+            tab.Title = Tr.Get("Tab_Settings");
             string webViewVer = _webViewEnvironment?.BrowserVersionString ?? "120.0";
             string html = SettingsPageService.GetSettingsPageHtml(AppSettingsService.Instance.Settings, webViewVer, "1.2");
             tab.WebView.NavigateToString(html);

@@ -12,7 +12,8 @@ namespace EchoBrowser.Services
         {
             string settingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = false });
 
-            string html = RawHtmlTemplate;
+            // Erst übersetzen, dann Nutzerdaten (Einstellungen) einsetzen – so werden darin keine Platzhalter ersetzt
+            string html = PageLocalizer.Apply(RawHtmlTemplate);
             html = html.Replace("##SETTINGS_JSON##", settingsJson);
             html = html.Replace("##WEBVIEW_VERSION##", webViewVersion);
             html = html.Replace("##APP_VERSION##", appVersion);
@@ -22,11 +23,11 @@ namespace EchoBrowser.Services
         }
 
         private const string RawHtmlTemplate = @"<!DOCTYPE html>
-<html lang=""de"">
+<html lang=""{{lang}}"">
 <head>
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>Einstellungen – Echo-Browser</title>
+    <title>{{t:Tab_Settings}} – Echo-Browser</title>
     <style>
         :root {
             --bg-color: #16171B;
@@ -778,14 +779,14 @@ namespace EchoBrowser.Services
                 <circle cx=""12"" cy=""12"" r=""1"" fill=""#C4C7CC""/>
             </svg>
             <div class=""brand-title"">ECHO BROWSER</div>
-            <div class=""brand-badge"">Einstellungen</div>
+            <div class=""brand-badge"">{{t:Settings_Badge}}</div>
         </div>
 
         <div class=""search-container"">
             <svg class=""search-icon"" viewBox=""0 0 24 24"">
                 <path d=""M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z""/>
             </svg>
-            <input type=""text"" id=""searchSettings"" class=""search-input"" placeholder=""Einstellungen durchsuchen..."" autocomplete=""off"">
+            <input type=""text"" id=""searchSettings"" class=""search-input"" placeholder=""{{t:Settings_SearchPlaceholder}}"" autocomplete=""off"">
         </div>
     </header>
 
@@ -795,31 +796,31 @@ namespace EchoBrowser.Services
         <aside>
             <div class=""nav-item active"" data-target=""section-general"">
                 <svg viewBox=""0 0 24 24""><path d=""M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z""/></svg>
-                <span>Allgemein</span>
+                <span>{{t:Settings_NavGeneral}}</span>
             </div>
             <div class=""nav-item"" data-target=""section-search"">
                 <svg viewBox=""0 0 24 24""><path d=""M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z""/></svg>
-                <span>Suchmaschine</span>
+                <span>{{t:Settings_NavSearch}}</span>
             </div>
             <div class=""nav-item"" data-target=""section-appearance"">
                 <svg viewBox=""0 0 24 24""><path d=""M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.5c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l.9-.9C8.19 19.9 10.03 20.5 12 20.5c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15.5c-3.58 0-6.5-2.92-6.5-6.5S8.42 5.5 12 5.5s6.5 2.92 6.5 6.5-2.92 6.5-6.5 6.5z""/><circle cx=""8.5"" cy=""9.5"" r=""1.5""/><circle cx=""15.5"" cy=""9.5"" r=""1.5""/><circle cx=""12"" cy=""14"" r=""1.5""/></svg>
-                <span>Erscheinungsbild</span>
+                <span>{{t:Settings_NavAppearance}}</span>
             </div>
             <div class=""nav-item"" data-target=""section-privacy"">
                 <svg viewBox=""0 0 24 24""><path d=""M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z""/></svg>
-                <span>Datenschutz &amp; Sicherheit</span>
+                <span>{{t:Settings_NavPrivacy}}</span>
             </div>
             <div class=""nav-item"" data-target=""section-downloads"">
                 <svg viewBox=""0 0 24 24""><path d=""M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z""/></svg>
-                <span>Downloads</span>
+                <span>{{t:Settings_NavDownloads}}</span>
             </div>
             <div class=""nav-item"" data-target=""section-tabs"">
                 <svg viewBox=""0 0 24 24""><path d=""M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 4v12h18V7H3zm2 2h4v2H5V9zm6 0h4v2h-4V9z""/></svg>
-                <span>Tabs &amp; Verhalten</span>
+                <span>{{t:Settings_NavTabs}}</span>
             </div>
             <div class=""nav-item"" data-target=""section-about"">
                 <svg viewBox=""0 0 24 24""><path d=""M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z""/></svg>
-                <span>Über Echo</span>
+                <span>{{t:Settings_NavAbout}}</span>
             </div>
         </aside>
 
@@ -830,33 +831,33 @@ namespace EchoBrowser.Services
                 <!-- 1. ALLGEMEIN -->
                 <section id=""section-general"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Allgemein &amp; Startverhalten</h2>
+                        <h2 class=""section-title"">{{t:Settings_GeneralTitle}}</h2>
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Beim Start von Echo-Browser:</div>
-                        <div class=""row-desc"">Wähle, was geöffnet werden soll, wenn der Browser startet.</div>
+                        <div class=""row-title"">{{t:Settings_OnStartup}}</div>
+                        <div class=""row-desc"">{{t:Settings_OnStartupDesc}}</div>
 
                         <div class=""radio-group"" id=""startupGroup"">
                             <div class=""radio-option"" data-val=""startpage"">
                                 <div class=""custom-radio""></div>
                                 <div>
-                                    <div class=""row-title"">Startseite (Echo New Tab)</div>
-                                    <div class=""row-desc"">Öffnet eine neue, saubere Registerkarte mit Schnellzugriffen &amp; Suche.</div>
+                                    <div class=""row-title"">{{t:Settings_StartupStartpage}}</div>
+                                    <div class=""row-desc"">{{t:Settings_StartupStartpageDesc}}</div>
                                 </div>
                             </div>
                             <div class=""radio-option"" data-val=""restore_session"">
                                 <div class=""custom-radio""></div>
                                 <div>
-                                    <div class=""row-title"">Vorherige Sitzung fortsetzen</div>
-                                    <div class=""row-desc"">Öffnet automatisch die Tabs wieder, die beim letzten Schließen geöffnet waren.</div>
+                                    <div class=""row-title"">{{t:Settings_StartupRestore}}</div>
+                                    <div class=""row-desc"">{{t:Settings_StartupRestoreDesc}}</div>
                                 </div>
                             </div>
                             <div class=""radio-option"" data-val=""custom_url"">
                                 <div class=""custom-radio""></div>
                                 <div style=""flex: 1;"">
-                                    <div class=""row-title"">Bestimmte Seite öffnen</div>
-                                    <div class=""row-desc"">Gibt eine benutzerdefinierte Webadresse als Startseite an.</div>
+                                    <div class=""row-title"">{{t:Settings_StartupCustom}}</div>
+                                    <div class=""row-desc"">{{t:Settings_StartupCustomDesc}}</div>
                                     <input type=""text"" id=""txtCustomUrl"" class=""input-text"" style=""width: 100%; margin-top: 8px; display: none;"" placeholder=""https://example.com"">
                                 </div>
                             </div>
@@ -866,8 +867,8 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Home-Button anzeigen</div>
-                                <div class=""row-desc"">Fügt ein Startseiten-Symbol links neben der Adressleiste ein.</div>
+                                <div class=""row-title"">{{t:Settings_ShowHomeButton}}</div>
+                                <div class=""row-desc"">{{t:Settings_ShowHomeButtonDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowHomeButton"">
@@ -876,8 +877,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Schnellzugriff-Kacheln auf Startseite</div>
-                                <div class=""row-desc"">Zeigt Verknüpfungen (Google, YouTube, GitHub etc.) auf der Startseite an.</div>
+                                <div class=""row-title"">{{t:Settings_StartpageTiles}}</div>
+                                <div class=""row-desc"">{{t:Settings_StartpageTilesDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkStartpageFavorites"">
@@ -889,8 +890,8 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Sprache / Language</div>
-                                <div class=""row-desc"">Wähle die Sprache der Benutzeroberfläche von Echo-Browser.</div>
+                                <div class=""row-title"">{{t:Settings_Language}}</div>
+                                <div class=""row-desc"">{{t:Settings_LanguageDesc}}</div>
                             </div>
                             <select id=""selLanguage"" class=""select-dropdown"" style=""background: #1e2025; color: #e2e8f0; border: 1px solid #333842; padding: 6px 12px; border-radius: 6px; font-size: 13px; outline: none; cursor: pointer;"">
                                 <option value=""de"">🇩🇪 Deutsch</option>
@@ -905,55 +906,55 @@ namespace EchoBrowser.Services
                 <!-- 2. SUCHMASCHINE -->
                 <section id=""section-search"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Suchmaschine</h2>
+                        <h2 class=""section-title"">{{t:Settings_NavSearch}}</h2>
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Standardsuchmaschine</div>
-                        <div class=""row-desc"">Wähle deinen bevorzugten Suchanbieter für die Adressleiste und Startseite.</div>
+                        <div class=""row-title"">{{t:Settings_DefaultSearch}}</div>
+                        <div class=""row-desc"">{{t:Settings_DefaultSearchDesc}}</div>
 
                         <div class=""engine-grid"" id=""engineGrid"">
                             <div class=""engine-card"" data-engine=""duckduckgo"">
                                 <div class=""engine-card-header"">
                                     <div class=""engine-name"">DuckDuckGo</div>
-                                    <span class=""badge-active"">Aktiv</span>
+                                    <span class=""badge-active"">{{t:Settings_Active}}</span>
                                 </div>
-                                <div class=""engine-desc"">Privatsphäre zuerst: Kein User-Tracking, keine personalisierte Werbung.</div>
+                                <div class=""engine-desc"">{{t:Settings_EngineDuckDuckGo}}</div>
                             </div>
                             <div class=""engine-card"" data-engine=""google"">
                                 <div class=""engine-card-header"">
                                     <div class=""engine-name"">Google</div>
-                                    <span class=""badge-active"">Aktiv</span>
+                                    <span class=""badge-active"">{{t:Settings_Active}}</span>
                                 </div>
-                                <div class=""engine-desc"">Die weltweit meistgenutzte Suchmaschine mit reichhaltigen Instant-Antworten.</div>
+                                <div class=""engine-desc"">{{t:Settings_EngineGoogle}}</div>
                             </div>
                             <div class=""engine-card"" data-engine=""bing"">
                                 <div class=""engine-card-header"">
                                     <div class=""engine-name"">Bing</div>
-                                    <span class=""badge-active"">Aktiv</span>
+                                    <span class=""badge-active"">{{t:Settings_Active}}</span>
                                 </div>
-                                <div class=""engine-desc"">Microsoft Suchmaschine mit moderner Bild- und Videosuche.</div>
+                                <div class=""engine-desc"">{{t:Settings_EngineBing}}</div>
                             </div>
                             <div class=""engine-card"" data-engine=""ecosia"">
                                 <div class=""engine-card-header"">
                                     <div class=""engine-name"">Ecosia</div>
-                                    <span class=""badge-active"">Aktiv</span>
+                                    <span class=""badge-active"">{{t:Settings_Active}}</span>
                                 </div>
-                                <div class=""engine-desc"">Die grüne Suchmaschine: Pflanzt Bäume mit deinen täglichen Suchanfragen.</div>
+                                <div class=""engine-desc"">{{t:Settings_EngineEcosia}}</div>
                             </div>
                             <div class=""engine-card"" data-engine=""brave"">
                                 <div class=""engine-card-header"">
                                     <div class=""engine-name"">Brave Search</div>
-                                    <span class=""badge-active"">Aktiv</span>
+                                    <span class=""badge-active"">{{t:Settings_Active}}</span>
                                 </div>
-                                <div class=""engine-desc"">Unabhängiger Suchindex ohne Nachverfolgung oder Datenweitergabe.</div>
+                                <div class=""engine-desc"">{{t:Settings_EngineBrave}}</div>
                             </div>
                             <div class=""engine-card"" data-engine=""startpage"">
                                 <div class=""engine-card-header"">
                                     <div class=""engine-name"">Startpage</div>
-                                    <span class=""badge-active"">Aktiv</span>
+                                    <span class=""badge-active"">{{t:Settings_Active}}</span>
                                 </div>
-                                <div class=""engine-desc"">Echte Google-Ergebnisse ohne Tracking in europäischer Privatsphäre.</div>
+                                <div class=""engine-desc"">{{t:Settings_EngineStartpage}}</div>
                             </div>
                         </div>
                     </div>
@@ -961,8 +962,8 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Suchvorschläge in Adressleiste</div>
-                                <div class=""row-desc"">Zeigt während der Eingabe in der Omnibox Vorschläge und Webseiten an.</div>
+                                <div class=""row-title"">{{t:Settings_SearchSuggestions}}</div>
+                                <div class=""row-desc"">{{t:Settings_SearchSuggestionsDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkSearchSuggestions"">
@@ -975,59 +976,59 @@ namespace EchoBrowser.Services
                 <!-- 3. ERSCHEINUNGSBILD -->
                 <section id=""section-appearance"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Erscheinungsbild &amp; Themes</h2>
+                        <h2 class=""section-title"">{{t:Settings_AppearanceTitle}}</h2>
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Farb-Thema Preset</div>
-                        <div class=""row-desc"">Wähle ein vorkonfiguriertes, hochwertiges Design für Fenster und Menüs.</div>
+                        <div class=""row-title"">{{t:Settings_ThemePreset}}</div>
+                        <div class=""row-desc"">{{t:Settings_ThemePresetDesc}}</div>
 
                         <div class=""theme-grid"" id=""themeGrid"">
                             <div class=""theme-card"" data-preset=""SilverAnthracite"">
                                 <div class=""theme-preview-dot"" style=""background: #1C1D21; border-color: #C4C7CC;""></div>
                                 <div>
-                                    <div class=""row-title"">Silber &amp; Anthrazit</div>
-                                    <div class=""row-desc"">Edles Standard-Design mit matten Metall-Akzenten</div>
+                                    <div class=""row-title"">{{t:Settings_ThemeSilver}}</div>
+                                    <div class=""row-desc"">{{t:Settings_ThemeSilverDesc}}</div>
                                 </div>
                             </div>
                             <div class=""theme-card"" data-preset=""MidnightOled"">
                                 <div class=""theme-preview-dot"" style=""background: #07080A; border-color: #FFFFFF;""></div>
                                 <div>
                                     <div class=""row-title"">Midnight OLED</div>
-                                    <div class=""row-desc"">Tiefschwarz für OLED-Monitore &amp; maximalen Kontrast</div>
+                                    <div class=""row-desc"">{{t:Settings_ThemeMidnightDesc}}</div>
                                 </div>
                             </div>
                             <div class=""theme-card"" data-preset=""TitaniumLight"">
                                 <div class=""theme-preview-dot"" style=""background: #F4F6F9; border-color: #8A8F99;""></div>
                                 <div>
                                     <div class=""row-title"">Titanium Light</div>
-                                    <div class=""row-desc"">Modernes, klares helles Design in Titangrau</div>
+                                    <div class=""row-desc"">{{t:Settings_ThemeTitaniumDesc}}</div>
                                 </div>
                             </div>
                             <div class=""theme-card"" data-preset=""CobaltSlate"">
                                 <div class=""theme-preview-dot"" style=""background: #111827; border-color: #60A5FA;""></div>
                                 <div>
                                     <div class=""row-title"">Cobalt Slate</div>
-                                    <div class=""row-desc"">Harmonisches Schiefergrau mit kühlem Kobalt-Blau</div>
+                                    <div class=""row-desc"">{{t:Settings_ThemeCobaltDesc}}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Akzentfarbe</div>
-                        <div class=""row-desc"">Passe die Hervorhebungsfarbe für Tabs, Icons und Eingabefelder an.</div>
+                        <div class=""row-title"">{{t:Settings_AccentColor}}</div>
+                        <div class=""row-desc"">{{t:Settings_AccentColorDesc}}</div>
 
                         <div class=""accent-palette"" id=""accentPalette"">
-                            <div class=""color-swatch"" style=""background: #C4C7CC;"" data-color=""#C4C7CC"" title=""Silber""></div>
-                            <div class=""color-swatch"" style=""background: #38BDF8;"" data-color=""#38BDF8"" title=""Eisblau""></div>
-                            <div class=""color-swatch"" style=""background: #34D399;"" data-color=""#34D399"" title=""Smaragd""></div>
-                            <div class=""color-swatch"" style=""background: #F59E0B;"" data-color=""#F59E0B"" title=""Bernstein""></div>
-                            <div class=""color-swatch"" style=""background: #F43F5E;"" data-color=""#F43F5E"" title=""Rubinrot""></div>
-                            <div class=""color-swatch"" style=""background: #A855F7;"" data-color=""#A855F7"" title=""Amethyst""></div>
+                            <div class=""color-swatch"" style=""background: #C4C7CC;"" data-color=""#C4C7CC"" title=""{{t:Color_Silver}}""></div>
+                            <div class=""color-swatch"" style=""background: #38BDF8;"" data-color=""#38BDF8"" title=""{{t:Color_IceBlue}}""></div>
+                            <div class=""color-swatch"" style=""background: #34D399;"" data-color=""#34D399"" title=""{{t:Color_Emerald}}""></div>
+                            <div class=""color-swatch"" style=""background: #F59E0B;"" data-color=""#F59E0B"" title=""{{t:Color_Amber}}""></div>
+                            <div class=""color-swatch"" style=""background: #F43F5E;"" data-color=""#F43F5E"" title=""{{t:Color_Ruby}}""></div>
+                            <div class=""color-swatch"" style=""background: #A855F7;"" data-color=""#A855F7"" title=""{{t:Color_Amethyst}}""></div>
                             <div style=""display: flex; align-items: center; gap: 8px; margin-left: 12px;"">
                                 <input type=""text"" id=""txtCustomAccent"" class=""input-text"" style=""width: 90px; text-transform: uppercase;"" maxlength=""7"" placeholder=""#HEX"">
-                                <button id=""btnApplyAccent"" class=""btn"">Setzen</button>
+                                <button id=""btnApplyAccent"" class=""btn"">{{t:Settings_Apply}}</button>
                             </div>
                         </div>
                     </div>
@@ -1035,8 +1036,8 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Lesezeichenleiste immer anzeigen</div>
-                                <div class=""row-desc"">Zeigt die Leiste mit deinen Lesezeichen unter der Adresszeile an (Ctrl+Shift+B).</div>
+                                <div class=""row-title"">{{t:Settings_ShowBookmarksBar}}</div>
+                                <div class=""row-desc"">{{t:Settings_ShowBookmarksBarDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkBookmarksBar"">
@@ -1045,8 +1046,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Favoriten-Seitenleiste anzeigen</div>
-                                <div class=""row-desc"">Vertikale Symbolleiste auf der linken Seite für blitzschnellen Schnellzugriff.</div>
+                                <div class=""row-title"">{{t:Settings_ShowSidebar}}</div>
+                                <div class=""row-desc"">{{t:Settings_ShowSidebarDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkSidebar"">
@@ -1055,13 +1056,13 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Standard-Seitenzoom</div>
-                                <div class=""row-desc"">Vergrößert oder verkleinert Webseiteninhalte standardmäßig.</div>
+                                <div class=""row-title"">{{t:Settings_DefaultZoom}}</div>
+                                <div class=""row-desc"">{{t:Settings_DefaultZoomDesc}}</div>
                             </div>
                             <select id=""selZoom"" class=""select-input"">
                                 <option value=""75"">75%</option>
                                 <option value=""90"">90%</option>
-                                <option value=""100"" selected>100% (Standard)</option>
+                                <option value=""100"" selected>{{t:Settings_Zoom100}}</option>
                                 <option value=""110"">110%</option>
                                 <option value=""125"">125%</option>
                                 <option value=""150"">150%</option>
@@ -1070,13 +1071,13 @@ namespace EchoBrowser.Services
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Symbolleiste &amp; Schaltflächen anpassen</div>
-                        <div class=""row-desc"">Blende Schaltflächen in der oberen Leiste nach Belieben ein oder aus. Tipp: Ein Rechtsklick auf jede Schaltfläche oder die Leiste erlaubt schnelles Anpassen.</div>
+                        <div class=""row-title"">{{t:Settings_ToolbarTitle}}</div>
+                        <div class=""row-desc"">{{t:Settings_ToolbarDesc}}</div>
 
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Favoriten-Seitenleisten-Schaltfläche</div>
-                                <div class=""row-desc"">Schaltfläche ganz links zum Ein- und Ausklappen der Favoritenleiste.</div>
+                                <div class=""row-title"">{{t:Settings_BtnSidebar}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnSidebarDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowSidebarButton"">
@@ -1085,8 +1086,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Zurück-Schaltfläche</div>
-                                <div class=""row-desc"">Navigiert zur vorherigen Seite im Tab-Verlauf.</div>
+                                <div class=""row-title"">{{t:Settings_BtnBack}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnBackDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowBackButton"">
@@ -1095,8 +1096,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Vorwärts-Schaltfläche</div>
-                                <div class=""row-desc"">Navigiert zur nächsten Seite im Tab-Verlauf.</div>
+                                <div class=""row-title"">{{t:Settings_BtnForward}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnForwardDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowForwardButton"">
@@ -1105,8 +1106,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Neu laden-Schaltfläche</div>
-                                <div class=""row-desc"">Aktualisiert die aktuelle Seite oder stoppt das Laden.</div>
+                                <div class=""row-title"">{{t:Settings_BtnReload}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnReloadDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowReloadButton"">
@@ -1115,8 +1116,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Suchmaschinen-Auswahl</div>
-                                <div class=""row-desc"">Auswahlmenü direkt in der Symbolleiste zum schnellen Wechseln.</div>
+                                <div class=""row-title"">{{t:Settings_BtnSearchEngine}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnSearchEngineDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowSearchEngineSelector"">
@@ -1125,8 +1126,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Erweiterungen-Schaltfläche</div>
-                                <div class=""row-desc"">Schaltfläche für installierte Chromium- und WebExtensions.</div>
+                                <div class=""row-title"">{{t:Settings_BtnExtensions}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnExtensionsDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowExtensionsButton"">
@@ -1135,8 +1136,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Downloads-Schaltfläche</div>
-                                <div class=""row-desc"">Schaltfläche für die Download-Übersicht und Status-Badge.</div>
+                                <div class=""row-title"">{{t:Settings_BtnDownloads}}</div>
+                                <div class=""row-desc"">{{t:Settings_BtnDownloadsDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkShowDownloadsButton"">
@@ -1149,14 +1150,14 @@ namespace EchoBrowser.Services
                 <!-- 4. DATENSCHUTZ & SICHERHEIT -->
                 <section id=""section-privacy"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Datenschutz &amp; Sicherheit</h2>
+                        <h2 class=""section-title"">{{t:Settings_NavPrivacy}}</h2>
                     </div>
 
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Integrierter Werbe- &amp; Tracker-Blocker (Echo Shield)</div>
-                                <div class=""row-desc"">Blockiert Werbung, bösartige Skripte und Tracker auf Netzwerkebene (403 Forbidden) sowie kosmetisches Element-Hiding.</div>
+                                <div class=""row-title"">{{t:Settings_AdBlocker}}</div>
+                                <div class=""row-desc"">{{t:Settings_AdBlockerDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkIsAdBlockerEnabled"">
@@ -1165,36 +1166,36 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Filterregeln &amp; Blockliste aktualisieren</div>
-                                <div class=""row-desc"" id=""lblFilterRuleDesc"">Filtert Werbenetzwerke und Tracker via StevenBlack Hosts.</div>
+                                <div class=""row-title"">{{t:Settings_UpdateFilterRules}}</div>
+                                <div class=""row-desc"" id=""lblFilterRuleDesc"">{{t:Settings_UpdateFilterRulesDesc}}</div>
                             </div>
-                            <button id=""btnUpdateAdBlockFilter"" class=""btn btn-primary"">Filter aktualisieren</button>
+                            <button id=""btnUpdateAdBlockFilter"" class=""btn btn-primary"">{{t:Shield_UpdateFilters}}</button>
                         </div>
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Echo Shield Tracking-Schutz</div>
-                        <div class=""row-desc"">Schützt vor websiteübergreifender Nachverfolgung und Fingerprinting.</div>
+                        <div class=""row-title"">{{t:Settings_TrackingProtection}}</div>
+                        <div class=""row-desc"">{{t:Settings_TrackingProtectionDesc}}</div>
 
                         <div class=""shield-level-grid"" id=""shieldGrid"">
                             <div class=""shield-card"" data-level=""balanced"">
                                 <div class=""shield-card-title"">
-                                    <span>Ausgewogen</span>
-                                    <span class=""badge-active"">Empfohlen</span>
+                                    <span>{{t:Settings_LevelBalanced}}</span>
+                                    <span class=""badge-active"">{{t:Settings_Recommended}}</span>
                                 </div>
-                                <div class=""shield-card-desc"">Blockiert bekannte bösartige Tracker &amp; Tracker von unbesuchten Websites. Keine Website-Fehler.</div>
+                                <div class=""shield-card-desc"">{{t:Settings_LevelBalancedDesc}}</div>
                             </div>
                             <div class=""shield-card"" data-level=""strict"">
                                 <div class=""shield-card-title"">
-                                    <span>Strikt</span>
+                                    <span>{{t:Settings_LevelStrict}}</span>
                                 </div>
-                                <div class=""shield-card-desc"">Maximaler Schutz: Blockiert aggressiv die Mehrzahl aller Tracker. Kann selten Layouts beeinträchtigen.</div>
+                                <div class=""shield-card-desc"">{{t:Settings_LevelStrictDesc}}</div>
                             </div>
                             <div class=""shield-card"" data-level=""none"">
                                 <div class=""shield-card-title"">
-                                    <span>Deaktiviert</span>
+                                    <span>{{t:Settings_LevelNone}}</span>
                                 </div>
-                                <div class=""shield-card-desc"">Erlaubt alle Tracker. Nicht empfohlen für den alltäglichen Gebrauch.</div>
+                                <div class=""shield-card-desc"">{{t:Settings_LevelNoneDesc}}</div>
                             </div>
                         </div>
                     </div>
@@ -1202,8 +1203,8 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Pop-up-Blocker</div>
-                                <div class=""row-desc"">Verhindert, dass Webseiten unerwünschte Fenster oder Overlays im Hintergrund öffnen.</div>
+                                <div class=""row-title"">{{t:Settings_PopupBlocker}}</div>
+                                <div class=""row-desc"">{{t:Settings_PopupBlockerDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkBlockPopups"">
@@ -1212,8 +1213,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">JavaScript ausführen</div>
-                                <div class=""row-desc"">Erlaubt interaktive Skripte auf Webseiten. Bei Deaktivierung laden Seiten schneller, aber reduzierter Funktion.</div>
+                                <div class=""row-title"">{{t:Shield_JavaScript}}</div>
+                                <div class=""row-desc"">{{t:Settings_JavaScriptDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkEnableJavaScript"">
@@ -1222,8 +1223,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Do Not Track (DNT) senden</div>
-                                <div class=""row-desc"">Sendet mit jeder Webanfrage eine Aufforderung, deine Aktivitäten nicht zu erfassen.</div>
+                                <div class=""row-title"">{{t:Settings_DoNotTrack}}</div>
+                                <div class=""row-desc"">{{t:Settings_DoNotTrackDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkSendDoNotTrack"">
@@ -1235,10 +1236,10 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Browserdaten bereinigen</div>
-                                <div class=""row-desc"">Verlauf, Cookies, Website-Daten und zwischengespeicherte Bilder/Dateien (Cache) löschen.</div>
+                                <div class=""row-title"">{{t:Settings_ClearData}}</div>
+                                <div class=""row-desc"">{{t:Settings_ClearDataDesc}}</div>
                             </div>
-                            <button id=""btnOpenClearData"" class=""btn btn-danger"">Browserdaten löschen...</button>
+                            <button id=""btnOpenClearData"" class=""btn btn-danger"">{{t:Settings_ClearDataButton}}</button>
                         </div>
                     </div>
                 </section>
@@ -1246,25 +1247,25 @@ namespace EchoBrowser.Services
                 <!-- 5. DOWNLOADS -->
                 <section id=""section-downloads"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Downloads</h2>
+                        <h2 class=""section-title"">{{t:Settings_NavDownloads}}</h2>
                     </div>
 
                     <div class=""settings-card"">
-                        <div class=""row-title"">Download-Speicherort</div>
-                        <div class=""row-desc"" style=""margin-bottom: 12px;"">Dateien werden automatisch in diesen Ordner heruntergeladen:</div>
+                        <div class=""row-title"">{{t:Settings_DownloadLocation}}</div>
+                        <div class=""row-desc"" style=""margin-bottom: 12px;"">{{t:Settings_DownloadLocationDesc}}</div>
 
                         <div style=""display: flex; gap: 10px; align-items: center;"">
                             <input type=""text"" id=""txtDownloadPath"" class=""input-text"" style=""flex: 1;"" readonly>
-                            <button id=""btnChangeDownloadPath"" class=""btn btn-primary"">Ändern...</button>
-                            <button id=""btnOpenDownloadFolder"" class=""btn"">Ordner öffnen</button>
+                            <button id=""btnChangeDownloadPath"" class=""btn btn-primary"">{{t:Settings_Change}}</button>
+                            <button id=""btnOpenDownloadFolder"" class=""btn"">{{t:Downloads_OpenFolder}}</button>
                         </div>
                     </div>
 
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Vor jedem Download nach Speicherort fragen</div>
-                                <div class=""row-desc"">Öffnet den Windows Speichern-Dialog, um Ordner und Dateinamen manuell zu bestimmen.</div>
+                                <div class=""row-title"">{{t:Settings_AskDownloadLocation}}</div>
+                                <div class=""row-desc"">{{t:Settings_AskDownloadLocationDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkAskDownloadLocation"">
@@ -1277,14 +1278,14 @@ namespace EchoBrowser.Services
                 <!-- 6. TABS & VERHALTEN -->
                 <section id=""section-tabs"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Tabs &amp; Verhalten</h2>
+                        <h2 class=""section-title"">{{t:Settings_NavTabs}}</h2>
                     </div>
 
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Neue Tabs im Hintergrund öffnen</div>
-                                <div class=""row-desc"">Wechselt beim Öffnen eines Links in neuem Tab nicht sofort auf die neue Registerkarte.</div>
+                                <div class=""row-title"">{{t:Settings_OpenTabsInBackground}}</div>
+                                <div class=""row-desc"">{{t:Settings_OpenTabsInBackgroundDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkOpenTabsInBackground"">
@@ -1293,8 +1294,8 @@ namespace EchoBrowser.Services
                         </div>
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Vor dem Schließen mehrerer Tabs warnen</div>
-                                <div class=""row-desc"">Verhindert versehentliches Schließen des Browserfensters mit vielen offenen Tabs.</div>
+                                <div class=""row-title"">{{t:Settings_WarnCloseTabs}}</div>
+                                <div class=""row-desc"">{{t:Settings_WarnCloseTabsDesc}}</div>
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkWarnCloseTabs"">
@@ -1306,10 +1307,10 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
-                                <div class=""row-title"">Einstellungen zurücksetzen</div>
-                                <div class=""row-desc"">Setzt alle Browser-Optionen und Personalisierungen auf die Werkseinstellungen zurück.</div>
+                                <div class=""row-title"">{{t:Settings_Reset}}</div>
+                                <div class=""row-desc"">{{t:Settings_ResetDesc}}</div>
                             </div>
-                            <button id=""btnResetSettings"" class=""btn"">Auf Standard zurücksetzen</button>
+                            <button id=""btnResetSettings"" class=""btn"">{{t:Settings_ResetButton}}</button>
                         </div>
                     </div>
                 </section>
@@ -1317,7 +1318,7 @@ namespace EchoBrowser.Services
                 <!-- 7. ÜBER ECHO -->
                 <section id=""section-about"">
                     <div class=""section-header"">
-                        <h2 class=""section-title"">Über Echo-Browser</h2>
+                        <h2 class=""section-title"">{{t:Settings_AboutTitle}}</h2>
                     </div>
 
                     <div class=""about-card"">
@@ -1333,10 +1334,10 @@ namespace EchoBrowser.Services
                             <div class=""about-title"">Echo-Browser</div>
                             <div class=""about-meta"">Version ##APP_VERSION## (Silver/Anthracite Edition) • 64-Bit</div>
                             <div class=""about-meta"">Chromium-Engine / WebView2: ##WEBVIEW_VERSION##</div>
-                            <div class=""about-meta"">Plattform: .NET 8.0 Windows WPF Framework</div>
+                            <div class=""about-meta"">{{t:Settings_AboutPlatform}}</div>
                             <div class=""about-status"">
                                 <svg width=""12"" height=""12"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""3""><path d=""M20 6L9 17l-5-5""/></svg>
-                                <span>Echo ist auf dem neuesten Stand</span>
+                                <span>{{t:Settings_AboutUpToDate}}</span>
                             </div>
                         </div>
                     </div>
@@ -1349,27 +1350,27 @@ namespace EchoBrowser.Services
     <!-- Clear Browsing Data Modal -->
     <div id=""modalClearData"" class=""modal-overlay"">
         <div class=""modal-card"">
-            <div class=""modal-title"">Browserdaten bereinigen</div>
-            <div class=""modal-desc"">Wähle die Daten aus, die jetzt vollständig gelöscht werden sollen. Diese Aktion kann nicht rückgängig gemacht werden.</div>
+            <div class=""modal-title"">{{t:Settings_ClearData}}</div>
+            <div class=""modal-desc"">{{t:Settings_ClearDataModalDesc}}</div>
 
             <div class=""modal-checkboxes"">
                 <label class=""modal-cb-row"">
                     <input type=""checkbox"" id=""cbClearHistory"" checked>
-                    <span>Browser-Verlauf löschen (gespeicherte Seitenaufrufe)</span>
+                    <span>{{t:Settings_ClearHistoryOption}}</span>
                 </label>
                 <label class=""modal-cb-row"">
                     <input type=""checkbox"" id=""cbClearCookies"" checked>
-                    <span>Cookies &amp; Website-Daten löschen (meldet dich von Websites ab)</span>
+                    <span>{{t:Settings_ClearCookiesOption}}</span>
                 </label>
                 <label class=""modal-cb-row"">
                     <input type=""checkbox"" id=""cbClearCache"" checked>
-                    <span>Bilder und Dateien im Cache leeren (gibt Speicherplatz frei)</span>
+                    <span>{{t:Settings_ClearCacheOption}}</span>
                 </label>
             </div>
 
             <div class=""modal-actions"">
-                <button id=""btnCancelClearData"" class=""btn"">Abbrechen</button>
-                <button id=""btnConfirmClearData"" class=""btn btn-danger"">Daten jetzt löschen</button>
+                <button id=""btnCancelClearData"" class=""btn"">{{t:Dialog_Cancel}}</button>
+                <button id=""btnConfirmClearData"" class=""btn btn-danger"">{{t:Settings_ClearNow}}</button>
             </div>
         </div>
     </div>
@@ -1377,7 +1378,7 @@ namespace EchoBrowser.Services
     <!-- Toast Notification -->
     <div id=""toast"" class=""toast"">
         <svg width=""16"" height=""16"" viewBox=""0 0 24 24"" fill=""none"" stroke=""#34D399"" stroke-width=""3""><path d=""M20 6L9 17l-5-5""/></svg>
-        <span id=""toastMsg"">Einstellung gespeichert</span>
+        <span id=""toastMsg"">{{t:Settings_Saved}}</span>
     </div>
 
     <!-- Interactive Logic Script -->
@@ -1390,6 +1391,8 @@ namespace EchoBrowser.Services
                 window.chrome.webview.postMessage(msg);
             }
         }
+
+        function fmt(s, ...args) { return s.replace(/\{(\d+)\}/g, (m, i) => args[i] ?? m); }
 
         function showToast(text) {
             const toast = document.getElementById('toast');
@@ -1525,31 +1528,31 @@ namespace EchoBrowser.Services
                 const val = el.getAttribute('data-val');
                 document.getElementById('txtCustomUrl').style.display = val === 'custom_url' ? 'block' : 'none';
                 sendMessage({ type: 'updateSetting', key: 'StartupBehavior', value: val });
-                showToast('Startverhalten aktualisiert');
+                showToast({{js:Settings_ToastStartup}});
             });
         });
 
         document.getElementById('txtCustomUrl').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'CustomStartupUrl', value: e.target.value.trim() });
-            showToast('Start-URL gespeichert');
+            showToast({{js:Settings_ToastStartUrl}});
         });
 
         // General Toggles
         document.getElementById('chkShowHomeButton').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'ShowHomeButton', value: e.target.checked });
-            showToast('Home-Button Einstellung gespeichert');
+            showToast({{js:Settings_ToastHomeButton}});
         });
 
         document.getElementById('chkStartpageFavorites').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'IsStartpageFavoritesVisible', value: e.target.checked });
-            showToast('Startseiten-Verknüpfungen aktualisiert');
+            showToast({{js:Settings_ToastStartpageShortcuts}});
         });
 
         const selLanguageEl = document.getElementById('selLanguage');
         if (selLanguageEl) {
             selLanguageEl.addEventListener('change', (e) => {
                 sendMessage({ type: 'updateSetting', key: 'Language', value: e.target.value });
-                showToast('Sprache aktualisiert');
+                showToast({{js:Settings_ToastLanguage}});
             });
         }
 
@@ -1560,13 +1563,13 @@ namespace EchoBrowser.Services
                 el.classList.add('active');
                 const engine = el.getAttribute('data-engine');
                 sendMessage({ type: 'updateSetting', key: 'SearchEngine', value: engine });
-                showToast('Standardsuchmaschine auf ' + engine + ' geändert');
+                showToast(fmt({{js:Settings_ToastSearchEngine}}, engine));
             });
         });
 
         document.getElementById('chkSearchSuggestions').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'EnableSearchSuggestions', value: e.target.checked });
-            showToast('Suchvorschläge aktualisiert');
+            showToast({{js:Settings_ToastSuggestions}});
         });
 
         // Theme Presets
@@ -1576,7 +1579,7 @@ namespace EchoBrowser.Services
                 el.classList.add('active');
                 const preset = el.getAttribute('data-preset');
                 sendMessage({ type: 'setThemePreset', preset: preset });
-                showToast('Theme-Preset angewendet');
+                showToast({{js:Settings_ToastTheme}});
             });
         });
 
@@ -1588,7 +1591,7 @@ namespace EchoBrowser.Services
                 const hex = el.getAttribute('data-color');
                 document.getElementById('txtCustomAccent').value = hex;
                 sendMessage({ type: 'setAccentColor', hex: hex });
-                showToast('Akzentfarbe aktualisiert');
+                showToast({{js:Settings_ToastAccent}});
             });
         });
 
@@ -1597,27 +1600,27 @@ namespace EchoBrowser.Services
             if (!hex.startsWith('#')) hex = '#' + hex;
             if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
                 sendMessage({ type: 'setAccentColor', hex: hex });
-                showToast('Eigene Akzentfarbe übernommen');
+                showToast({{js:Settings_ToastCustomAccent}});
             } else {
-                alert('Bitte einen gültigen Hex-Farbcode (z.B. #38BDF8) eingeben.');
+                alert({{js:Settings_InvalidHex}});
             }
         });
 
         // Appearance Toggles & Zoom
         document.getElementById('chkBookmarksBar').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'IsBookmarksBarVisible', value: e.target.checked });
-            showToast('Lesezeichenleiste aktualisiert');
+            showToast({{js:Settings_ToastBookmarksBar}});
         });
 
         document.getElementById('chkSidebar').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'IsSidebarVisible', value: e.target.checked });
-            showToast('Seitenleiste aktualisiert');
+            showToast({{js:Settings_ToastSidebar}});
         });
 
         document.getElementById('selZoom').addEventListener('change', (e) => {
             const zoom = parseInt(e.target.value, 10);
             sendMessage({ type: 'updateSetting', key: 'DefaultZoomPercent', value: zoom });
-            showToast('Standard-Zoom auf ' + zoom + '% gesetzt');
+            showToast(fmt({{js:Settings_ToastZoom}}, zoom));
         });
 
         // Toolbar Buttons Visibility Toggles
@@ -1636,7 +1639,7 @@ namespace EchoBrowser.Services
             if (el) {
                 el.addEventListener('change', (e) => {
                     sendMessage({ type: 'updateSetting', key: btn.key, value: e.target.checked });
-                    showToast('Symbolleiste aktualisiert');
+                    showToast({{js:Settings_ToastToolbar}});
                 });
             }
         });
@@ -1646,7 +1649,7 @@ namespace EchoBrowser.Services
         if (chkAdBlock) {
             chkAdBlock.addEventListener('change', (e) => {
                 sendMessage({ type: 'updateSetting', key: 'IsAdBlockerEnabled', value: e.target.checked });
-                showToast('Echo Shield Werbeblocker aktualisiert');
+                showToast({{js:Settings_ToastAdBlocker}});
             });
         }
 
@@ -1654,7 +1657,7 @@ namespace EchoBrowser.Services
         if (btnUpdateFilter) {
             btnUpdateFilter.addEventListener('click', () => {
                 btnUpdateFilter.disabled = true;
-                btnUpdateFilter.innerText = 'Lade Filter...';
+                btnUpdateFilter.innerText = {{js:Shield_LoadingFilters}};
                 sendMessage({ type: 'updateAdBlockFilter' });
             });
         }
@@ -1663,14 +1666,14 @@ namespace EchoBrowser.Services
             const btn = document.getElementById('btnUpdateAdBlockFilter');
             if (btn) {
                 btn.disabled = false;
-                btn.innerText = 'Aktualisiert!';
-                setTimeout(() => { btn.innerText = 'Filter aktualisieren'; }, 2000);
+                btn.innerText = {{js:Shield_Updated}};
+                setTimeout(() => { btn.innerText = {{js:Shield_UpdateFilters}}; }, 2000);
             }
             const desc = document.getElementById('lblFilterRuleDesc');
             if (desc) {
-                desc.innerText = (count ? count.toLocaleString('de-DE') : 'Über 100.000') + ' Filterregeln geladen und aktiv.';
+                desc.innerText = fmt({{js:Settings_FilterRulesActive}}, count ? count.toLocaleString(document.documentElement.lang) : {{js:Settings_FilterRulesMany}});
             }
-            showToast('Filterliste erfolgreich aktualisiert (' + count + ' Regeln)');
+            showToast(fmt({{js:Settings_ToastFilterUpdated}}, count));
         };
 
         // Shield Level Cards
@@ -1680,24 +1683,24 @@ namespace EchoBrowser.Services
                 el.classList.add('active');
                 const lvl = el.getAttribute('data-level');
                 sendMessage({ type: 'updateSetting', key: 'TrackingPreventionLevel', value: lvl });
-                showToast('Echo Shield Stufe auf ' + lvl + ' gesetzt');
+                showToast(fmt({{js:Settings_ToastShieldLevel}}, lvl));
             });
         });
 
         // Privacy Toggles
         document.getElementById('chkBlockPopups').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'BlockPopups', value: e.target.checked });
-            showToast('Pop-up-Blocker aktualisiert');
+            showToast({{js:Settings_ToastPopups}});
         });
 
         document.getElementById('chkEnableJavaScript').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'EnableJavaScript', value: e.target.checked });
-            showToast('JavaScript-Einstellung aktualisiert');
+            showToast({{js:Settings_ToastJavaScript}});
         });
 
         document.getElementById('chkSendDoNotTrack').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'SendDoNotTrack', value: e.target.checked });
-            showToast('Do Not Track aktualisiert');
+            showToast({{js:Settings_ToastDnt}});
         });
 
         // Clear Browsing Data Modal
@@ -1719,7 +1722,7 @@ namespace EchoBrowser.Services
                 clearCache: clearCache
             });
             modalClear.classList.remove('open');
-            showToast('Browserdaten werden bereinigt...');
+            showToast({{js:Settings_ToastClearing}});
         });
 
         // Downloads
@@ -1733,40 +1736,40 @@ namespace EchoBrowser.Services
 
         document.getElementById('chkAskDownloadLocation').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'AskDownloadLocation', value: e.target.checked });
-            showToast('Download-Option aktualisiert');
+            showToast({{js:Settings_ToastDownloadOption}});
         });
 
         // Tabs & Reset
         document.getElementById('chkOpenTabsInBackground').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'OpenNewTabInBackground', value: e.target.checked });
-            showToast('Tab-Verhalten aktualisiert');
+            showToast({{js:Settings_ToastTabBehavior}});
         });
 
         document.getElementById('chkWarnCloseTabs').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'WarnOnClosingMultipleTabs', value: e.target.checked });
-            showToast('Warnungs-Einstellung aktualisiert');
+            showToast({{js:Settings_ToastWarning}});
         });
 
         document.getElementById('btnResetSettings').addEventListener('click', () => {
-            if (confirm('Möchtest du wirklich alle Einstellungen auf den Standard zurücksetzen?')) {
+            if (confirm({{js:Settings_ResetConfirm}})) {
                 sendMessage({ type: 'resetSettings' });
-                showToast('Einstellungen wurden zurückgesetzt');
+                showToast({{js:Settings_ToastReset}});
             }
         });
 
         // Host callbacks
         window.onSettingUpdatedFromHost = function(newSettings) {
             applySettingsToUI(newSettings);
-            showToast('✓ Einstellungen synchronisiert');
+            showToast({{js:Settings_ToastSynced}});
         };
 
         window.onBrowsingDataCleared = function() {
-            showToast('✓ Browserdaten erfolgreich gelöscht');
+            showToast({{js:Settings_ToastDataCleared}});
         };
 
         window.onDownloadPathChanged = function(newPath) {
             document.getElementById('txtDownloadPath').value = newPath;
-            showToast('Download-Pfad geändert');
+            showToast({{js:Settings_ToastDownloadPath}});
         };
     </script>
 </body>

@@ -85,7 +85,7 @@ namespace EchoBrowser
         private async Task OnInstallExtensionFromWebStoreMessage(WebMessageContext ctx)
         {
             string extId = ctx.GetString("extensionId") ?? "";
-            string extName = ctx.GetString("extensionName") ?? "Erweiterung";
+            string extName = ctx.GetString("extensionName") ?? Tr.Get("Ext_Generic");
             if (string.IsNullOrWhiteSpace(extId)) return;
 
             var profile = ctx.Core.Profile;
@@ -107,7 +107,7 @@ namespace EchoBrowser
             catch (Exception ex)
             {
                 await ctx.CallPageAsync("onEchoExtensionInstallResult", false, ex.Message);
-                ThemedDialogWindow.ShowMessage(this, "Echo-Browser Erweiterungen", $"Fehler beim Herunterladen und Installieren der Erweiterung:\n{ex.Message}", MessageBoxImage.Error);
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_DialogTitle"), Tr.Format("Ext_DownloadInstallError", ex.Message), MessageBoxImage.Error);
             }
         }
 
@@ -145,8 +145,8 @@ namespace EchoBrowser
                     break;
                 case "Language":
                     settings.Language = value.GetString() ?? "de";
+                    // LanguageChanged aktualisiert alle Fenster und die internen Seiten
                     LocalizationService.Instance.SetLanguage(settings.Language);
-                    ApplyLocalizationToUi();
                     break;
 
                 // Suche
@@ -278,7 +278,7 @@ namespace EchoBrowser
         {
             var dlg = new Microsoft.Win32.OpenFolderDialog
             {
-                Title = "Download-Ordner auswählen",
+                Title = Tr.Get("Downloads_SelectFolder"),
                 InitialDirectory = AppSettingsService.Instance.Settings.DownloadPath
             };
             if (dlg.ShowDialog() != true) return;

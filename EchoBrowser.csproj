@@ -19,4 +19,9 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Übersetzungen: Localization/<sprache>.json, werden in die EXE eingebettet -->
+    <EmbeddedResource Include="Localization\*.json" />
+  </ItemGroup>
+
 </Project>

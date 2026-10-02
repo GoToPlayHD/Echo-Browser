@@ -68,7 +68,7 @@ namespace EchoBrowser
                         }
                         catch (Exception ex)
                         {
-                            ThemedDialogWindow.ShowMessage(this, "Echo-Browser Erweiterungen", $"Fehler beim Installieren der Erweiterung:\n{ex.Message}", MessageBoxImage.Error);
+                            ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_DialogTitle"), Tr.Format("Ext_InstallError", ex.Message), MessageBoxImage.Error);
                             return;
                         }
                     }
@@ -136,7 +136,7 @@ namespace EchoBrowser
                 if (operation.State == CoreWebView2DownloadState.Completed)
                 {
                     download.IsCompleted = true;
-                    download.State = "Abgeschlossen";
+                    download.State = Tr.Get("Downloads_Completed");
                     downloadBadge.Visibility = Visibility.Collapsed;
 
                     // Auto-install CRX if it is a downloaded extension
@@ -148,7 +148,7 @@ namespace EchoBrowser
                 else if (operation.State == CoreWebView2DownloadState.Interrupted)
                 {
                     download.IsCancelled = true;
-                    download.State = "Unterbrochen";
+                    download.State = Tr.Get("Downloads_Interrupted");
                     downloadBadge.Visibility = Visibility.Collapsed;
                 }
             };
@@ -171,7 +171,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                ThemedDialogWindow.ShowMessage(this, "Echo-Browser Erweiterungen", $"Automatische Installation der Erweiterung fehlgeschlagen:\n{ex.Message}", MessageBoxImage.Warning);
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_DialogTitle"), Tr.Format("Ext_AutoInstallFailed", ex.Message), MessageBoxImage.Warning);
             }
         }
     }
