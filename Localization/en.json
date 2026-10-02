@@ -45,6 +45,7 @@
   "Downloads_Completed": "Completed",
   "Downloads_Empty": "No recent downloads",
   "Downloads_Interrupted": "Interrupted",
+  "Downloads_Open": "Open",
   "Downloads_OpenFolder": "Open folder",
   "Downloads_SelectFolder": "Select download folder",
   "Error_WebViewInit": "Error initializing the WebView2 Chromium engine:\n{0}",

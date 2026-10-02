@@ -250,27 +250,15 @@ namespace EchoBrowser
 
         private void OnSetThemePresetMessage(WebMessageContext ctx)
         {
-            string presetStr = ctx.GetString("preset") ?? "";
-            if (!Enum.TryParse<ThemePreset>(presetStr, out var preset)) return;
-
-            ThemeManager.Instance.ApplyPreset(preset);
-            AppSettingsService.Instance.Settings.ThemePreset = presetStr;
-            AppSettingsService.Instance.Save();
+            ThemeManager.Instance.ApplyAndSavePreset(ctx.GetString("preset") ?? "");
         }
 
         private void OnSetAccentColorMessage(WebMessageContext ctx)
         {
             string hex = ctx.GetString("hex") ?? "";
-            try
+            if (!ThemeManager.Instance.ApplyAndSaveAccentColor(hex))
             {
-                Color color = ThemeManager.ColorFromHex(hex);
-                ThemeManager.Instance.SetAccentColor(color);
-                AppSettingsService.Instance.Settings.AccentColor = hex;
-                AppSettingsService.Instance.Save();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Echo] Ungültige Akzentfarbe '{hex}': {ex.Message}");
+                Debug.WriteLine($"[Echo] Ungültige Akzentfarbe '{hex}'");
             }
         }
 

@@ -29,60 +29,16 @@ namespace EchoBrowser
             popupDownloads.IsOpen = true;
         }
 
-        private void BtnOpenDownloadsFolder_Click(object sender, RoutedEventArgs e)
+        private void InitializeDownloadsPanel()
         {
-            try
+            downloadsPanel.InstallExtensionRequested += crxPath =>
             {
-                string downloadsPath = AppSettingsService.Instance.Settings.DownloadPath;
-                if (string.IsNullOrWhiteSpace(downloadsPath) || !Directory.Exists(downloadsPath))
+                var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
+                if (profile != null)
                 {
-                    downloadsPath = AppSettings.GetDefaultDownloadPath();
+                    _ = InstallCrxWithPromptAsync(profile, crxPath);
                 }
-                Process.Start(new ProcessStartInfo { FileName = downloadsPath, UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Could not open downloads: {ex.Message}");
-            }
-        }
-
-        private async void BtnOpenDownloadFile_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string filePath && File.Exists(filePath))
-            {
-                if (filePath.EndsWith(".crx", StringComparison.OrdinalIgnoreCase))
-                {
-                    var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
-                    if (profile != null)
-                    {
-                        try
-                        {
-                            string extName = Path.GetFileNameWithoutExtension(filePath);
-                            if (ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, filePath))
-                            {
-                                var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, filePath);
-                                ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id);
-                                await RefreshExtensionsListAsync();
-                            }
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_DialogTitle"), Tr.Format("Ext_InstallError", ex.Message), MessageBoxImage.Error);
-                            return;
-                        }
-                    }
-                }
-
-                try
-                {
-                    Process.Start("explorer.exe", $"/select,\"{filePath}\"");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Could not open file: {ex.Message}");
-                }
-            }
+            };
         }
 
         /// <summary>
@@ -125,8 +81,7 @@ namespace EchoBrowser
                 TotalBytes = operation.TotalBytesToReceive.HasValue ? (long)operation.TotalBytesToReceive.Value : 0
             };
 
-            Downloads.Insert(0, download);
-            txtEmptyDownloads.Visibility = Visibility.Collapsed;
+            downloadsPanel.Add(download);
             downloadBadge.Visibility = Visibility.Visible;
 
             operation.BytesReceivedChanged += (s, e) => download.BytesReceived = (long)operation.BytesReceived;
@@ -156,13 +111,28 @@ namespace EchoBrowser
 
         private async Task OfferCrxInstallAsync(CoreWebView2 core, string crxPath)
         {
+            await Task.Delay(250);
             try
             {
-                await Task.Delay(250);
                 var profile = core.Profile;
-                if (profile == null) return;
+                if (profile != null)
+                {
+                    await InstallCrxWithPromptAsync(profile, crxPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                // z.B. wenn der Tab inzwischen geschlossen wurde
+                Debug.WriteLine($"[Echo] Erweiterungsinstallation nach Download nicht möglich: {ex.Message}");
+            }
+        }
 
-                string extName = Path.GetFileNameWithoutExtension(crxPath);
+        /// <summary>Nachfrage anzeigen und eine .crx-Erweiterung installieren (nach Download oder per Klick im Flyout).</summary>
+        private async Task InstallCrxWithPromptAsync(CoreWebView2Profile profile, string crxPath)
+        {
+            string extName = Path.GetFileNameWithoutExtension(crxPath);
+            try
+            {
                 if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, crxPath)) return;
 
                 var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, crxPath);
@@ -171,7 +141,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_DialogTitle"), Tr.Format("Ext_AutoInstallFailed", ex.Message), MessageBoxImage.Warning);
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_DialogTitle"), Tr.Format("Ext_InstallError", ex.Message), MessageBoxImage.Error);
             }
         }
     }

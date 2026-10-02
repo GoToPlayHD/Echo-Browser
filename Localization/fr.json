@@ -45,6 +45,7 @@
   "Downloads_Completed": "Terminé",
   "Downloads_Empty": "Aucun téléchargement récent",
   "Downloads_Interrupted": "Interrompu",
+  "Downloads_Open": "Ouvrir",
   "Downloads_OpenFolder": "Ouvrir le dossier",
   "Downloads_SelectFolder": "Choisir le dossier de téléchargement",
   "Error_WebViewInit": "Erreur lors de l'initialisation du moteur Chromium WebView2 :\n{0}",
