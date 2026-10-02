@@ -99,7 +99,7 @@ namespace EchoBrowser
 
             if (string.IsNullOrWhiteSpace(url) || url == "https://" || url == "http://")
             {
-                MessageBox.Show("Bitte geben Sie eine gültige Web-Adresse (URL) ein.", "Favorit hinzufügen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Sidebar_AddFavoriteTitle"), Tr.Get("Sidebar_InvalidUrl"), MessageBoxImage.Warning);
                 return;
             }
 

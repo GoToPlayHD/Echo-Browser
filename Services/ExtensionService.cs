@@ -27,7 +27,7 @@ namespace EchoBrowser.Services
         public async Task<CoreWebView2BrowserExtension?> InstallExtensionFromCrxAsync(CoreWebView2Profile profile, string crxPath)
         {
             if (!File.Exists(crxPath))
-                throw new FileNotFoundException("CRX-Datei nicht gefunden.", crxPath);
+                throw new FileNotFoundException(Tr.Get("Ext_ErrorCrxNotFound"), crxPath);
 
             string extName = Path.GetFileNameWithoutExtension(crxPath);
             string targetFolder = Path.Combine(_extensionsDirectory, $"{extName}_{Guid.NewGuid():N}");
@@ -38,7 +38,7 @@ namespace EchoBrowser.Services
             string? manifestFolder = FindManifestDirectory(targetFolder);
             if (manifestFolder == null)
             {
-                throw new InvalidOperationException("manifest.json wurde in der entpackten Erweiterung nicht gefunden.");
+                throw new InvalidOperationException(Tr.Get("Ext_ErrorManifestMissingUnpacked"));
             }
 
             // Remove any underscore directories (e.g. _metadata) forbidden by Chromium unpacked extensions loader
@@ -50,12 +50,12 @@ namespace EchoBrowser.Services
         public async Task<CoreWebView2BrowserExtension?> InstallExtensionFromFolderAsync(CoreWebView2Profile profile, string folderPath)
         {
             if (!Directory.Exists(folderPath))
-                throw new DirectoryNotFoundException($"Ordner nicht gefunden: {folderPath}");
+                throw new DirectoryNotFoundException(Tr.Format("Ext_ErrorFolderNotFound", folderPath));
 
             string? manifestFolder = FindManifestDirectory(folderPath);
             if (manifestFolder == null)
             {
-                throw new InvalidOperationException("manifest.json wurde im ausgewählten Ordner nicht gefunden.");
+                throw new InvalidOperationException(Tr.Get("Ext_ErrorManifestMissingFolder"));
             }
 
             SanitizeUnpackedExtension(manifestFolder);
@@ -66,7 +66,7 @@ namespace EchoBrowser.Services
         public async Task<CoreWebView2BrowserExtension?> DownloadAndInstallExtensionAsync(CoreWebView2Profile profile, string extensionId, string? extensionName = null)
         {
             if (string.IsNullOrWhiteSpace(extensionId))
-                throw new ArgumentException("Ungültige Erweiterungs-ID.", nameof(extensionId));
+                throw new ArgumentException(Tr.Get("Ext_ErrorInvalidId"), nameof(extensionId));
 
             string downloadUrl = $"https://clients2.google.com/service/update2/crx?response=redirect&prodversion=128.0&acceptformat=crx2,crx3&x=id%3D{extensionId}%26uc";
             string tempCrxPath = Path.Combine(_extensionsDirectory, $"download_{extensionId}_{Guid.NewGuid():N}.crx");
@@ -334,7 +334,7 @@ namespace EchoBrowser.Services
 
             if (zipOffset < 0)
             {
-                throw new InvalidDataException("Ungültiges CRX-Format: Kein ZIP-Archiv gefunden.");
+                throw new InvalidDataException(Tr.Get("Ext_ErrorInvalidCrx"));
             }
 
             using var ms = new MemoryStream(fileBytes, zipOffset, fileBytes.Length - zipOffset);

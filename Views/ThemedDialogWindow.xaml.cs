@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using EchoBrowser.Services;
 
 namespace EchoBrowser.Views
 {
@@ -48,10 +49,10 @@ namespace EchoBrowser.Views
             var dlg = new ThemedDialogWindow
             {
                 Owner = owner ?? Application.Current.MainWindow,
-                txtDialogTitle = { Text = "Erweiterung installieren" },
-                txtHeadline = { Text = $"'{extensionName}' hinzufügen?" },
-                txtMessage = { Text = "Die Erweiterung kann auf deine Websitedaten und Browserfunktionen zugreifen. Möchtest du sie installieren?" },
-                btnPrimary = { Content = "Erweiterung hinzufügen" },
+                txtDialogTitle = { Text = Tr.Get("Ext_InstallTitle") },
+                txtHeadline = { Text = Tr.Format("Ext_InstallHeadline", extensionName) },
+                txtMessage = { Text = Tr.Get("Ext_InstallWarning") },
+                btnPrimary = { Content = Tr.Get("Ext_AddButton") },
                 btnSecondary = { Content = "Abbrechen", Visibility = Visibility.Visible }
             };
 
@@ -62,8 +63,8 @@ namespace EchoBrowser.Views
             if (!string.IsNullOrWhiteSpace(extensionId) || !string.IsNullOrWhiteSpace(details))
             {
                 dlg.borderDetails.Visibility = Visibility.Visible;
-                dlg.txtDetailsLabel.Text = "Details:";
-                dlg.txtDetailsContent.Text = !string.IsNullOrWhiteSpace(details) ? details : $"Erweiterungs-ID: {extensionId}";
+                dlg.txtDetailsLabel.Text = Tr.Get("Ext_DetailsLabel");
+                dlg.txtDetailsContent.Text = !string.IsNullOrWhiteSpace(details) ? details : Tr.Format("Ext_IdLabel", extensionId);
             }
 
             return dlg.ShowDialog() == true;
@@ -74,10 +75,10 @@ namespace EchoBrowser.Views
             var dlg = new ThemedDialogWindow
             {
                 Owner = owner ?? Application.Current.MainWindow,
-                txtDialogTitle = { Text = "Echo-Browser Erweiterungen" },
-                txtHeadline = { Text = "Erweiterung hinzugefügt" },
-                txtMessage = { Text = $"'{extensionName}' wurde erfolgreich installiert und ist jetzt einsatzbereit." },
-                btnPrimary = { Content = "Fertig" },
+                txtDialogTitle = { Text = Tr.Get("Ext_DialogTitle") },
+                txtHeadline = { Text = Tr.Get("Ext_AddedHeadline") },
+                txtMessage = { Text = Tr.Format("Ext_AddedMessage", extensionName) },
+                btnPrimary = { Content = Tr.Get("Common_Done") },
                 btnSecondary = { Visibility = Visibility.Collapsed }
             };
 
@@ -100,10 +101,10 @@ namespace EchoBrowser.Views
             var dlg = new ThemedDialogWindow
             {
                 Owner = owner ?? Application.Current.MainWindow,
-                txtDialogTitle = { Text = "Erweiterung entfernen" },
-                txtHeadline = { Text = $"'{extensionName}' entfernen?" },
-                txtMessage = { Text = "Möchtest du diese Erweiterung wirklich deinstallieren? Alle zugehörigen lokalen Daten werden gelöscht." },
-                btnPrimary = { Content = "Entfernen" },
+                txtDialogTitle = { Text = Tr.Get("Ext_RemoveTitle") },
+                txtHeadline = { Text = Tr.Format("Ext_RemoveHeadline", extensionName) },
+                txtMessage = { Text = Tr.Get("Ext_RemoveWarning") },
+                btnPrimary = { Content = Tr.Get("Common_Remove") },
                 btnSecondary = { Content = "Abbrechen", Visibility = Visibility.Visible }
             };
 
@@ -118,7 +119,7 @@ namespace EchoBrowser.Views
             return dlg.ShowDialog() == true;
         }
 
-        public static bool ShowConfirm(Window? owner, string title, string message, string confirmText = "OK", string cancelText = "Abbrechen")
+        public static bool ShowConfirm(Window? owner, string title, string message, string? confirmText = null, string? cancelText = null)
         {
             var dlg = new ThemedDialogWindow
             {
@@ -126,8 +127,8 @@ namespace EchoBrowser.Views
                 txtDialogTitle = { Text = title },
                 txtHeadline = { Text = title },
                 txtMessage = { Text = message },
-                btnPrimary = { Content = confirmText },
-                btnSecondary = { Content = cancelText, Visibility = Visibility.Visible }
+                btnPrimary = { Content = confirmText ?? Tr.Get("Common_OK") },
+                btnSecondary = { Content = cancelText ?? Tr.Get("Dialog_Cancel"), Visibility = Visibility.Visible }
             };
 
             dlg.pathStatusIcon.Data = Geometry.Parse("M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z");
@@ -144,7 +145,7 @@ namespace EchoBrowser.Views
                 txtDialogTitle = { Text = "Echo-Browser" },
                 txtHeadline = { Text = title },
                 txtMessage = { Text = message },
-                btnPrimary = { Content = "OK" },
+                btnPrimary = { Content = Tr.Get("Common_OK") },
                 btnSecondary = { Visibility = Visibility.Collapsed }
             };
 

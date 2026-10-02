@@ -76,16 +76,19 @@ namespace EchoBrowser
         public MainWindow(bool isIncognito)
         {
             _isIncognito = isIncognito;
+            // Sprache vor InitializeComponent setzen, damit die XAML-Texte direkt richtig erscheinen
+            LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
             InitializeComponent();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
             Closing += MainWindow_Closing;
             RegisterWebMessageHandlers();
+            LocalizationService.Instance.LanguageChanged += ApplyLocalizationToUi;
 
             if (_isIncognito)
             {
-                Title = "Echo-Browser (Inkognito)";
+                Title = Tr.Get("Window_TitleIncognito");
                 badgeIncognito.Visibility = Visibility.Visible;
             }
 
@@ -306,22 +309,28 @@ namespace EchoBrowser
             });
         }
 
+        /// <summary>
+        /// Aktualisiert Texte, die per Code gesetzt werden. XAML-Texte ({loc:Loc ...}) aktualisieren sich selbst.
+        /// Wird beim Start und bei jedem Sprachwechsel aufgerufen.
+        /// </summary>
         private void ApplyLocalizationToUi()
         {
             try
             {
-                btnBack.ToolTip = LocalizationService.Instance.GetString("Nav_Back", "Zurück (Alt+Links)");
-                btnForward.ToolTip = LocalizationService.Instance.GetString("Nav_Forward", "Vorwärts (Alt+Rechts)");
-                btnReload.ToolTip = LocalizationService.Instance.GetString("Nav_Reload", "Neu laden (F5)");
-                btnHome.ToolTip = LocalizationService.Instance.GetString("Nav_Home", "Startseite");
-                btnNewTab.ToolTip = LocalizationService.Instance.GetString("Nav_NewTab", "Neuer Tab (Strg+T)");
-                btnShield.ToolTip = LocalizationService.Instance.GetString("Nav_EchoShield", "Echo Shield Schutz");
-                btnExtensions.ToolTip = LocalizationService.Instance.GetString("Nav_Extensions", "Erweiterungen");
-                btnDownloads.ToolTip = LocalizationService.Instance.GetString("Nav_Downloads", "Downloads");
-                btnMenu.ToolTip = LocalizationService.Instance.GetString("Nav_Settings", "Einstellungen");
-                txtUrlPlaceholder.Text = LocalizationService.Instance.GetString("Nav_AddressPlaceholder", "Suchen oder Webadresse eingeben...");
+                if (_isIncognito)
+                {
+                    Title = Tr.Get("Window_TitleIncognito");
+                }
 
+                UpdateNavigationControls();
+                CheckBookmarkStatus();
                 UpdateShieldUi();
+
+                // Interne Seiten neu aufbauen, damit sie in der neuen Sprache erscheinen
+                foreach (var tab in Tabs.ToList())
+                {
+                    RefreshInternalPage(tab);
+                }
             }
             catch (Exception ex)
             {
@@ -359,8 +368,8 @@ namespace EchoBrowser
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Fehler beim Initialisieren der WebView2-Chromium-Engine:\n{ex.Message}",
-                    "Echo-Browser Initialisierungsfehler",
+                    Tr.Format("Error_WebViewInit", ex.Message),
+                    Tr.Get("Error_WebViewInitTitle"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
@@ -552,6 +561,7 @@ private void MenuSettings_Click(object sender, RoutedEventArgs e)
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+            LocalizationService.Instance.LanguageChanged -= ApplyLocalizationToUi;
 
             // Ausstehende (verzögerte) Verlaufsänderungen sofort schreiben
             if (!_isIncognito)

@@ -80,13 +80,14 @@ namespace EchoBrowser
 
         private void BtnClearHistory_Click(object sender, RoutedEventArgs e)
         {
-            var res = MessageBox.Show(
-                "Möchtest du den gesamten Browser-Verlauf wirklich löschen?",
-                "Verlauf leeren",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+            bool confirmed = ThemedDialogWindow.ShowConfirm(
+                this,
+                Tr.Get("History_Clear"),
+                Tr.Get("History_ClearConfirm"),
+                Tr.Get("History_Clear"),
+                Tr.Get("Dialog_Cancel"));
 
-            if (res == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 _historyService.ClearHistory();
                 UpdateFilteredHistory();

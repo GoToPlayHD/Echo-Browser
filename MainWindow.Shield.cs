@@ -68,11 +68,11 @@ namespace EchoBrowser
             if (ActiveTab == null) return;
 
             string url = ActiveTab.Url;
-            string host = "Lokale Seite";
+            string host = Tr.Get("Security_LocalPage");
 
             if (IsStartPage(url))
             {
-                host = "Echo Startseite";
+                host = Tr.Get("Shield_StartPageHost");
             }
             else
             {
@@ -92,12 +92,12 @@ namespace EchoBrowser
 
             if (ActiveTab.IsSecure || IsStartPage(url))
             {
-                txtShieldStatus.Text = "Sichere Verbindung (TLS/HTTPS)";
+                txtShieldStatus.Text = Tr.Get("Security_Secure");
                 txtShieldStatus.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
             }
             else
             {
-                txtShieldStatus.Text = "Verbindung nicht verschlüsselt (HTTP)";
+                txtShieldStatus.Text = Tr.Get("Security_NotEncrypted");
                 txtShieldStatus.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
             }
 
@@ -292,23 +292,23 @@ namespace EchoBrowser
         private async void BtnUpdateFilterList_Click(object sender, RoutedEventArgs e)
         {
             btnUpdateFilterList.IsEnabled = false;
-            btnUpdateFilterList.Content = "Lade Filter...";
+            btnUpdateFilterList.Content = Tr.Get("Shield_LoadingFilters");
 
             try
             {
                 string url = AppSettingsService.Instance.Settings.AdBlockerFilterUrl;
                 await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(url, force: true);
-                txtFilterRuleCount.Text = $"{AdBlockerService.Instance.BlockedDomainsCount:N0} Filterregeln geladen";
-                btnUpdateFilterList.Content = "Aktualisiert!";
+                txtFilterRuleCount.Text = Tr.Format("Shield_FilterRuleCountFormat", AdBlockerService.Instance.BlockedDomainsCount);
+                btnUpdateFilterList.Content = Tr.Get("Shield_Updated");
                 await Task.Delay(1800);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Filteraktualisierung fehlgeschlagen: {ex.Message}", "Echo Shield", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Format("Shield_UpdateFailed", ex.Message), MessageBoxImage.Warning);
             }
             finally
             {
-                btnUpdateFilterList.Content = "Filter aktualisieren";
+                btnUpdateFilterList.Content = Tr.Get("Shield_UpdateFilters");
                 btnUpdateFilterList.IsEnabled = true;
             }
         }
@@ -325,11 +325,7 @@ namespace EchoBrowser
                         CoreWebView2BrowsingDataKinds.IndexedDb);
 
                     popupShield.IsOpen = false;
-                    MessageBox.Show(
-                        "Cookies und Website-Cache wurden für diese Sitzung erfolgreich geleert.",
-                        "Echo Shield",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Get("Shield_SiteDataCleared"));
                 }
                 catch (Exception ex)
                 {

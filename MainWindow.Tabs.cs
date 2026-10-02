@@ -33,7 +33,7 @@ namespace EchoBrowser
             string initialUrl = string.IsNullOrWhiteSpace(targetUrl) ? StartPageService.StartPageUrl : targetUrl;
             var tab = new BrowserTab
             {
-                Title = (initialUrl == SettingsPageService.SettingsPageUrl) ? "Einstellungen" : "Neuer Tab",
+                Title = Tr.Get(initialUrl == SettingsPageService.SettingsPageUrl ? "Tab_Settings" : "Tab_NewTab"),
                 Url = initialUrl
             };
 
@@ -290,7 +290,7 @@ namespace EchoBrowser
             else if (initialUrl == StartPageService.StartPageUrl || initialUrl == "about:blank")
             {
                 tab.Url = StartPageService.StartPageUrl;
-                tab.Title = _isIncognito ? "Neuer Tab (Inkognito)" : "Neuer Tab";
+                tab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
                 webView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
             }
             else

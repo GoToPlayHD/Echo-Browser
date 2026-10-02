@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using EchoBrowser.Services;
 
 namespace EchoBrowser.Models
 {
@@ -57,13 +58,13 @@ namespace EchoBrowser.Models
         {
             get
             {
-                if (IsCompleted) return "Abgeschlossen";
-                if (IsCancelled) return "Abgebrochen";
+                if (IsCompleted) return Tr.Get("Downloads_Completed");
+                if (IsCancelled) return Tr.Get("Downloads_Cancelled");
                 if (TotalBytes > 0)
                 {
                     return $"{FormatBytes(BytesReceived)} / {FormatBytes(TotalBytes)} ({ProgressPercentage:F0}%)";
                 }
-                return $"{FormatBytes(BytesReceived)} heruntergeladen";
+                return Tr.Format("Downloads_BytesDownloaded", FormatBytes(BytesReceived));
             }
         }
 

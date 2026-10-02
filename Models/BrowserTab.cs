@@ -3,18 +3,19 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
+using EchoBrowser.Services;
 
 namespace EchoBrowser.Models
 {
     public class BrowserTab : INotifyPropertyChanged, IDisposable
     {
-        private string _title = "Neuer Tab";
+        private string _title = Tr.Get("Tab_NewTab");
         private string _url = "about:blank";
         private bool _isLoading;
         private bool _canGoBack;
         private bool _canGoForward;
         private bool _isSecure;
-        private string _securityStatus = "Nicht überprüft";
+        private string _securityStatus = Tr.Get("Security_Unchecked");
         private bool _trackingProtectionEnabled = true;
         private bool _javaScriptEnabled = true;
         private bool _popupsBlocked = true;
@@ -35,14 +36,14 @@ namespace EchoBrowser.Models
             {
                 if (_title != value)
                 {
-                    _title = string.IsNullOrWhiteSpace(value) ? "Neuer Tab" : value;
+                    _title = string.IsNullOrWhiteSpace(value) ? Tr.Get("Tab_NewTab") : value;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(DisplayTitle));
                 }
             }
         }
 
-        public string DisplayTitle => string.IsNullOrWhiteSpace(Title) ? "Neuer Tab" : Title;
+        public string DisplayTitle => string.IsNullOrWhiteSpace(Title) ? Tr.Get("Tab_NewTab") : Title;
 
         public string Url
         {
@@ -197,24 +198,24 @@ namespace EchoBrowser.Models
             if (string.IsNullOrWhiteSpace(_url) || _url.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
             {
                 IsSecure = false;
-                SecurityStatus = "Lokale Seite";
+                SecurityStatus = Tr.Get("Security_LocalPage");
                 return;
             }
 
             if (_url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 IsSecure = true;
-                SecurityStatus = "Sichere Verbindung (TLS/HTTPS)";
+                SecurityStatus = Tr.Get("Security_Secure");
             }
             else if (_url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
             {
                 IsSecure = false;
-                SecurityStatus = "Nicht sicher (Unverschlüsseltes HTTP)";
+                SecurityStatus = Tr.Get("Security_InsecureHttp");
             }
             else
             {
                 IsSecure = false;
-                SecurityStatus = "Spezielle URL";
+                SecurityStatus = Tr.Get("Security_SpecialUrl");
             }
         }
 

@@ -32,7 +32,7 @@ namespace EchoBrowser
             {
                 pathBookmarkStar.Data = Geometry.Parse("M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z");
                 pathBookmarkStar.Fill = FindResource("AccentSilverDimBrush") as Brush ?? Brushes.Gray;
-                btnBookmark.ToolTip = "Startseite kann nicht als Lesezeichen gespeichert werden";
+                btnBookmark.ToolTip = Tr.Get("Bookmark_StartPageTooltip");
                 return;
             }
 
@@ -41,13 +41,13 @@ namespace EchoBrowser
             {
                 pathBookmarkStar.Data = Geometry.Parse("M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z");
                 pathBookmarkStar.Fill = FindResource("StatusWarningBrush") as Brush ?? Brushes.Gold;
-                btnBookmark.ToolTip = "Lesezeichen bearbeiten oder entfernen";
+                btnBookmark.ToolTip = Tr.Get("Bookmark_EditTooltip");
             }
             else
             {
                 pathBookmarkStar.Data = Geometry.Parse("M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z");
                 pathBookmarkStar.Fill = FindResource("AccentSilverDimBrush") as Brush ?? Brushes.Gray;
-                btnBookmark.ToolTip = "Diese Seite als Lesezeichen speichern (Ctrl+D)";
+                btnBookmark.ToolTip = Tr.Get("Bookmark_SaveTooltip");
             }
         }
 
@@ -400,7 +400,7 @@ namespace EchoBrowser
             }
 
             cmbAddBmGroup.Items.Clear();
-            var mainItem = new ComboBoxItem { Content = "(Hauptleiste)", Tag = null };
+            var mainItem = new ComboBoxItem { Content = Tr.Get("Bookmark_MainBar"), Tag = null };
             cmbAddBmGroup.Items.Add(mainItem);
             cmbAddBmGroup.SelectedItem = mainItem;
 

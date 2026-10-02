@@ -138,12 +138,12 @@ namespace EchoBrowser
 
                     if (ExtensionService.Instance.HasPopup(ext.Id, ext.Name))
                     {
-                        var miPopup = new MenuItem { Header = "Erweiterung öffnen (Popup)" };
+                        var miPopup = new MenuItem { Header = Tr.Get("Ext_MenuOpenPopup") };
                         miPopup.Click += (s, e) => OpenExtensionPopup(ext, btn);
                         ctx.Items.Add(miPopup);
                     }
 
-                    var miOptions = new MenuItem { Header = "Optionen / Einstellungen" };
+                    var miOptions = new MenuItem { Header = Tr.Get("Ext_MenuOptions") };
                     miOptions.Click += (s, e) =>
                     {
                         string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
@@ -153,12 +153,12 @@ namespace EchoBrowser
                         }
                         else
                         {
-                            ThemedDialogWindow.ShowMessage(this, ext.Name, $"Keine separate Einstellungsseite für '{ext.Name}' gefunden.");
+                            ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoOptionsFound", ext.Name));
                         }
                     };
                     ctx.Items.Add(miOptions);
 
-                    var miUnpin = new MenuItem { Header = "Aus Symbolleiste lösen" };
+                    var miUnpin = new MenuItem { Header = Tr.Get("Ext_MenuUnpin") };
                     miUnpin.Click += (s, e) =>
                     {
                         AppSettingsService.Instance.Settings.PinnedExtensionIds.Remove(ext.Id);
@@ -169,7 +169,7 @@ namespace EchoBrowser
 
                     ctx.Items.Add(new Separator { Background = (Brush)FindResource("BorderSubtleBrush") });
 
-                    var miRemove = new MenuItem { Header = "Erweiterung entfernen..." };
+                    var miRemove = new MenuItem { Header = Tr.Get("Ext_MenuRemove") };
                     miRemove.Click += async (s, e) =>
                     {
                         if (ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name))
@@ -234,7 +234,7 @@ namespace EchoBrowser
                 }
                 else
                 {
-                    ThemedDialogWindow.ShowMessage(this, ext.Name, $"Für '{ext.Name}' ist keine separate Einstellungsseite definiert.");
+                    ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoOptionsDefined", ext.Name));
                 }
             }
         }
@@ -261,7 +261,7 @@ namespace EchoBrowser
                 }
                 else
                 {
-                    ThemedDialogWindow.ShowMessage(this, ext.Name, $"Die Erweiterung '{ext.Name}' ist aktiv. Es wurde kein separates Aktionsmenü (Popup) definiert.");
+                    ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoPopupDefined", ext.Name));
                 }
                 return;
             }
@@ -301,13 +301,13 @@ namespace EchoBrowser
             var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
             if (profile == null)
             {
-                ThemedDialogWindow.ShowMessage(this, "Erweiterungen", "Das Browser-Profil ist noch nicht bereit.", MessageBoxImage.Warning);
+                ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Get("Ext_ProfileNotReady"), MessageBoxImage.Warning);
                 return;
             }
 
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Erweiterungsdatei auswählen (.crx)",
+                Title = Tr.Get("Ext_SelectCrxFile"),
                 Filter = "Chromium Extension (*.crx)|*.crx|Alle Dateien (*.*)|*.*"
             };
 
@@ -324,7 +324,7 @@ namespace EchoBrowser
                     }
                     catch (Exception ex)
                     {
-                        ThemedDialogWindow.ShowMessage(this, "Installation fehlgeschlagen", $"Fehler beim Installieren der Erweiterung:\n{ex.Message}", MessageBoxImage.Error);
+                        ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_InstallFailedTitle"), Tr.Format("Ext_InstallError", ex.Message), MessageBoxImage.Error);
                     }
                 }
             }
@@ -345,7 +345,7 @@ namespace EchoBrowser
                     }
                     catch (Exception ex)
                     {
-                        ThemedDialogWindow.ShowMessage(this, "Erweiterungen", $"Fehler beim Entfernen der Erweiterung: {ex.Message}", MessageBoxImage.Error);
+                        ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_RemoveError", ex.Message), MessageBoxImage.Error);
                     }
                 }
             }
@@ -363,7 +363,7 @@ namespace EchoBrowser
                 }
                 catch (Exception ex)
                 {
-                    ThemedDialogWindow.ShowMessage(this, "Erweiterungen", $"Fehler beim Umschalten der Erweiterung: {ex.Message}", MessageBoxImage.Warning);
+                    ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Format("Ext_ToggleError", ex.Message), MessageBoxImage.Warning);
                 }
             }
         }

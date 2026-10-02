@@ -37,14 +37,14 @@ namespace EchoBrowser
             {
                 pathReload.Visibility = Visibility.Collapsed;
                 pathStop.Visibility = Visibility.Visible;
-                btnReload.ToolTip = "Laden abbrechen (Esc)";
+                btnReload.ToolTip = Tr.Get("Nav_StopLoading");
                 progressLoading.Visibility = Visibility.Visible;
             }
             else
             {
                 pathReload.Visibility = Visibility.Visible;
                 pathStop.Visibility = Visibility.Collapsed;
-                btnReload.ToolTip = "Neu laden (Ctrl+R / F5)";
+                btnReload.ToolTip = Tr.Get("Nav_Reload");
                 progressLoading.Visibility = Visibility.Collapsed;
             }
         }
@@ -70,7 +70,7 @@ namespace EchoBrowser
                 target.Equals("about:blank", StringComparison.OrdinalIgnoreCase))
             {
                 ActiveTab.Url = StartPageService.StartPageUrl;
-                ActiveTab.Title = _isIncognito ? "Neuer Tab (Inkognito)" : "Neuer Tab";
+                ActiveTab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
                 ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
                 txtUrl.Text = "";
                 return;
