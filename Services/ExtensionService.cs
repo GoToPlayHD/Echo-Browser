@@ -5,6 +5,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
 
@@ -44,7 +46,9 @@ namespace EchoBrowser.Services
             // Remove any underscore directories (e.g. _metadata) forbidden by Chromium unpacked extensions loader
             SanitizeUnpackedExtension(manifestFolder);
 
-            return await profile.AddBrowserExtensionAsync(manifestFolder);
+            var ext = await profile.AddBrowserExtensionAsync(manifestFolder);
+            RememberExtensionFolder(ext, manifestFolder);
+            return ext;
         }
 
         public async Task<CoreWebView2BrowserExtension?> InstallExtensionFromFolderAsync(CoreWebView2Profile profile, string folderPath)
@@ -60,7 +64,9 @@ namespace EchoBrowser.Services
 
             SanitizeUnpackedExtension(manifestFolder);
 
-            return await profile.AddBrowserExtensionAsync(manifestFolder);
+            var ext = await profile.AddBrowserExtensionAsync(manifestFolder);
+            RememberExtensionFolder(ext, manifestFolder);
+            return ext;
         }
 
         public async Task<CoreWebView2BrowserExtension?> DownloadAndInstallExtensionAsync(CoreWebView2Profile profile, string extensionId, string? extensionName = null)
@@ -137,61 +143,222 @@ namespace EchoBrowser.Services
             }
         }
 
-        public string? GetExtensionPopupPage(string extensionId, string? extensionName = null)
+        #region Manifest-Zuordnung (WebView2-ID -> entpackter Ordner)
+
+        // WebView2 vergibt entpackten Erweiterungen eine eigene, aus dem Pfad berechnete ID. Sie stimmt
+        // nicht mit der Chrome-Web-Store-ID im Ordnernamen überein, und viele Manifeste enthalten statt
+        // des Namens nur "__MSG_extName__". Deshalb merken wir uns bei der Installation, welcher Ordner
+        // zu welcher ID gehört (extensions-index.json), und lösen ältere Installationen über den
+        // lokalisierten Namen auf.
+
+        private Dictionary<string, string>? _folderIndex;
+        private readonly object _indexLock = new();
+
+        private string IndexFilePath => Path.Combine(_extensionsDirectory, "extensions-index.json");
+
+        private Dictionary<string, string> FolderIndex
+        {
+            get
+            {
+                if (_folderIndex != null) return _folderIndex;
+                _folderIndex = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    if (File.Exists(IndexFilePath))
+                    {
+                        var loaded = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(IndexFilePath));
+                        if (loaded != null)
+                        {
+                            _folderIndex = new Dictionary<string, string>(loaded, StringComparer.OrdinalIgnoreCase);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Echo] Erweiterungs-Index konnte nicht gelesen werden: {ex.Message}");
+                }
+                return _folderIndex;
+            }
+        }
+
+        private void SaveFolderIndex()
         {
             try
             {
-                if (!Directory.Exists(_extensionsDirectory)) return null;
+                AtomicFile.WriteAllText(IndexFilePath, JsonSerializer.Serialize(FolderIndex, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Echo] Erweiterungs-Index konnte nicht gespeichert werden: {ex.Message}");
+            }
+        }
 
-                var manifestFiles = Directory.GetFiles(_extensionsDirectory, "manifest.json", SearchOption.AllDirectories);
-                foreach (var manifestPath in manifestFiles)
+        private void RememberExtensionFolder(CoreWebView2BrowserExtension? ext, string manifestFolder)
+        {
+            if (ext == null || string.IsNullOrWhiteSpace(ext.Id)) return;
+            lock (_indexLock)
+            {
+                FolderIndex[ext.Id] = manifestFolder;
+                SaveFolderIndex();
+            }
+        }
+
+        /// <summary>
+        /// Nach dem Entfernen einer Erweiterung: Zuordnung vergessen und die von Echo entpackte Kopie löschen.
+        /// Ordner außerhalb von %LOCALAPPDATA%\EchoBrowser\Extensions (manuell geladene) werden nie gelöscht.
+        /// </summary>
+        public void ForgetExtension(string extensionId)
+        {
+            string? folder;
+            lock (_indexLock)
+            {
+                if (!FolderIndex.TryGetValue(extensionId, out folder)) return;
+                FolderIndex.Remove(extensionId);
+                SaveFolderIndex();
+            }
+
+            try
+            {
+                string root = Path.GetFullPath(_extensionsDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                string full = Path.GetFullPath(folder);
+                if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return;
+
+                // Den obersten Ordner unterhalb von Extensions löschen (die Erweiterung kann eine Ebene tiefer liegen)
+                string relative = full.Substring(root.Length);
+                string topLevel = Path.Combine(root, relative.Split(Path.DirectorySeparatorChar)[0]);
+                if (Directory.Exists(topLevel))
                 {
-                    try
-                    {
-                        string json = File.ReadAllText(manifestPath);
-                        using var doc = System.Text.Json.JsonDocument.Parse(json);
-                        var root = doc.RootElement;
-
-                        string folder = Path.GetDirectoryName(manifestPath) ?? "";
-                        bool isMatch = false;
-                        if (!string.IsNullOrWhiteSpace(extensionId) && folder.Contains(extensionId, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isMatch = true;
-                        }
-                        else if (!string.IsNullOrWhiteSpace(extensionName) && root.TryGetProperty("name", out var nameProp))
-                        {
-                            string mName = nameProp.GetString() ?? "";
-                            if (mName.Equals(extensionName, StringComparison.OrdinalIgnoreCase) ||
-                                folder.Contains(extensionName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                isMatch = true;
-                            }
-                        }
-                        else if (manifestFiles.Length == 1)
-                        {
-                            isMatch = true;
-                        }
-
-                        if (isMatch)
-                        {
-                            if (root.TryGetProperty("action", out var action) && action.TryGetProperty("default_popup", out var actionPopup) && !string.IsNullOrWhiteSpace(actionPopup.GetString()))
-                            {
-                                return actionPopup.GetString()!.TrimStart('/');
-                            }
-                            if (root.TryGetProperty("browser_action", out var bAction) && bAction.TryGetProperty("default_popup", out var bActionPopup) && !string.IsNullOrWhiteSpace(bActionPopup.GetString()))
-                            {
-                                return bActionPopup.GetString()!.TrimStart('/');
-                            }
-                        }
-                    }
-                    catch { }
+                    Directory.Delete(topLevel, recursive: true);
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error finding extension popup page: {ex.Message}");
+                // Dateien können kurz nach dem Entfernen noch gesperrt sein – dann bleibt der Ordner liegen
+                Debug.WriteLine($"[Echo] Erweiterungsordner konnte nicht gelöscht werden: {ex.Message}");
             }
+        }
+
+        /// <summary>Ordner mit der manifest.json der Erweiterung, oder null.</summary>
+        public string? FindExtensionFolder(string extensionId, string? extensionName = null)
+        {
+            lock (_indexLock)
+            {
+                if (FolderIndex.TryGetValue(extensionId, out var known) && File.Exists(Path.Combine(known, "manifest.json")))
+                {
+                    return known;
+                }
+            }
+
+            if (!Directory.Exists(_extensionsDirectory)) return null;
+
+            foreach (var topDir in Directory.GetDirectories(_extensionsDirectory))
+            {
+                string? folder = FindManifestDirectory(topDir);
+                if (folder == null) continue;
+
+                bool isMatch = folder.Contains(extensionId, StringComparison.OrdinalIgnoreCase) ||
+                               (!string.IsNullOrWhiteSpace(extensionName) &&
+                                GetManifestNames(folder).Contains(extensionName, StringComparer.OrdinalIgnoreCase));
+                if (!isMatch) continue;
+
+                lock (_indexLock)
+                {
+                    FolderIndex[extensionId] = folder;
+                    SaveFolderIndex();
+                }
+                return folder;
+            }
+
             return null;
+        }
+
+        /// <summary>Alle möglichen Anzeigenamen aus dem Manifest, inkl. aufgelöster "__MSG_...__"-Platzhalter aller Sprachen.</summary>
+        private static IEnumerable<string> GetManifestNames(string folder)
+        {
+            var names = new List<string>();
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "manifest.json")));
+                foreach (var prop in new[] { "name", "short_name" })
+                {
+                    if (!doc.RootElement.TryGetProperty(prop, out var el) || el.ValueKind != JsonValueKind.String) continue;
+                    string value = el.GetString() ?? "";
+
+                    var msg = Regex.Match(value, @"^__MSG_(\w+)__$");
+                    if (!msg.Success)
+                    {
+                        names.Add(value);
+                        continue;
+                    }
+
+                    string localesDir = Path.Combine(folder, "_locales");
+                    if (!Directory.Exists(localesDir)) continue;
+                    foreach (var messagesFile in Directory.GetFiles(localesDir, "messages.json", SearchOption.AllDirectories))
+                    {
+                        string? resolved = ReadLocaleMessage(messagesFile, msg.Groups[1].Value);
+                        if (!string.IsNullOrWhiteSpace(resolved)) names.Add(resolved);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Echo] Manifest-Name in '{folder}' nicht lesbar: {ex.Message}");
+            }
+            return names;
+        }
+
+        private static string? ReadLocaleMessage(string messagesFile, string key)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(messagesFile));
+                foreach (var entry in doc.RootElement.EnumerateObject())
+                {
+                    // Schlüssel in messages.json sind laut Spezifikation unabhängig von Groß-/Kleinschreibung
+                    if (entry.Name.Equals(key, StringComparison.OrdinalIgnoreCase) &&
+                        entry.Value.TryGetProperty("message", out var message))
+                    {
+                        return message.GetString();
+                    }
+                }
+            }
+            catch { /* einzelne kaputte Sprachdatei ignorieren */ }
+            return null;
+        }
+
+        private static JsonDocument? ReadManifest(string folder)
+        {
+            try
+            {
+                return JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "manifest.json")));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Echo] manifest.json in '{folder}' nicht lesbar: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string? GetNestedString(JsonElement root, string obj, string prop) =>
+            root.TryGetProperty(obj, out var o) && o.ValueKind == JsonValueKind.Object &&
+            o.TryGetProperty(prop, out var p) && p.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(p.GetString())
+                ? p.GetString()!.TrimStart('/')
+                : null;
+
+        /// <summary>Popup-Seite aus action (MV3), browser_action oder page_action (MV2).</summary>
+        private static string? GetPopupFromManifest(JsonElement root) =>
+            GetNestedString(root, "action", "default_popup") ??
+            GetNestedString(root, "browser_action", "default_popup") ??
+            GetNestedString(root, "page_action", "default_popup");
+
+        public string? GetExtensionPopupPage(string extensionId, string? extensionName = null)
+        {
+            string? folder = FindExtensionFolder(extensionId, extensionName);
+            if (folder == null) return null;
+
+            using var doc = ReadManifest(folder);
+            return doc == null ? null : GetPopupFromManifest(doc.RootElement);
         }
 
         public bool HasPopup(string extensionId, string? extensionName = null)
@@ -201,129 +368,76 @@ namespace EchoBrowser.Services
 
         public string? GetExtensionOptionsPage(string extensionId, string? extensionName = null)
         {
-            try
+            string? folder = FindExtensionFolder(extensionId, extensionName);
+            if (folder == null) return null;
+
+            using var doc = ReadManifest(folder);
+            if (doc == null) return null;
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("options_page", out var optPage) && optPage.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(optPage.GetString()))
             {
-                if (!Directory.Exists(_extensionsDirectory)) return null;
-
-                var manifestFiles = Directory.GetFiles(_extensionsDirectory, "manifest.json", SearchOption.AllDirectories);
-                foreach (var manifestPath in manifestFiles)
-                {
-                    try
-                    {
-                        string json = File.ReadAllText(manifestPath);
-                        using var doc = System.Text.Json.JsonDocument.Parse(json);
-                        var root = doc.RootElement;
-
-                        string folder = Path.GetDirectoryName(manifestPath) ?? "";
-                        bool isMatch = false;
-                        if (!string.IsNullOrWhiteSpace(extensionId) && folder.Contains(extensionId, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isMatch = true;
-                        }
-                        else if (!string.IsNullOrWhiteSpace(extensionName) && root.TryGetProperty("name", out var nameProp))
-                        {
-                            string mName = nameProp.GetString() ?? "";
-                            if (mName.Equals(extensionName, StringComparison.OrdinalIgnoreCase) ||
-                                folder.Contains(extensionName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                isMatch = true;
-                            }
-                        }
-                        else if (manifestFiles.Length == 1)
-                        {
-                            isMatch = true;
-                        }
-
-                        if (isMatch)
-                        {
-                            if (root.TryGetProperty("options_page", out var optPage) && !string.IsNullOrWhiteSpace(optPage.GetString()))
-                            {
-                                return optPage.GetString()!.TrimStart('/');
-                            }
-                            if (root.TryGetProperty("options_ui", out var optUi) && optUi.TryGetProperty("page", out var optUiPage) && !string.IsNullOrWhiteSpace(optUiPage.GetString()))
-                            {
-                                return optUiPage.GetString()!.TrimStart('/');
-                            }
-                            // Fallback to popup if no dedicated options page exists
-                            if (root.TryGetProperty("action", out var action) && action.TryGetProperty("default_popup", out var actionPopup) && !string.IsNullOrWhiteSpace(actionPopup.GetString()))
-                            {
-                                return actionPopup.GetString()!.TrimStart('/');
-                            }
-                            if (root.TryGetProperty("browser_action", out var bAction) && bAction.TryGetProperty("default_popup", out var bActionPopup) && !string.IsNullOrWhiteSpace(bActionPopup.GetString()))
-                            {
-                                return bActionPopup.GetString()!.TrimStart('/');
-                            }
-                        }
-                    }
-                    catch { }
-                }
+                return optPage.GetString()!.TrimStart('/');
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error finding options page: {ex.Message}");
-            }
-            return null;
+
+            // Fallback auf das Popup, falls keine eigene Optionsseite existiert
+            return GetNestedString(root, "options_ui", "page") ?? GetPopupFromManifest(root);
         }
 
         public string? GetExtensionIconPath(string extensionId, string? extensionName = null)
         {
-            try
+            string? folder = FindExtensionFolder(extensionId, extensionName);
+            if (folder == null) return null;
+
+            using var doc = ReadManifest(folder);
+            if (doc == null) return null;
+            var root = doc.RootElement;
+
+            string[] sizes = { "32", "16", "48", "38", "19", "128" };
+            var candidates = new List<JsonElement>();
+            if (root.TryGetProperty("icons", out var icons)) candidates.Add(icons);
+            foreach (var actionKey in new[] { "action", "browser_action", "page_action" })
             {
-                if (!Directory.Exists(_extensionsDirectory)) return null;
-
-                var manifestFiles = Directory.GetFiles(_extensionsDirectory, "manifest.json", SearchOption.AllDirectories);
-                foreach (var manifestPath in manifestFiles)
+                if (root.TryGetProperty(actionKey, out var action) && action.ValueKind == JsonValueKind.Object &&
+                    action.TryGetProperty("default_icon", out var defaultIcon))
                 {
-                    try
-                    {
-                        string folder = Path.GetDirectoryName(manifestPath) ?? "";
-                        bool isMatch = false;
-                        if (!string.IsNullOrWhiteSpace(extensionId) && folder.Contains(extensionId, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isMatch = true;
-                        }
-                        else if (!string.IsNullOrWhiteSpace(extensionName))
-                        {
-                            string json = File.ReadAllText(manifestPath);
-                            using var doc = System.Text.Json.JsonDocument.Parse(json);
-                            if (doc.RootElement.TryGetProperty("name", out var nProp) &&
-                                (nProp.GetString()?.Equals(extensionName, StringComparison.OrdinalIgnoreCase) == true ||
-                                 folder.Contains(extensionName, StringComparison.OrdinalIgnoreCase)))
-                            {
-                                isMatch = true;
-                            }
-                        }
-                        else if (manifestFiles.Length == 1)
-                        {
-                            isMatch = true;
-                        }
-
-                        if (isMatch)
-                        {
-                            string json = File.ReadAllText(manifestPath);
-                            using var doc = System.Text.Json.JsonDocument.Parse(json);
-                            var root = doc.RootElement;
-                            if (root.TryGetProperty("icons", out var icons))
-                            {
-                                string[] sizes = { "32", "16", "48", "128" };
-                                foreach (var s in sizes)
-                                {
-                                    if (icons.TryGetProperty(s, out var iconProp))
-                                    {
-                                        string relPath = iconProp.GetString() ?? "";
-                                        string full = Path.Combine(folder, relPath.Replace('/', Path.DirectorySeparatorChar));
-                                        if (File.Exists(full)) return full;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch { }
+                    candidates.Add(defaultIcon);
                 }
             }
-            catch { }
+
+            foreach (var candidate in candidates)
+            {
+                // default_icon darf auch ein einzelner Pfad sein
+                if (candidate.ValueKind == JsonValueKind.String)
+                {
+                    string? path = ResolveIconFile(folder, candidate.GetString());
+                    if (path != null) return path;
+                    continue;
+                }
+                if (candidate.ValueKind != JsonValueKind.Object) continue;
+
+                foreach (var size in sizes)
+                {
+                    if (candidate.TryGetProperty(size, out var iconProp) && iconProp.ValueKind == JsonValueKind.String)
+                    {
+                        string? path = ResolveIconFile(folder, iconProp.GetString());
+                        if (path != null) return path;
+                    }
+                }
+            }
             return null;
         }
+
+        private static string? ResolveIconFile(string folder, string? relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath)) return null;
+            string full = Path.Combine(folder, relativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            // SVG kann WPF nicht direkt als Bild laden
+            return File.Exists(full) && !full.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ? full : null;
+        }
+
+        #endregion
 
         private static void ExtractCrx(string crxPath, string destinationDirectory)
         {
