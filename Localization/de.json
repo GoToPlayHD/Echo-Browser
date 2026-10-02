@@ -45,6 +45,7 @@
   "Downloads_Completed": "Abgeschlossen",
   "Downloads_Empty": "Keine aktuellen Downloads vorhanden",
   "Downloads_Interrupted": "Unterbrochen",
+  "Downloads_Open": "Öffnen",
   "Downloads_OpenFolder": "Ordner öffnen",
   "Downloads_SelectFolder": "Download-Ordner auswählen",
   "Error_WebViewInit": "Fehler beim Initialisieren der WebView2-Chromium-Engine:\n{0}",

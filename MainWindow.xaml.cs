@@ -48,8 +48,6 @@ namespace EchoBrowser
         public ObservableCollection<BrowserTab> Tabs { get; } = new();
         public ObservableCollection<Bookmark> Bookmarks => _bookmarkService.Bookmarks;
         public ObservableCollection<SidebarFavorite> SidebarFavorites => _sidebarService.Favorites;
-        public ObservableCollection<DownloadItem> Downloads { get; } = new();
-        public ObservableCollection<HistoryItem> FilteredHistory { get; } = new();
 
         public BrowserTab? ActiveTab
         {
@@ -80,6 +78,8 @@ namespace EchoBrowser
             LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
             InitializeComponent();
             InitializeToolbarContextMenus();
+            InitializeHistoryPanel();
+            InitializeDownloadsPanel();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;

@@ -1,0 +1,77 @@
+﻿<UserControl x:Class="EchoBrowser.Views.Popups.DownloadsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:EchoBrowser.Services"
+             xmlns:models="clr-namespace:EchoBrowser.Models"
+             x:Name="root">
+    <Border Style="{DynamicResource FlyoutCardStyle}" Width="360" MaxHeight="450" Margin="5">
+        <StackPanel>
+            <DockPanel LastChildFill="True" Margin="0,0,0,10">
+                <TextBlock Text="{loc:Loc Nav_Downloads}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                <Button DockPanel.Dock="Right" 
+                        Style="{DynamicResource FlyoutSmallButtonStyle}" 
+                        Content="{loc:Loc Downloads_OpenFolder}" 
+                        Click="BtnOpenDownloadsFolder_Click"/>
+            </DockPanel>
+            <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,8"/>
+
+            <!-- Empty State -->
+            <TextBlock x:Name="txtEmptyDownloads" 
+                       Text="{loc:Loc Downloads_Empty}" 
+                       FontSize="12" 
+                       Foreground="{DynamicResource TextMutedBrush}" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,16"/>
+
+            <!-- Downloads List -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
+                <ItemsControl ItemsSource="{Binding Items, ElementName=root}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:DownloadItem}">
+                            <Border Background="{DynamicResource TabBackgroundBrush}" 
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="7" 
+                                    Padding="10,8" 
+                                    Margin="0,0,0,6">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding FileName}" 
+                                               FontWeight="SemiBold" 
+                                               FontSize="12" 
+                                               Foreground="{DynamicResource TextPrimaryBrush}" 
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <ProgressBar Value="{Binding ProgressPercentage, Mode=OneWay}" 
+                                                 Height="4" 
+                                                 Margin="0,6" 
+                                                 Foreground="{DynamicResource ShieldActiveBrush}" 
+                                                 Background="{DynamicResource SurfaceBrush}" 
+                                                 BorderThickness="0"/>
+                                    <DockPanel LastChildFill="True">
+                                        <TextBlock Text="{Binding ProgressText}" 
+                                                   FontSize="11" 
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <Button DockPanel.Dock="Right" 
+                                                Click="BtnOpenDownloadFile_Click" 
+                                                Tag="{Binding FilePath}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource FlyoutSmallButtonStyle}">
+                                                    <Setter Property="Content" Value="{loc:Loc Downloads_Open}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCrx}" Value="True">
+                                                            <Setter Property="Content" Value="{loc:Loc Ext_Install}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </StackPanel>
+    </Border>
+</UserControl>
