@@ -15,6 +15,7 @@ using System.Windows.Media;
 using EchoBrowser.Models;
 using EchoBrowser.Services;
 using EchoBrowser.Views;
+using EchoBrowser.Views.Popups;
 using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
@@ -63,6 +64,12 @@ namespace EchoBrowser
             }
         }
 
+        private void InitializeShieldPanel()
+        {
+            shieldPanel.OptionsChanged += OnShieldOptionsChanged;
+            shieldPanel.ClearSiteDataRequested += async () => await ClearActiveSiteDataAsync();
+        }
+
         private void UpdateShieldUi()
         {
             if (ActiveTab == null) return;
@@ -74,67 +81,22 @@ namespace EchoBrowser
             {
                 host = Tr.Get("Shield_StartPageHost");
             }
-            else
+            else if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host))
             {
-                try
-                {
-                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host))
-                    {
-                        host = uri.Host;
-                        bool isWhitelisted = AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Contains(host);
-                        ActiveTab.TrackingProtectionEnabled = !isWhitelisted;
-                    }
-                }
-                catch { }
+                host = uri.Host;
+                ActiveTab.TrackingProtectionEnabled = !AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Contains(host);
             }
 
-            txtShieldHost.Text = string.IsNullOrWhiteSpace(host) ? "Echo-Browser" : host;
+            shieldPanel.ShowState(new ShieldViewState(
+                Host: host,
+                IsSecure: ActiveTab.IsSecure || IsStartPage(url),
+                GlobalOn: AppSettingsService.Instance.Settings.IsAdBlockerEnabled,
+                SiteOn: ActiveTab.TrackingProtectionEnabled,
+                JavaScriptOn: ActiveTab.JavaScriptEnabled,
+                PopupsBlocked: ActiveTab.PopupsBlocked,
+                BlockedCount: ActiveTab.BlockedTrackersCount));
 
-            if (ActiveTab.IsSecure || IsStartPage(url))
-            {
-                txtShieldStatus.Text = Tr.Get("Security_Secure");
-                txtShieldStatus.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
-            }
-            else
-            {
-                txtShieldStatus.Text = Tr.Get("Security_NotEncrypted");
-                txtShieldStatus.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
-            }
-
-            _isUpdatingShieldUi = true;
-            try
-            {
-                bool isGlobalOn = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
-                bool isTabOn = ActiveTab.TrackingProtectionEnabled;
-                bool isProtectionActive = isGlobalOn && isTabOn;
-
-                chkGlobalShield.IsChecked = isGlobalOn;
-                chkTrackingProtection.IsChecked = isTabOn;
-                chkJavaScript.IsChecked = ActiveTab.JavaScriptEnabled;
-                chkPopups.IsChecked = ActiveTab.PopupsBlocked;
-
-                if (isProtectionActive)
-                {
-                    txtShieldActiveState.Text = LocalizationService.Instance.GetString("Shield_ActiveStateOn", "Echo Shield: Aktiviert");
-                    txtShieldActiveState.Foreground = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
-                    pathShieldPopupIcon.Fill = FindResource("StatusSuccessBrush") as Brush ?? Brushes.Green;
-                }
-                else
-                {
-                    txtShieldActiveState.Text = LocalizationService.Instance.GetString("Shield_ActiveStateOff", "Echo Shield: Deaktiviert");
-                    txtShieldActiveState.Foreground = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
-                    pathShieldPopupIcon.Fill = FindResource("StatusWarningBrush") as Brush ?? Brushes.Orange;
-                }
-
-                txtTrackersBlocked.Text = string.Format(LocalizationService.Instance.GetString("Shield_TrackersBlockedFormat", "{0} Tracker und Werbeanzeigen blockiert"), ActiveTab.BlockedTrackersCount);
-                txtFilterRuleCount.Text = string.Format(LocalizationService.Instance.GetString("Shield_FilterRuleCountFormat", "{0:N0} Filterregeln geladen"), AdBlockerService.Instance.BlockedDomainsCount);
-
-                UpdateShieldBadge();
-            }
-            finally
-            {
-                _isUpdatingShieldUi = false;
-            }
+            UpdateShieldBadge();
         }
 
         /// <summary>
@@ -213,22 +175,22 @@ namespace EchoBrowser
             }));
         }
 
-        private async void ShieldOption_Changed(object sender, RoutedEventArgs e)
+        private async void OnShieldOptionsChanged(ShieldOptions options)
         {
-            if (_isUpdatingShieldUi || ActiveTab == null) return;
+            if (ActiveTab == null) return;
 
             bool prevGlobal = AppSettingsService.Instance.Settings.IsAdBlockerEnabled;
-            bool newGlobal = chkGlobalShield.IsChecked ?? true;
+            bool newGlobal = options.GlobalOn;
             if (prevGlobal != newGlobal)
             {
                 AppSettingsService.Instance.Settings.IsAdBlockerEnabled = newGlobal;
                 AppSettingsService.Instance.Save();
             }
 
-            bool newTabShield = chkTrackingProtection.IsChecked ?? true;
+            bool newTabShield = options.SiteOn;
             ActiveTab.TrackingProtectionEnabled = newTabShield;
-            ActiveTab.JavaScriptEnabled = chkJavaScript.IsChecked ?? true;
-            ActiveTab.PopupsBlocked = chkPopups.IsChecked ?? true;
+            ActiveTab.JavaScriptEnabled = options.JavaScriptOn;
+            ActiveTab.PopupsBlocked = options.PopupsBlocked;
 
             // Remember domain in whitelist if tracking protection is turned off
             if (Uri.TryCreate(ActiveTab.Url, UriKind.Absolute, out var curUri) && !string.IsNullOrEmpty(curUri.Host))
@@ -289,48 +251,43 @@ namespace EchoBrowser
             }
         }
 
-        private async void BtnUpdateFilterList_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Cookies und gespeicherte Daten (LocalStorage, IndexedDB, Cache, Service Worker …) nur der aktuellen
+        /// Website löschen. Früher wurden hier die Cookies ALLER Websites gelöscht.
+        /// </summary>
+        private async Task ClearActiveSiteDataAsync()
         {
-            btnUpdateFilterList.IsEnabled = false;
-            btnUpdateFilterList.Content = Tr.Get("Shield_LoadingFilters");
+            var tab = ActiveTab;
+            var core = tab?.WebView?.CoreWebView2;
+            if (tab == null || core == null) return;
+
+            popupShield.IsOpen = false;
+
+            if (!Uri.TryCreate(tab.Url, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Get("Shield_NoSiteData"));
+                return;
+            }
 
             try
             {
-                string url = AppSettingsService.Instance.Settings.AdBlockerFilterUrl;
-                await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(url, force: true);
-                txtFilterRuleCount.Text = Tr.Format("Shield_FilterRuleCountFormat", AdBlockerService.Instance.BlockedDomainsCount);
-                btnUpdateFilterList.Content = Tr.Get("Shield_Updated");
-                await Task.Delay(1800);
+                string origin = uri.GetLeftPart(UriPartial.Authority);
+
+                foreach (var cookie in await core.CookieManager.GetCookiesAsync(origin))
+                {
+                    core.CookieManager.DeleteCookie(cookie);
+                }
+
+                await core.CallDevToolsProtocolMethodAsync(
+                    "Storage.clearDataForOrigin",
+                    JsonSerializer.Serialize(new { origin, storageTypes = "all" }));
+
+                ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Format("Shield_SiteDataClearedFor", uri.Host));
             }
             catch (Exception ex)
             {
-                ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Format("Shield_UpdateFailed", ex.Message), MessageBoxImage.Warning);
-            }
-            finally
-            {
-                btnUpdateFilterList.Content = Tr.Get("Shield_UpdateFilters");
-                btnUpdateFilterList.IsEnabled = true;
-            }
-        }
-
-        private async void BtnClearSiteData_Click(object sender, RoutedEventArgs e)
-        {
-            if (ActiveTab?.WebView?.CoreWebView2 != null)
-            {
-                try
-                {
-                    await ActiveTab.WebView.CoreWebView2.Profile.ClearBrowsingDataAsync(
-                        CoreWebView2BrowsingDataKinds.Cookies | 
-                        CoreWebView2BrowsingDataKinds.CacheStorage | 
-                        CoreWebView2BrowsingDataKinds.IndexedDb);
-
-                    popupShield.IsOpen = false;
-                    ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Get("Shield_SiteDataCleared"));
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Failed to clear browsing data: {ex.Message}");
-                }
+                ThemedDialogWindow.ShowMessage(this, "Echo Shield", Tr.Format("Shield_SiteDataClearFailed", ex.Message), MessageBoxImage.Warning);
             }
         }
 

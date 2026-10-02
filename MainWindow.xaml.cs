@@ -30,7 +30,6 @@ namespace EchoBrowser
         private BrowserTab? _activeTab;
         private bool _isBookmarksBarVisible = true;
         private bool _isSyncingSearchEngine;
-        private bool _isUpdatingShieldUi;
         private bool _shieldBadgeUpdatePending;
         private ExtensionPopupWindow? _activeExtensionPopup;
 
@@ -81,6 +80,7 @@ namespace EchoBrowser
             themePanel.SelectionMade += () => popupTheme.IsOpen = false;
             InitializeAddFavoritePanel();
             InitializeBookmarkFormPanels();
+            InitializeShieldPanel();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
