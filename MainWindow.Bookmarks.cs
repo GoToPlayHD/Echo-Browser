@@ -370,7 +370,23 @@ namespace EchoBrowser
 
         #region Bookmarks Bar Empty Space & Group Handling
 
-        private Bookmark? _targetGroupForAdd;
+        private void InitializeBookmarkFormPanels()
+        {
+            addBookmarkPanel.BookmarkCreated += (title, url, targetGroup) =>
+            {
+                _bookmarkService.AddBookmark(title, url, targetGroup);
+                CheckBookmarkStatus();
+                popupAddBookmark.IsOpen = false;
+            };
+            addBookmarkPanel.Cancelled += () => popupAddBookmark.IsOpen = false;
+
+            addGroupPanel.GroupCreated += name =>
+            {
+                _bookmarkService.AddGroup(name);
+                popupAddGroup.IsOpen = false;
+            };
+            addGroupPanel.Cancelled += () => popupAddGroup.IsOpen = false;
+        }
 
         private void MenuAddBookmark_Click(object sender, RoutedEventArgs e)
         {
@@ -379,90 +395,19 @@ namespace EchoBrowser
 
         private void MenuAddGroup_Click(object sender, RoutedEventArgs e)
         {
-            txtAddGroupName.Text = "";
             popupAddGroup.IsOpen = true;
-            txtAddGroupName.Focus();
+            addGroupPanel.Prepare();
         }
 
         private void OpenAddBookmarkDialog(Bookmark? preselectedGroup)
         {
-            _targetGroupForAdd = preselectedGroup;
-
-            if (ActiveTab != null && ActiveTab.Url != StartPageService.StartPageUrl)
-            {
-                txtAddBmTitle.Text = ActiveTab.Title;
-                txtAddBmUrl.Text = ActiveTab.Url;
-            }
-            else
-            {
-                txtAddBmTitle.Text = "";
-                txtAddBmUrl.Text = "https://";
-            }
-
-            cmbAddBmGroup.Items.Clear();
-            var mainItem = new ComboBoxItem { Content = Tr.Get("Bookmark_MainBar"), Tag = null };
-            cmbAddBmGroup.Items.Add(mainItem);
-            cmbAddBmGroup.SelectedItem = mainItem;
-
-            foreach (var b in Bookmarks.Where(b => b.IsGroup))
-            {
-                var item = new ComboBoxItem { Content = "📁 " + b.Title, Tag = b };
-                cmbAddBmGroup.Items.Add(item);
-                if (preselectedGroup == b)
-                {
-                    cmbAddBmGroup.SelectedItem = item;
-                }
-            }
-
+            bool hasPage = ActiveTab != null && ActiveTab.Url != StartPageService.StartPageUrl;
             popupAddBookmark.IsOpen = true;
-            txtAddBmTitle.Focus();
-        }
-
-        private void BtnCancelAddBm_Click(object sender, RoutedEventArgs e)
-        {
-            popupAddBookmark.IsOpen = false;
-        }
-
-        private void BtnSaveAddBm_Click(object sender, RoutedEventArgs e)
-        {
-            string title = txtAddBmTitle.Text.Trim();
-            string url = txtAddBmUrl.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(url)) return;
-            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
-                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                url = "https://" + url;
-            }
-
-            if (string.IsNullOrWhiteSpace(title))
-            {
-                title = url.Replace("https://", "").Replace("http://", "").Split('/')[0];
-            }
-
-            Bookmark? targetGroup = null;
-            if (cmbAddBmGroup.SelectedItem is ComboBoxItem cItem && cItem.Tag is Bookmark grp)
-            {
-                targetGroup = grp;
-            }
-
-            _bookmarkService.AddBookmark(title, url, targetGroup);
-            CheckBookmarkStatus();
-            popupAddBookmark.IsOpen = false;
-        }
-
-        private void BtnCancelAddGroup_Click(object sender, RoutedEventArgs e)
-        {
-            popupAddGroup.IsOpen = false;
-        }
-
-        private void BtnSaveAddGroup_Click(object sender, RoutedEventArgs e)
-        {
-            string name = txtAddGroupName.Text.Trim();
-            if (string.IsNullOrWhiteSpace(name)) return;
-
-            _bookmarkService.AddGroup(name);
-            popupAddGroup.IsOpen = false;
+            addBookmarkPanel.Prepare(
+                hasPage ? ActiveTab!.Title : "",
+                hasPage ? ActiveTab!.Url : "",
+                Bookmarks.Where(b => b.IsGroup),
+                preselectedGroup);
         }
 
         private void GroupChip_Click(object sender, RoutedEventArgs e)

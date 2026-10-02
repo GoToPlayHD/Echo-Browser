@@ -42,8 +42,6 @@ namespace EchoBrowser
         private Bookmark? _activeGroupForPopup;
 
         // Add Favorite State
-        private string _selectedFavIconKey = "globe";
-        private string _selectedFavColor = "#C4C7CC";
 
         public ObservableCollection<BrowserTab> Tabs { get; } = new();
         public ObservableCollection<Bookmark> Bookmarks => _bookmarkService.Bookmarks;
@@ -81,6 +79,8 @@ namespace EchoBrowser
             InitializeHistoryPanel();
             InitializeDownloadsPanel();
             themePanel.SelectionMade += () => popupTheme.IsOpen = false;
+            InitializeAddFavoritePanel();
+            InitializeBookmarkFormPanels();
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
