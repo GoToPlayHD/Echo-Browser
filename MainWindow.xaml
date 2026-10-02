@@ -17,8 +17,7 @@
         FontFamily="Segoe UI, -apple-system, Roboto, sans-serif"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
-        Loaded="Window_Loaded"
-        KeyDown="Window_KeyDown">
+        Loaded="Window_Loaded">
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="42"
