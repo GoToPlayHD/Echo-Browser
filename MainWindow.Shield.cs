@@ -29,8 +29,8 @@ namespace EchoBrowser
 
         private void BtnShield_Click(object sender, RoutedEventArgs e)
         {
-            UpdateShieldUi();
             popupShield.IsOpen = true;
+            UpdateShieldUi();
         }
 
         private void UpdateShieldBadge()
@@ -96,6 +96,10 @@ namespace EchoBrowser
                 PopupsBlocked: ActiveTab.PopupsBlocked,
                 BlockedCount: ActiveTab.BlockedTrackersCount));
 
+            if (popupShield.IsOpen)
+            {
+                _ = LoadSitePermissionsAsync();
+            }
             UpdateShieldBadge();
         }
 
@@ -126,7 +130,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] Shield-Netzwerkfilter konnte nicht aktualisiert werden: {ex.Message}");
+                Log.Warn("Shield-Netzwerkfilter konnte nicht aktualisiert werden", ex);
             }
 
             // Cosmetic element-hiding script
@@ -144,7 +148,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] Shield-Cosmetic-Script konnte nicht aktualisiert werden: {ex.Message}");
+                Log.Warn("Shield-Cosmetic-Script konnte nicht aktualisiert werden", ex);
             }
         }
 
@@ -190,18 +194,30 @@ namespace EchoBrowser
             bool newTabShield = options.SiteOn;
             ActiveTab.TrackingProtectionEnabled = newTabShield;
             ActiveTab.JavaScriptEnabled = options.JavaScriptOn;
+            bool popupSettingChanged = ActiveTab.PopupsBlocked != options.PopupsBlocked;
             ActiveTab.PopupsBlocked = options.PopupsBlocked;
 
-            // Remember domain in whitelist if tracking protection is turned off
+            // Ausnahmen pro Website merken: Shield aus bzw. Popups erlaubt
             if (Uri.TryCreate(ActiveTab.Url, UriKind.Absolute, out var curUri) && !string.IsNullOrEmpty(curUri.Host))
             {
+                var settings = AppSettingsService.Instance.Settings;
                 if (!newTabShield)
                 {
-                    AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Add(curUri.Host);
+                    settings.WhitelistedShieldDomains.Add(curUri.Host);
                 }
                 else
                 {
-                    AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Remove(curUri.Host);
+                    settings.WhitelistedShieldDomains.Remove(curUri.Host);
+                }
+
+                // Nur wenn der Popup-Schalter selbst umgelegt wurde – nicht bei jedem anderen Schalter
+                if (popupSettingChanged && !options.PopupsBlocked)
+                {
+                    settings.PopupAllowedDomains.Add(curUri.Host);
+                }
+                else if (popupSettingChanged)
+                {
+                    settings.PopupAllowedDomains.Remove(curUri.Host);
                 }
                 AppSettingsService.Instance.Save();
             }

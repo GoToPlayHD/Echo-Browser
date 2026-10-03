@@ -8,6 +8,24 @@
             <TextBlock Text="{loc:Loc Theme_Title}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
             <TextBlock Text="{loc:Loc Theme_Presets}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,6"/>
 
+            <!-- Preset 0: System (folgt Windows hell/dunkel) -->
+            <Button Style="{DynamicResource BookmarkChipStyle}"
+                    HorizontalAlignment="Stretch" Height="30" Margin="0,2"
+                    Background="{DynamicResource TabBackgroundBrush}"
+                    Click="BtnThemePreset_Click" Tag="System">
+                <DockPanel LastChildFill="True">
+                    <Ellipse Width="12" Height="12" Stroke="#8A8F99" StrokeThickness="1" Margin="0,0,8,0">
+                        <Ellipse.Fill>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#1C1D21" Offset="0.5"/>
+                                <GradientStop Color="#ECEFF2" Offset="0.5"/>
+                            </LinearGradientBrush>
+                        </Ellipse.Fill>
+                    </Ellipse>
+                    <TextBlock Text="{loc:Loc Theme_System}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </DockPanel>
+            </Button>
+
             <!-- Preset 1: Silver & Anthracite (Default) -->
             <Button Style="{DynamicResource BookmarkChipStyle}" 
                     HorizontalAlignment="Stretch" Height="30" Margin="0,2"

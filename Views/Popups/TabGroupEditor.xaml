@@ -1,0 +1,39 @@
+<UserControl x:Class="EchoBrowser.Views.Popups.TabGroupEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:EchoBrowser.Services">
+    <!-- Tab-Gruppe bearbeiten: Name, Farbe, neuer Tab, Gruppierung aufheben, Gruppe schließen -->
+    <Border Style="{DynamicResource FlyoutCardStyle}" Width="250" Padding="10" Margin="5">
+        <StackPanel>
+            <Grid>
+                <TextBox x:Name="txtName"
+                         Style="{DynamicResource OmniboxTextBoxStyle}"
+                         Height="32" Padding="10,0" FontSize="13"
+                         AutomationProperties.Name="{loc:Loc Group_NamePlaceholder}"
+                         TextChanged="TxtName_TextChanged"
+                         PreviewKeyDown="TxtName_PreviewKeyDown"/>
+                <TextBlock Text="{loc:Loc Group_NamePlaceholder}" FontSize="13" Margin="12,0,0,0" VerticalAlignment="Center"
+                           IsHitTestVisible="False" Foreground="{DynamicResource TextMutedBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=txtName}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <!-- Farben -->
+            <WrapPanel x:Name="panelColors" Margin="2,10,0,6"/>
+
+            <Border Height="1" Margin="0,4" Background="{DynamicResource BorderSubtleBrush}"/>
+            <MenuItem Header="{loc:Loc Group_NewTab}" Click="MenuNewTab_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <MenuItem Header="{loc:Loc Group_Ungroup}" Click="MenuUngroup_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <MenuItem Header="{loc:Loc Group_Close}" Click="MenuCloseGroup_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using EchoBrowser.Models;
 
@@ -35,6 +37,22 @@ namespace EchoBrowser.Services
             html = html.Replace("##SHORTCUTS_SECTION_CLASS##", showFavorites ? "" : "hidden");
             html = html.Replace("##TOGGLE_TEXT##", System.Net.WebUtility.HtmlEncode(Tr.Get(showFavorites ? "Start_HideShortcuts" : "Start_ShowShortcuts")));
             html = html.Replace("##SHORTCUTS_JSON##", shortcutsJson);
+
+            // "Meistbesucht" aus dem Verlauf (nicht im Inkognito-Modus)
+            var mostVisited = isIncognito
+                ? new List<MostVisitedSite>()
+                : MostVisited.Calculate(
+                    HistoryService.Instance.Entries.Select(h => new SuggestionSource(h.Title, h.Url, h.VisitedAt)),
+                    (settings.StartpageShortcuts ?? new()).Select(s => s.Url),
+                    DateTime.Now);
+            html = html.Replace("##MOST_VISITED_JSON##", JsonSerializer.Serialize(mostVisited));
+
+            // Eigenes Hintergrundbild
+            string wallpaper = settings.StartpageBackgroundPath ?? "";
+            bool hasWallpaper = wallpaper.Length > 0 && System.IO.File.Exists(wallpaper);
+            html = html.Replace("##WALLPAPER_CLASS##", hasWallpaper ? "has-wallpaper" : "");
+            html = html.Replace("##WALLPAPER_VERSION##", hasWallpaper ? System.IO.File.GetLastWriteTimeUtc(wallpaper).Ticks.ToString() : "0");
+            html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
             html = InternalPageSecurity.InjectToken(html);
 
             return html;
@@ -46,19 +64,24 @@ namespace EchoBrowser.Services
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>##TITLE##</title>
+    <!-- Farben des aktuellen Echo-Themes (ThemeManager.GetCssVariables), werden bei Theme-Wechsel live ersetzt -->
+    <style id=""echo-theme"">##THEME_CSS##</style>
     <style>
         :root {
-            --bg-color: #1C1D21;
-            --surface-color: #24262C;
-            --surface-hover: #2D3037;
-            --border-color: #363A42;
-            --border-focus: #D6D9DE;
-            --text-primary: #F0F2F5;
-            --text-secondary: #9CA3AF;
-            --text-muted: #6B7280;
-            --accent-silver: #C4C7CC;
-            --accent-glow: rgba(196, 199, 204, 0.2);
-            --danger-color: #F87171;
+            --bg-color: var(--echo-window);
+            --surface-color: var(--echo-surface);
+            --surface-hover: var(--echo-surface-hover);
+            --surface-raised: var(--echo-surface-active);
+            --input-bg: var(--echo-omnibox);
+            --border-color: var(--echo-border);
+            --border-focus: var(--echo-focus);
+            --text-primary: var(--echo-text);
+            --text-secondary: var(--echo-text-secondary);
+            --text-muted: var(--echo-text-muted);
+            --accent-silver: var(--echo-accent);
+            --accent-bright: var(--echo-accent-bright);
+            --accent-glow: color-mix(in srgb, var(--echo-accent) 20%, transparent);
+            --danger-color: var(--echo-danger);
         }
 
         * {
@@ -69,9 +92,36 @@ namespace EchoBrowser.Services
             user-select: none;
         }
 
+        /* Eigenes Hintergrundbild, leicht abgedunkelt bzw. aufgehellt für lesbare Inhalte */
+        body.has-wallpaper {
+            background-image: linear-gradient(color-mix(in srgb, var(--echo-window) 45%, transparent), color-mix(in srgb, var(--echo-window) 45%, transparent)),
+                              url('echo://wallpaper/?v=##WALLPAPER_VERSION##');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            color: var(--text-muted);
+            margin: 0 4px 10px;
+        }
+
+        .most-visited-section {
+            margin-top: 22px;
+        }
+
+        .tile-favicon {
+            width: 22px;
+            height: 22px;
+            display: none;
+        }
+
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 32%, #242730 0%, #1C1D21 72%);
+            background-image: radial-gradient(circle at 50% 32%, var(--echo-surface) 0%, var(--echo-window) 72%);
             color: var(--text-primary);
             min-height: 100vh;
             display: flex;
@@ -104,7 +154,7 @@ namespace EchoBrowser.Services
             width: 84px;
             height: 84px;
             margin-bottom: 12px;
-            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, calc(0.5 * var(--echo-shadow-k))));
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
         }
 
@@ -118,10 +168,10 @@ namespace EchoBrowser.Services
             font-weight: 800;
             letter-spacing: 8px;
             text-transform: uppercase;
-            background: linear-gradient(135deg, #FFFFFF 0%, #E6E9EE 30%, #9DA3AF 70%, #525866 100%);
+            background: linear-gradient(135deg, var(--echo-logo-1) 0%, var(--echo-logo-2) 30%, var(--echo-logo-3) 70%, var(--echo-logo-4) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, calc(0.5 * var(--echo-shadow-k))));
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
         }
 
@@ -133,21 +183,21 @@ namespace EchoBrowser.Services
         .incognito-tag {
             margin-top: 12px;
             padding: 5px 14px;
-            background: #242733;
-            border: 1px solid #3E4352;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
             border-radius: 14px;
-            color: #C4C7CC;
+            color: var(--accent-silver);
             font-size: 13px;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, calc(0.35 * var(--echo-shadow-k)));
         }
 
         .incognito-notice {
             margin-top: 8px;
-            color: #8A8F99;
+            color: var(--text-secondary);
             font-size: 13px;
             max-width: 480px;
             text-align: center;
@@ -170,20 +220,20 @@ namespace EchoBrowser.Services
             display: flex;
             align-items: center;
             padding: 0 16px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, calc(0.28 * var(--echo-shadow-k)));
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .search-box:hover {
-            border-color: #5C626E;
-            background: #282A31;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            border-color: var(--echo-accent-dim);
+            background: var(--surface-hover);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, calc(0.35 * var(--echo-shadow-k)));
         }
 
         .search-box:focus-within {
             border-color: var(--border-focus);
-            background: #2A2D35;
-            box-shadow: 0 0 0 3px var(--accent-glow), 0 8px 28px rgba(0, 0, 0, 0.45);
+            background: var(--surface-hover);
+            box-shadow: 0 0 0 3px var(--accent-glow), 0 8px 28px rgba(0, 0, 0, calc(0.45 * var(--echo-shadow-k)));
         }
 
         .search-icon {
@@ -198,7 +248,7 @@ namespace EchoBrowser.Services
 
         .search-box:focus-within .search-icon {
             opacity: 1;
-            fill: #FFFFFF;
+            fill: var(--accent-bright);
         }
 
         .search-input {
@@ -242,7 +292,7 @@ namespace EchoBrowser.Services
         }
 
         .engine-select {
-            background: #1C1D22;
+            background: var(--input-bg);
             color: var(--accent-silver);
             border: 1px solid var(--border-color);
             border-radius: 14px;
@@ -262,13 +312,13 @@ namespace EchoBrowser.Services
 
         .engine-select:hover {
             border-color: var(--accent-silver);
-            color: #FFFFFF;
-            background-color: #252830;
+            color: var(--accent-bright);
+            background-color: var(--surface-hover);
         }
 
         .engine-select option {
-            background: #222429;
-            color: #F0F2F5;
+            background: var(--surface-color);
+            color: var(--text-primary);
         }
 
         /* Buttons Row & Shortcuts Header */
@@ -295,13 +345,13 @@ namespace EchoBrowser.Services
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, calc(0.2 * var(--echo-shadow-k)));
         }
 
         .search-submit-btn:hover {
             background: var(--surface-hover);
             border-color: var(--accent-silver);
-            color: #FFFFFF;
+            color: var(--accent-bright);
             transform: translateY(-1px);
         }
 
@@ -378,14 +428,14 @@ namespace EchoBrowser.Services
             align-items: center;
             justify-content: center;
             margin-bottom: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, calc(0.25 * var(--echo-shadow-k)));
             transition: all 0.2s ease;
         }
 
         .shortcut-item:hover .shortcut-icon-circle {
             border-color: var(--accent-silver);
-            background: #2E323A;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+            background: var(--surface-raised);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, calc(0.35 * var(--echo-shadow-k)));
         }
 
         .shortcut-icon {
@@ -417,7 +467,7 @@ namespace EchoBrowser.Services
             width: 22px;
             height: 22px;
             border-radius: 50%;
-            background: #2D3038;
+            background: var(--surface-raised);
             border: 1px solid var(--border-color);
             color: var(--text-secondary);
             font-size: 11px;
@@ -425,7 +475,7 @@ namespace EchoBrowser.Services
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, calc(0.4 * var(--echo-shadow-k)));
         }
 
         .shortcut-item:hover .shortcut-edit-btn {
@@ -433,8 +483,8 @@ namespace EchoBrowser.Services
         }
 
         .shortcut-edit-btn:hover {
-            background: #3B3F49;
-            color: #FFFFFF;
+            background: var(--surface-hover);
+            color: var(--accent-bright);
             border-color: var(--accent-silver);
         }
 
@@ -453,7 +503,7 @@ namespace EchoBrowser.Services
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.65);
+            background: rgba(0, 0, 0, calc(0.65 * var(--echo-shadow-k)));
             backdrop-filter: blur(4px);
             display: none;
             align-items: center;
@@ -467,7 +517,7 @@ namespace EchoBrowser.Services
             border: 1px solid var(--border-color);
             border-radius: 14px;
             padding: 22px;
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, calc(0.6 * var(--echo-shadow-k)));
         }
 
         .modal-title {
@@ -492,7 +542,7 @@ namespace EchoBrowser.Services
         .modal-input {
             width: 100%;
             height: 36px;
-            background: #1A1B1F;
+            background: var(--input-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 0 10px;
@@ -542,17 +592,17 @@ namespace EchoBrowser.Services
         }
 
         .modal-btn-save {
-            background: #3B3F49;
-            color: #FFFFFF;
+            background: var(--surface-raised);
+            color: var(--text-primary);
             border: 1px solid var(--accent-silver);
         }
 
         .modal-btn-save:hover {
-            background: #4A4F5C;
+            background: var(--surface-hover);
         }
     </style>
 </head>
-<body>
+<body class=""##WALLPAPER_CLASS##"">
     <div class=""container"">
         <!-- Top Half: Logo (SVG Emblem + Typography) -->
         <div class=""logo-container"">
@@ -632,6 +682,12 @@ namespace EchoBrowser.Services
                 <!-- Injected via JavaScript -->
             </div>
         </div>
+
+        <!-- Meistbesucht (aus dem Verlauf) -->
+        <div id=""mostVisitedSection"" class=""shortcuts-section most-visited-section ##SHORTCUTS_SECTION_CLASS##"">
+            <div class=""section-label"">{{t:Start_MostVisited}}</div>
+            <div id=""mostVisitedGrid"" class=""shortcuts-grid""></div>
+        </div>
     </div>
 
     <!-- Modal Dialog for Add / Edit Shortcut -->
@@ -676,6 +732,38 @@ namespace EchoBrowser.Services
         let currentEditingIndex = -1;
         let isShortcutsVisible = ##SHOW_FAVORITES##;
         let shortcuts = ##SHORTCUTS_JSON##;
+        const mostVisited = ##MOST_VISITED_JSON##;
+        const mostVisitedSection = document.getElementById('mostVisitedSection');
+        const mostVisitedGrid = document.getElementById('mostVisitedGrid');
+
+        // Kachel-Symbol: Anfangsbuchstabe, ersetzt durch das Website-Symbol, sobald es geladen ist
+        function tileIcon(url, title) {
+            const initial = title ? escapeHtml(title.charAt(0).toUpperCase()) : '?';
+            let host = '';
+            try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { }
+            const favicon = host
+                ? `<img class=""tile-favicon"" aria-hidden=""true"" src=""echo://favicon/${encodeURIComponent(host)}"" onload=""this.previousElementSibling.style.display='none'; this.style.display='block';"" onerror=""this.remove()"">`
+                : '';
+            return `<span style=""font-weight:700; font-size:15px; color:var(--accent-silver);"">${initial}</span>${favicon}`;
+        }
+
+        function renderMostVisited() {
+            mostVisitedGrid.innerHTML = '';
+            if (mostVisited.length === 0) {
+                mostVisitedSection.style.display = 'none';
+                return;
+            }
+            mostVisited.forEach(site => {
+                const el = document.createElement('div');
+                el.className = 'shortcut-item';
+                el.title = site.Url;
+                el.innerHTML = `
+                    <div class=""shortcut-icon-circle"">${tileIcon(site.Url, site.Title)}</div>
+                    <span class=""shortcut-title"">${escapeHtml(site.Title)}</span>`;
+                el.addEventListener('click', () => navigateTo(site.Url));
+                mostVisitedGrid.appendChild(el);
+            });
+        }
 
         // Initialize Engine
         engineSelect.value = ""##CURRENT_ENGINE##"";
@@ -696,32 +784,10 @@ namespace EchoBrowser.Services
             postHostMessage({ type: 'setSearchEngine', engine: selected });
         });
 
+        // Ob Adresse oder Suchbegriff, entscheidet der Browser (UrlHelper.ToNavigableUrl) – wie in der Adressleiste
         function performSearch() {
             const query = input.value.trim();
-            if (!query) return;
-
-            // Direct URL
-            if (query.startsWith('http://') || query.startsWith('https://') || query.startsWith('file://')) {
-                navigateTo(query);
-                return;
-            }
-
-            if (/^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(\/.*)?$/.test(query) && !query.includes(' ')) {
-                navigateTo('https://' + query);
-                return;
-            }
-
-            const engine = engineSelect.value;
-            let searchUrl = '';
-            switch (engine) {
-                case 'google': searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query); break;
-                case 'bing': searchUrl = 'https://www.bing.com/search?q=' + encodeURIComponent(query); break;
-                case 'ecosia': searchUrl = 'https://www.ecosia.org/search?q=' + encodeURIComponent(query); break;
-                case 'brave': searchUrl = 'https://search.brave.com/search?q=' + encodeURIComponent(query); break;
-                case 'startpage': searchUrl = 'https://www.startpage.com/do/dsearch?query=' + encodeURIComponent(query); break;
-                default: searchUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(query); break;
-            }
-            navigateTo(searchUrl);
+            if (query) navigateTo(query);
         }
 
         input.addEventListener('keydown', (e) => {
@@ -737,9 +803,11 @@ namespace EchoBrowser.Services
             isShortcutsVisible = !isShortcutsVisible;
             if (isShortcutsVisible) {
                 shortcutsSection.classList.remove('hidden');
+                mostVisitedSection.classList.remove('hidden');
                 toggleShortcutsText.textContent = {{js:Start_HideShortcuts}};
             } else {
                 shortcutsSection.classList.add('hidden');
+                mostVisitedSection.classList.add('hidden');
                 toggleShortcutsText.textContent = {{js:Start_ShowShortcuts}};
             }
             postHostMessage({ type: 'toggleStartpageFavorites', visible: isShortcutsVisible });
@@ -754,12 +822,9 @@ namespace EchoBrowser.Services
                 el.className = 'shortcut-item';
                 el.title = item.Url;
 
-                const displayInitial = item.Title ? item.Title.charAt(0).toUpperCase() : '?';
 
                 el.innerHTML = `
-                    <div class=""shortcut-icon-circle"">
-                        <span style=""font-weight:700; font-size:15px; color:#C4C7CC;"">${displayInitial}</span>
-                    </div>
+                    <div class=""shortcut-icon-circle"">${tileIcon(item.Url, item.Title)}</div>
                     <span class=""shortcut-title"">${escapeHtml(item.Title)}</span>
                     <button class=""shortcut-edit-btn"" title=""{{t:Start_Edit}}"">&#x270E;</button>
                 `;
@@ -786,9 +851,9 @@ namespace EchoBrowser.Services
             addTile.title = {{js:Start_AddShortcut}};
             addTile.innerHTML = `
                 <div class=""shortcut-icon-circle shortcut-add-circle"">
-                    <span style=""font-size:20px; color:#A0A4AB;"">+</span>
+                    <span style=""font-size:20px; color:var(--text-secondary);"">+</span>
                 </div>
-                <span class=""shortcut-title"" style=""color:#A0A4AB;"">{{t:Start_Add}}</span>
+                <span class=""shortcut-title"" style=""color:var(--text-secondary);"">{{t:Start_Add}}</span>
             `;
             addTile.addEventListener('click', () => {
                 openAddModal();
@@ -876,6 +941,7 @@ namespace EchoBrowser.Services
         }
 
         renderShortcuts();
+        renderMostVisited();
     </script>
 </body>
 </html>";

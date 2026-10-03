@@ -6,18 +6,19 @@ using EchoBrowser.Models;
 
 namespace EchoBrowser.Services
 {
+    /// <summary>Favoriten der Seitenleiste – eine Instanz für alle Fenster.</summary>
     public class SidebarService
     {
+        private static SidebarService? _instance;
+        public static SidebarService Instance => _instance ??= new SidebarService();
+
         private readonly string _filePath;
 
         public ObservableCollection<SidebarFavorite> Favorites { get; } = new();
 
-        public SidebarService()
+        private SidebarService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string folder = Path.Combine(appData, "EchoBrowser");
-            Directory.CreateDirectory(folder);
-            _filePath = Path.Combine(folder, "sidebar_favorites.json");
+            _filePath = AppPaths.File("sidebar_favorites.json");
             LoadFavorites();
         }
 

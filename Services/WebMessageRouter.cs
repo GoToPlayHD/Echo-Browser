@@ -82,13 +82,13 @@ namespace EchoBrowser.Services
                 if (!InternalPageSecurity.IsTrustedInternalMessage(source, root) &&
                     !InternalPageSecurity.IsAllowedFromWebStore(source, type))
                 {
-                    Debug.WriteLine($"[Echo] WebMessage '{type}' von nicht vertrauenswürdiger Quelle verworfen: {source}");
+                    Log.Warn($"WebMessage '{type}' von nicht vertrauenswürdiger Quelle verworfen: {source}");
                     return;
                 }
 
                 if (!_handlers.TryGetValue(type, out var handler))
                 {
-                    Debug.WriteLine($"[Echo] Unbekannter WebMessage-Typ: '{type}'");
+                    Log.Warn($"Unbekannter WebMessage-Typ: '{type}'");
                     return;
                 }
 
@@ -97,7 +97,7 @@ namespace EchoBrowser.Services
             catch (Exception ex)
             {
                 // Fehler eines Handlers dürfen den Browser nicht abstürzen lassen
-                Debug.WriteLine($"[Echo] Fehler beim Verarbeiten von WebMessage '{type}': {ex}");
+                Log.Warn($"Fehler beim Verarbeiten von WebMessage '{type}'", ex);
             }
         }
     }

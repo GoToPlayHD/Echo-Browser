@@ -112,3 +112,58 @@
 - [x] Popups als eigene UserControls (`Views/Popups/`): Verlauf, Downloads, Theme, Shield, Erweiterungen sowie die Formulare für Favorit, Lesezeichen und Gruppe. Jedes Panel meldet Aktionen per Ereignis an das Hauptfenster.
   - Bewusst im Hauptfenster geblieben: das Hauptmenü (ruft nur Hauptfenster-Funktionen auf) und die Lesezeichen-Gruppe (Drag & Drop ist eng mit der Lesezeichenleiste verzahnt).
 - [x] **Bug (Shield „Cookies & Websitedaten leeren“)**: löschte die Cookies aller Websites statt nur der aktuellen Seite.
+
+## Erledigt (Oktober 2026) – Phase 0: Fundament
+- [x] **Bug (Datenverlust bei mehreren Fenstern)**: Lesezeichen, Seitenleiste und Verlauf gab es pro Fenster einmal – das zuletzt speichernde Fenster überschrieb die anderen. Jetzt eine gemeinsame Instanz (`BookmarkService.Instance`, `SidebarService.Instance`, `HistoryService.Instance`).
+- [x] **Eine WebView2-Umgebung für alle Fenster** (`BrowserEnvironment`). Inkognito nutzt ein InPrivate-Profil statt eines Temp-Ordners.
+- [x] **Interne Seiten unter echtem `echo://`-Schema** statt `NavigateToString`: Zurück/Vor zur Startseite funktioniert, die Host-Bridge vertraut nur noch `echo://`-Seiten (plus Token), fremde Seiten können interne Seiten nicht per iframe einbetten.
+- [x] **Wirkungslose Einstellungen angeschlossen**: Popup-Blocker (ungefragte Popups werden blockiert und in der Adressleiste angeboten, pro Website erlaubbar), „Do Not Track“ + Global Privacy Control (Header und `navigator`), Standard-Zoom für neue Tabs. JavaScript-Schalter deaktiviert nicht mehr die Einstellungsseite selbst.
+- [x] **Einzelinstanz & Startargumente**: `EchoBrowser.exe <url>` öffnet die Adresse als Tab im laufenden Fenster (Voraussetzung für „Als Standardbrowser“).
+- [x] **Absturzsicher**: abgestürzte Tabs zeigen eine Absturzseite mit „Neu laden“, hängende Seiten fragen nach, ein abgestürzter Browser-Prozess wird neu aufgebaut. Die Sitzung wird laufend gespeichert (alle Fenster, aktiver Tab, Titel); nach einem Absturz fragt Echo beim Start „Tabs wiederherstellen?“.
+- [x] **Bug (Strg+N stellte die Sitzung erneut her)**: Nur das erste Fenster führt das Startverhalten aus.
+- [x] **Protokoll** unter `%LOCALAPPDATA%\EchoBrowser\logs` (7 Tage) und globale Fehlerbehandlung statt stiller `Debug.WriteLine`. Fehlende WebView2 Runtime → Hinweis mit Download-Link.
+- [x] **CI**: GitHub Actions baut und testet jeden Pull Request (`.github/workflows/build.yml`).
+
+## Roadmap
+- [x] **Phase 1 – Grundfunktionen** (siehe unten)
+- [x] **Phase 2 – Optik** (siehe unten)
+- [x] **Phase 3 – Super Powers** (siehe unten)
+- [ ] **Phase 4**: Echo Shield 2.0 (EasyList), Verlauf in SQLite.
+- [ ] **Von Hand prüfen** (braucht echte Maus): Snap-Layouts beim Zeigen auf „Maximieren“, Klick in die linke/rechte Seite der geteilten Ansicht wechselt den Fokus, Trenner ziehen, Link-Kontextmenü „In geteilter Ansicht öffnen“, Tabs per Drag & Drop in eine Gruppe ziehen.
+
+## Erledigt (Oktober 2026) – Phase 1: Grundfunktionen
+- [x] **Favicons** in Tabs, Lesezeichenleiste, Gruppen-Flyout, Verlauf und Omnibox (`FaviconCache`, `SiteIcon`); interne Seiten zeigen das Echo-Symbol.
+- [x] **Tabs**: drehender Lade-Spinner, Hover-Zustand, Ton-Anzeige mit Stummschalten, Mittelklick schließt, Kontextmenü (Neuer Tab rechts, Neu laden, Duplizieren, Stummschalten, In neues Fenster verschieben, Andere/Rechts schließen, Geschlossenen Tab wieder öffnen).
+- [x] **Tastenkürzel** wie in Chrome (Strg+Tab, Strg+1–9, Strg+Umschalt+T, Strg+F/F3, Zoom, F11, Strg+P/S/U, Alt+Links/Rechts …) – Liste in der README.
+- [x] **Auf Seite suchen** mit WebView2-Find-API, Trefferzahl und eigener Suchleiste.
+- [x] **Omnibox 2.0**: Vorschläge aus Tabs („Zu Tab wechseln“), Lesezeichen, Verlauf (Häufigkeit + Aktualität) und Suchmaschine, Inline-Vervollständigung, Pfeiltasten, Alt+Enter, Strg+Enter, Umschalt+Entf; ohne Fokus Domain hervorgehoben, „Nicht sicher“ bei http. Adress-Erkennung korrigiert (`host:port`, IP, localhost, Umlaut-Domains).
+- [x] **Zoom pro Website** (`zoom.json`), Zoom-Anzeige in der Adressleiste, Zoom-Zeile im Menü.
+- [x] **Website-Berechtigungen**: eigene Abfrage, Verwaltung im Shield-Panel.
+- [x] **Vollbild** (F11 und Videos) mit Hinweis.
+- [x] **Downloads**: gemeinsame, gespeicherte Liste, Pause/Fortsetzen/Abbrechen, Erneut versuchen, Im Ordner anzeigen, Fortschrittsring; Download-Links ändern die Adressleiste nicht mehr.
+- [x] **Standardbrowser**: Registrierung bei Windows (Velopack-Hooks + Knopf in den Einstellungen).
+- [x] **Passwörter & Autofill** (WebView2) mit Schaltern, **Lesezeichen-Import** aus Chrome/Edge/Brave/HTML und HTML-Export.
+- [x] Flyouts der rechten Symbolleiste rechtsbündig; Trennlinien in Kontextmenüs nicht mehr eingerückt; „Aktiv“ nur bei der gewählten Suchmaschine.
+
+## Erledigt (Oktober 2026) – Phase 2: Optik
+- [x] **Start-, Einstellungs- und Absturzseite folgen dem Theme** (`ThemeManager.GetCssVariables`), live ohne Neuladen; Webseiten bekommen `prefers-color-scheme` passend zum Browser. Eigene Akzentfarben bleiben im hellen Design lesbar.
+- [x] **Neues Theme „System“**: folgt automatisch dem hellen/dunklen Modus von Windows (auch während Echo läuft).
+- [x] **Mica** (Windows 11 22H2+) in der Tab-Leiste, abschaltbar unter Erscheinungsbild → „Transparenzeffekte“; passende helle/dunkle Fensterrahmen und runde Ecken.
+- [x] **Snap-Layouts** beim Zeigen auf „Maximieren“ (`HTMAXBUTTON`) und **kein abgeschnittener Rand mehr im maximierten Fenster** (vorher ~8 px oben/links/rechts).
+- [x] **Tab-Leiste wie Chrome**: Tabs teilen sich die Breite und schrumpfen bis aufs Symbol, „+“ direkt hinter dem letzten Tab, Einblend-Animation, Infokarte mit Titel und Domain.
+- [x] **Barrierefreiheit**: sichtbarer Tastaturfokus statt `FocusVisualStyle={x:Null}`, Screenreader-Namen für Icon-Knöpfe.
+- [x] **Feinschliff**: Flyouts gleiten beim Öffnen leicht herein; feste Farben (Inkognito-Abzeichen, Verlauf, Erweiterungs-Popup) durch Theme-Farben ersetzt; Dialoge zeigen das Echo-Logo statt eines Puzzle-Symbols; Seitenleisten-Symbole bleiben im hellen Design sichtbar.
+- [x] **Startseite 2.0**: Favicons auf den Kacheln, „Meistbesucht“ aus dem Verlauf, optionales eigenes Hintergrundbild (Einstellungen → Erscheinungsbild). Interne Bilder (`echo://favicon`, `echo://wallpaper`) sind für Webseiten gesperrt.
+
+## Erledigt (Oktober 2026) – Phase 3: Super Powers
+- [x] **Befehlspalette (Strg+K)**: unscharfe Suche über alle Befehle, offene Tabs, Lesezeichen, Verlauf und Einstellungsbereiche (`echo://settings#section-…`); Tastenkürzel daneben, auch über das Hauptmenü erreichbar. `CommandCatalog` ist jetzt die eine Quelle für Befehle und Tastenkürzel (Tests: keine doppelten Kürzel, alle Befehle übersetzt und belegt).
+- [x] **Tab-Schlaf**: inaktive Tabs werden nach 5/15/30/60/120 Min. (Standard 30, „Nie“ möglich) eingefroren (`TrySuspendAsync`, `MemoryUsageTargetLevel.Low`) und nach der vierfachen Zeit (mind. 2 Std.) verworfen; Tabs mit Ton, ladende und sichtbare Tabs bleiben wach. Schlafende Tabs sind abgeblendet, Aktivieren weckt bzw. lädt sie neu (`TabSleepPolicy`, Tests).
+- [x] **Schneller Start**: beim Wiederherstellen der Sitzung lädt nur der aktive Tab, die anderen beim ersten Anklicken.
+- [x] **Leistung & Speicher** (Hauptmenü, Befehlspalette): Arbeitsspeicher von Echo gesamt (privater Working Set wie im Task-Manager) und pro Tab (Renderer-Prozesse über Frame-IDs zugeordnet), Schlafzeit wählen, „Jetzt schlafen legen“; Speicher auch in der Infokarte des Tabs. Einstellung zusätzlich unter Einstellungen → Tabs.
+- [x] **Angeheftete Tabs**: nur Symbol, feste Breite, immer vorne, ohne Schließen-Kreuz; Kontextmenü „Anheften/Loslösen“, Befehl in der Palette.
+- [x] **Tab-Gruppen**: Name und Farbe (9 Farben wie Chrome), farbiger Gruppenkopf und Unterstrich, Klick klappt ein/aus (eingeklappt mit Anzahl), Rechtsklick öffnet den Editor (Name, Farbe, Neuer Tab in der Gruppe, Gruppierung aufheben, Gruppe schließen). Drag & Drop in eine Gruppe hinein bzw. heraus; „Neuer Tab rechts“ bleibt in der Gruppe. Reihenfolge-Logik in `TabOrder` (Tests), Tab-Leiste wird per `ListSync` abgeglichen (keine neu aufgebauten Tabs).
+- [x] **Vertikale Tabs**: Liste links (breit 240 px oder schmal nur Symbole), schmale Titelzeile mit dem Titel des aktiven Tabs, Umschalter neben dem Logo, in den Einstellungen (Tabs) und in der Befehlspalette.
+- [x] **Sitzung** speichert angeheftete Tabs und Gruppen (Name, Farbe, eingeklappt).
+- [x] **Geteilte Ansicht (Split View)**: zwei Tabs nebeneinander (Spalten + `GridSplitter` im `WebViewContainer`, kein Airspace-Problem), Akzentrahmen um die Seite mit dem Fokus, Adressleiste/Navigation/Zoom/Suche folgen dem Fokus; die Teilung bleibt erhalten, solange einer der beiden Tabs aktiv ist (wie Edge), beide Tabs sind in der Tab-Leiste hervorgehoben und stehen nebeneinander. Einstiege: Knopf in der Symbolleiste (ausblendbar), Tab-Kontextmenü („Neben aktuellem Tab anzeigen“), Link-Kontextmenü („Link in geteilter Ansicht öffnen“), Befehlspalette. Beide Seiten bleiben wach (Tab-Schlaf), Videos im Vollbild nehmen die ganze Fläche ein.
+- [x] **Sitzung**: ist der aktive Tab nicht speicherbar (Startseite), wird beim nächsten Start der nächstgelegene Tab aktiv statt immer der erste.
+- [x] **Eigener Datenordner** über `ECHO_USER_DATA_DIR` (alle Dienste nutzen `AppPaths`); eigene Einzelinstanz pro Datenordner – Entwicklungsstände laufen neben dem installierten Echo.

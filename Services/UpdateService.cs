@@ -175,7 +175,7 @@ namespace EchoBrowser.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[UpdateService] Automatischer Check fehlgeschlagen: {ex}");
+                    Log.Warn("Automatischer Check fehlgeschlagen", ex);
                 }
             }, null, TimeSpan.FromSeconds(12), TimeSpan.FromHours(4));
         }
@@ -270,7 +270,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[UpdateService] Update-Prüfung fehlgeschlagen: {ex}");
+                Log.Warn("Update-Prüfung fehlgeschlagen", ex);
                 Status = UpdateStatus.Error;
                 LastError = ex.Message;
                 StatusMessage = Tr.Format("Update_Error", ex.Message);
@@ -298,7 +298,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[UpdateService] Fehler beim Neustart mit Update: {ex}");
+                Log.Warn("Fehler beim Neustart mit Update", ex);
                 Status = UpdateStatus.Error;
                 LastError = ex.Message;
                 StatusMessage = Tr.Format("Update_Error", ex.Message);

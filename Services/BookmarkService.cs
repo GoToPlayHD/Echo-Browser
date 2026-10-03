@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -8,18 +9,19 @@ using EchoBrowser.Models;
 
 namespace EchoBrowser.Services
 {
+    /// <summary>Lesezeichen – eine Instanz für alle Fenster, damit sich Fenster nicht gegenseitig überschreiben.</summary>
     public class BookmarkService
     {
+        private static BookmarkService? _instance;
+        public static BookmarkService Instance => _instance ??= new BookmarkService();
+
         private readonly string _filePath;
 
         public ObservableCollection<Bookmark> Bookmarks { get; } = new();
 
-        public BookmarkService()
+        private BookmarkService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string folder = Path.Combine(appData, "EchoBrowser");
-            Directory.CreateDirectory(folder);
-            _filePath = Path.Combine(folder, "bookmarks.json");
+            _filePath = AppPaths.File("bookmarks.json");
             LoadBookmarks();
         }
 
@@ -136,6 +138,31 @@ namespace EchoBrowser.Services
             }
             SaveBookmarks();
             return bm;
+        }
+
+        /// <summary>
+        /// Importierte Lesezeichen als neue Gruppe anlegen. Bereits vorhandene Adressen werden übersprungen.
+        /// Gibt die Anzahl der neu angelegten Lesezeichen zurück (0 = keine Gruppe angelegt).
+        /// </summary>
+        public int ImportAsGroup(string groupName, IEnumerable<ImportedBookmark> items)
+        {
+            var known = new HashSet<string>(
+                Bookmarks.SelectMany(b => b.IsGroup ? b.Children : new ObservableCollection<Bookmark> { b })
+                         .Select(b => UrlHelper.NormalizeForComparison(b.Url)));
+
+            var group = Bookmark.CreateGroup(groupName);
+            foreach (var item in items)
+            {
+                if (known.Add(UrlHelper.NormalizeForComparison(item.Url)))
+                {
+                    group.Children.Add(new Bookmark(item.Title, item.Url));
+                }
+            }
+
+            if (group.Children.Count == 0) return 0;
+            Bookmarks.Add(group);
+            SaveBookmarks();
+            return group.Children.Count;
         }
 
         public Bookmark AddGroup(string groupName, string color = "#8A8F99")

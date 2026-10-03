@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="clr-namespace:EchoBrowser.Services"
              xmlns:models="clr-namespace:EchoBrowser.Models"
+             xmlns:controls="clr-namespace:EchoBrowser.Views.Controls"
              x:Name="root">
     <Border Style="{DynamicResource FlyoutCardStyle}" Width="400" MaxHeight="520" Margin="5">
         <Grid>
@@ -37,8 +38,8 @@
                 <!-- Incognito Warning (only visible in incognito) -->
                 <Border x:Name="bannerIncognitoHistory" 
                         Visibility="Collapsed" 
-                        Background="#232733" 
-                        BorderBrush="#3E4554" 
+                        Background="{DynamicResource SurfaceHoverBrush}" 
+                        BorderBrush="{DynamicResource BorderBrush}" 
                         BorderThickness="1" 
                         CornerRadius="8" 
                         Padding="8,6" 
@@ -95,22 +96,9 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Initial / Favicon circle -->
-                                        <Border Grid.Column="0" 
-                                                Width="26" Height="26" 
-                                                CornerRadius="13" 
-                                                Background="{DynamicResource SurfaceBrush}" 
-                                                BorderBrush="{DynamicResource BorderBrush}" 
-                                                BorderThickness="1" 
-                                                Margin="0,0,10,0"
-                                                VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayInitial}" 
-                                                       FontSize="11" 
-                                                       FontWeight="Bold" 
-                                                       Foreground="{DynamicResource AccentSilverBrush}" 
-                                                       HorizontalAlignment="Center" 
-                                                       VerticalAlignment="Center"/>
-                                        </Border>
+                                        <!-- Website-Symbol (Buchstabe als Ersatz) -->
+                                        <controls:SiteIcon Grid.Column="0" Url="{Binding Url}" Fallback="{Binding DisplayInitial}"
+                                                           IconSize="20" Margin="3,0,13,0"/>
 
                                         <!-- Title & Meta (Clickable) -->
                                         <StackPanel Grid.Column="1" 
@@ -136,7 +124,7 @@
 
                                         <!-- Delete single history entry button -->
                                         <Button Grid.Column="2" 
-                                                Style="{DynamicResource ChromeIconButton}" 
+                                                Style="{DynamicResource IconButtonStyle}" 
                                                 Width="22" Height="22" 
                                                 VerticalAlignment="Center" 
                                                 ToolTip="{loc:Loc History_RemoveEntry}"

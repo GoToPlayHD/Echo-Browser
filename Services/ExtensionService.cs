@@ -21,8 +21,7 @@ namespace EchoBrowser.Services
 
         private ExtensionService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _extensionsDirectory = Path.Combine(appData, "EchoBrowser", "Extensions");
+            _extensionsDirectory = Path.Combine(AppPaths.DataFolder, "Extensions");
             Directory.CreateDirectory(_extensionsDirectory);
         }
 
@@ -138,7 +137,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to get extensions: {ex.Message}");
+                Log.Warn("Failed to get extensions", ex);
                 return Array.Empty<CoreWebView2BrowserExtension>();
             }
         }
@@ -175,7 +174,7 @@ namespace EchoBrowser.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Echo] Erweiterungs-Index konnte nicht gelesen werden: {ex.Message}");
+                    Log.Warn("Erweiterungs-Index konnte nicht gelesen werden", ex);
                 }
                 return _folderIndex;
             }
@@ -189,7 +188,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] Erweiterungs-Index konnte nicht gespeichert werden: {ex.Message}");
+                Log.Warn("Erweiterungs-Index konnte nicht gespeichert werden", ex);
             }
         }
 
@@ -234,7 +233,7 @@ namespace EchoBrowser.Services
             catch (Exception ex)
             {
                 // Dateien können kurz nach dem Entfernen noch gesperrt sein – dann bleibt der Ordner liegen
-                Debug.WriteLine($"[Echo] Erweiterungsordner konnte nicht gelöscht werden: {ex.Message}");
+                Log.Warn("Erweiterungsordner konnte nicht gelöscht werden", ex);
             }
         }
 
@@ -302,7 +301,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] Manifest-Name in '{folder}' nicht lesbar: {ex.Message}");
+                Log.Warn($"Manifest-Name in '{folder}' nicht lesbar", ex);
             }
             return names;
         }
@@ -334,7 +333,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] manifest.json in '{folder}' nicht lesbar: {ex.Message}");
+                Log.Warn($"manifest.json in '{folder}' nicht lesbar", ex);
                 return null;
             }
         }

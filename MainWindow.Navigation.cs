@@ -52,104 +52,81 @@ namespace EchoBrowser
         public static bool IsStartPage(string? url)
         {
             if (string.IsNullOrWhiteSpace(url)) return true;
-            return url.Equals(StartPageService.StartPageUrl, StringComparison.OrdinalIgnoreCase) ||
-                   url.Equals("echo://newtab", StringComparison.OrdinalIgnoreCase) ||
-                   url.Equals("about:blank", StringComparison.OrdinalIgnoreCase) ||
-                   url.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase);
+            return InternalPages.Is(url, InternalPages.Start) ||
+                   InternalPages.Is(url, InternalPages.NewTab) ||
+                   url.Equals("about:blank", StringComparison.OrdinalIgnoreCase);
         }
 
-        private void NavigateToInput(string input)
+        /// <summary>Eingabe aus Adressleiste oder Startseite: Adresse öffnen oder mit der gewählten Suchmaschine suchen.</summary>
+        private void NavigateToInput(string input, BrowserTab? tab = null)
         {
-            if (string.IsNullOrWhiteSpace(input) || ActiveTab?.WebView == null) return;
+            tab ??= ActiveTab;
+            var core = tab?.WebView?.CoreWebView2;
+            if (string.IsNullOrWhiteSpace(input) || tab == null || core == null) return;
 
             string target = input.Trim();
 
-            // Check if navigating to custom startpage
-            if (target.Equals("echo://start", StringComparison.OrdinalIgnoreCase) ||
-                target.Equals("echo://newtab", StringComparison.OrdinalIgnoreCase) ||
-                target.Equals("about:blank", StringComparison.OrdinalIgnoreCase))
+            // Startseite
+            if (IsStartPage(target))
             {
-                ActiveTab.Url = StartPageService.StartPageUrl;
-                ActiveTab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
-                ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
-                txtUrl.Text = "";
+                tab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
+                core.Navigate(StartPageService.StartPageUrl);
                 return;
             }
 
-            // Check if navigating to custom settings page
-            if (target.Equals("echo://settings", StringComparison.OrdinalIgnoreCase) ||
+            // Einstellungsseite (auch unter den von Chrome/Edge/Firefox gewohnten Adressen)
+            if (InternalPages.Is(target, InternalPages.Settings) ||
                 target.Equals("about:settings", StringComparison.OrdinalIgnoreCase) ||
                 target.Equals("about:preferences", StringComparison.OrdinalIgnoreCase) ||
                 target.Equals("chrome://settings", StringComparison.OrdinalIgnoreCase) ||
                 target.Equals("edge://settings", StringComparison.OrdinalIgnoreCase) ||
                 target.Equals("settings", StringComparison.OrdinalIgnoreCase))
             {
-                NavigateToSettingsPage(ActiveTab);
+                NavigateToSettingsPage(tab);
                 return;
             }
 
-            // Direct URL vs Search detection
-            if (target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                target.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                target.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
-                target.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
-            {
-                // Direct complete URL
-            }
-            else if (target.StartsWith("localhost", StringComparison.OrdinalIgnoreCase) ||
-                     target.StartsWith("127.0.0.1", StringComparison.OrdinalIgnoreCase))
-            {
-                target = "http://" + target;
-            }
-            else if (Regex.IsMatch(target, @"^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(/.*)?$") && !target.Contains(' '))
-            {
-                // Domain format
-                target = "https://" + target;
-            }
-            else
-            {
-                // Query configured search engine from AppSettingsService!
-                target = AppSettingsService.Instance.GetSearchUrl(target);
-            }
+            // Adresse öffnen oder mit der eingestellten Suchmaschine suchen (Erkennung: UrlHelper.ToNavigableUrl)
+            target = UrlHelper.ToNavigableUrl(target) ?? AppSettingsService.Instance.GetSearchUrl(target);
 
             try
             {
-                ActiveTab.WebView.CoreWebView2?.Navigate(target);
+                core.Navigate(target);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Navigation error: {ex.Message}");
+                Log.Warn($"Navigation zu '{target}' fehlgeschlagen", ex);
             }
         }
 
-        private void TxtUrl_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                NavigateToInput(txtUrl.Text);
-                WebViewContainer.Focus();
-            }
-            else if (e.Key == Key.Escape)
-            {
-                if (ActiveTab != null)
-                {
-                    txtUrl.Text = IsStartPage(ActiveTab.Url) ? "" : ActiveTab.Url;
-                }
-                WebViewContainer.Focus();
-            }
-        }
+        // Enter, Esc und Pfeiltasten der Adressleiste: TxtUrl_PreviewKeyDown in MainWindow.Omnibox.cs
 
         private void TxtUrl_GotFocus(object sender, RoutedEventArgs e)
         {
+            _typedAddressText = txtUrl.Text;
+            UpdateAddressDisplay();
             txtUrl.SelectAll();
+        }
+
+        /// <summary>Erster Klick in die Adressleiste markiert alles (wie in Chrome), weitere Klicks setzen den Cursor.</summary>
+        private void TxtUrl_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!txtUrl.IsKeyboardFocusWithin)
+            {
+                txtUrl.Focus();
+                e.Handled = true;
+            }
         }
 
         private void TxtUrl_LostFocus(object sender, RoutedEventArgs e)
         {
+            CloseOmniboxPopup();
             if (ActiveTab != null && string.IsNullOrWhiteSpace(txtUrl.Text))
             {
-                txtUrl.Text = IsStartPage(ActiveTab.Url) ? "" : ActiveTab.Url;
+                _isEditingAddress = false;
+                ShowAddress(ActiveTab);
             }
+            UpdateAddressDisplay();
         }
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
@@ -176,33 +153,20 @@ namespace EchoBrowser
             {
                 ActiveTab.WebView.Stop();
             }
+            else if (InternalPages.Is(ActiveTab.WebView.CoreWebView2?.Source, InternalPages.Crashed))
+            {
+                // Auf der Absturzseite heißt "Neu laden": die ursprüngliche Seite erneut öffnen
+                NavigateToInput(ActiveTab.Url);
+            }
             else
             {
-                if (IsStartPage(ActiveTab.Url))
-                {
-                    ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
-                    txtUrl.Text = "";
-                }
-                else
-                {
-                    ActiveTab.WebView.Reload();
-                }
+                ActiveTab.WebView.Reload();
             }
         }
 
         private void BtnHome_Click(object sender, RoutedEventArgs e)
         {
-            if (ActiveTab?.WebView == null) return;
-
-            if (IsStartPage(ActiveTab.Url))
-            {
-                ActiveTab.WebView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
-                txtUrl.Text = "";
-            }
-            else
-            {
-                NavigateToInput(StartPageService.StartPageUrl);
-            }
+            NavigateToInput(StartPageService.StartPageUrl);
         }
 
         #endregion

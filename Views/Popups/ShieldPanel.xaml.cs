@@ -31,6 +31,9 @@ namespace EchoBrowser.Views.Popups
         /// <summary>"Cookies &amp; Websitedaten leeren" wurde geklickt.</summary>
         public event Action? ClearSiteDataRequested;
 
+        /// <summary>Eine gespeicherte Website-Berechtigung soll zurückgesetzt werden (wieder nachfragen).</summary>
+        public event Action<SitePermission>? ResetPermissionRequested;
+
         public ShieldPanel()
         {
             InitializeComponent();
@@ -105,5 +108,20 @@ namespace EchoBrowser.Views.Popups
         }
 
         private void BtnClearSiteData_Click(object sender, RoutedEventArgs e) => ClearSiteDataRequested?.Invoke();
+
+        /// <summary>Gespeicherte Berechtigungen der aktuellen Website anzeigen.</summary>
+        public void ShowPermissions(System.Collections.Generic.IReadOnlyList<SitePermission> permissions)
+        {
+            listSitePermissions.ItemsSource = permissions;
+            txtNoPermissions.Visibility = permissions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void BtnResetPermission_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { Tag: SitePermission permission })
+            {
+                ResetPermissionRequested?.Invoke(permission);
+            }
+        }
     }
 }

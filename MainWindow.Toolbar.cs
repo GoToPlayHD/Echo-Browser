@@ -28,6 +28,7 @@ namespace EchoBrowser
             new("Reload", "Toolbar_Reload", w => w.btnReload, s => s.ShowReloadButton, (s, v) => s.ShowReloadButton = v),
             new("Home", "Toolbar_Home", w => w.btnHome, s => s.ShowHomeButton, (s, v) => s.ShowHomeButton = v),
             new("SearchEngine", "Toolbar_SearchEngine", w => w.cmbSearchEngine, s => s.ShowSearchEngineSelector, (s, v) => s.ShowSearchEngineSelector = v),
+            new("SplitView", "Split_Button", w => w.btnSplitView, s => s.ShowSplitViewButton, (s, v) => s.ShowSplitViewButton = v),
             new("Extensions", "Ext_Title", w => w.btnExtensions, s => s.ShowExtensionsButton, (s, v) => s.ShowExtensionsButton = v),
             new("Downloads", "Nav_Downloads", w => w.btnDownloads, s => s.ShowDownloadsButton, (s, v) => s.ShowDownloadsButton = v),
         };

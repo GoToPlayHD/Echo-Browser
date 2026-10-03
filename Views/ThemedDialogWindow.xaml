@@ -40,10 +40,9 @@
 
                 <!-- Brand / Icon + Dialog Title -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Path x:Name="pathHeaderIcon"
-                          Data="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z" 
-                          Fill="{DynamicResource AccentSilverBrush}" 
-                          Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <!-- Echo-Logo statt festem Erweiterungs-Symbol: der Dialog wird für alles Mögliche genutzt -->
+                    <Image Source="pack://application:,,,/app.png" Width="16" Height="16" Margin="0,0,8,0"
+                           VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock x:Name="txtDialogTitle" 
                                Text="Echo-Browser" 
                                FontWeight="SemiBold" 

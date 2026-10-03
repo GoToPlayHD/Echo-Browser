@@ -44,10 +44,7 @@ namespace EchoBrowser.Services
 
         private AdBlockerService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string folder = Path.Combine(appData, "EchoBrowser");
-            Directory.CreateDirectory(folder);
-            _cacheFilePath = Path.Combine(folder, "blocklist.txt");
+            _cacheFilePath = AppPaths.File("blocklist.txt");
         }
 
         public async Task InitializeAsync()
@@ -67,7 +64,7 @@ namespace EchoBrowser.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error reading blocklist cache: {ex.Message}");
+                    Log.Warn("Error reading blocklist cache", ex);
                 }
             }
 
@@ -99,7 +96,7 @@ namespace EchoBrowser.Services
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Background filter list update failed: {ex.Message}");
+                        Log.Warn("Background filter list update failed", ex);
                     }
                 });
             }
@@ -155,7 +152,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to download blocklist from {url}: {ex.Message}");
+                Log.Warn($"Failed to download blocklist from {url}", ex);
                 if (forceDownload) throw;
                 return BlockedDomainCount;
             }
@@ -185,7 +182,7 @@ namespace EchoBrowser.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to write blocklist cache: {ex.Message}");
+                Log.Warn("Failed to write blocklist cache", ex);
             }
 
             lock (_lock)

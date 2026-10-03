@@ -134,7 +134,7 @@ namespace EchoBrowser.Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Echo] Sprachdatei '{resourceName}' konnte nicht geladen werden: {ex.Message}");
+                    Log.Warn($"Sprachdatei '{resourceName}' konnte nicht geladen werden", ex);
                 }
             }
         }

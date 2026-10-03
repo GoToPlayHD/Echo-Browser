@@ -1,73 +1,160 @@
-﻿<UserControl x:Class="EchoBrowser.Views.Popups.DownloadsPanel"
+<UserControl x:Class="EchoBrowser.Views.Popups.DownloadsPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="clr-namespace:EchoBrowser.Services"
              xmlns:models="clr-namespace:EchoBrowser.Models"
              x:Name="root">
-    <Border Style="{DynamicResource FlyoutCardStyle}" Width="360" MaxHeight="450" Margin="5">
+    <Border Style="{DynamicResource FlyoutCardStyle}" Width="380" MaxHeight="470" Margin="5">
         <StackPanel>
             <DockPanel LastChildFill="True" Margin="0,0,0,10">
-                <TextBlock Text="{loc:Loc Nav_Downloads}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                <Button DockPanel.Dock="Right" 
-                        Style="{DynamicResource FlyoutSmallButtonStyle}" 
-                        Content="{loc:Loc Downloads_OpenFolder}" 
+                <Button DockPanel.Dock="Right"
+                        Style="{DynamicResource FlyoutSmallButtonStyle}"
+                        Content="{loc:Loc Downloads_OpenFolder}"
                         Click="BtnOpenDownloadsFolder_Click"/>
+                <Button x:Name="btnClearFinished"
+                        DockPanel.Dock="Right"
+                        Style="{DynamicResource FlyoutSmallButtonStyle}"
+                        Margin="0,0,6,0"
+                        Content="{loc:Loc Downloads_ClearList}"
+                        Click="BtnClearFinished_Click"/>
+                <TextBlock Text="{loc:Loc Nav_Downloads}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
             </DockPanel>
             <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,8"/>
 
             <!-- Empty State -->
-            <TextBlock x:Name="txtEmptyDownloads" 
-                       Text="{loc:Loc Downloads_Empty}" 
-                       FontSize="12" 
-                       Foreground="{DynamicResource TextMutedBrush}" 
-                       HorizontalAlignment="Center" 
+            <TextBlock x:Name="txtEmptyDownloads"
+                       Text="{loc:Loc Downloads_Empty}"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       HorizontalAlignment="Center"
                        Margin="0,16"/>
 
             <!-- Downloads List -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                <ItemsControl ItemsSource="{Binding Items, ElementName=root}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="350">
+                <ItemsControl x:Name="listDownloads">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type models:DownloadItem}">
-                            <Border Background="{DynamicResource TabBackgroundBrush}" 
+                            <Border x:Name="card"
+                                    Background="{DynamicResource TabBackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="7" 
-                                    Padding="10,8" 
+                                    CornerRadius="7"
+                                    Padding="10,8"
                                     Margin="0,0,0,6">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding FileName}" 
-                                               FontWeight="SemiBold" 
-                                               FontSize="12" 
-                                               Foreground="{DynamicResource TextPrimaryBrush}" 
-                                               TextTrimming="CharacterEllipsis"/>
-                                    <ProgressBar Value="{Binding ProgressPercentage, Mode=OneWay}" 
-                                                 Height="4" 
-                                                 Margin="0,6" 
-                                                 Foreground="{DynamicResource ShieldActiveBrush}" 
-                                                 Background="{DynamicResource SurfaceBrush}" 
-                                                 BorderThickness="0"/>
-                                    <DockPanel LastChildFill="True">
-                                        <TextBlock Text="{Binding ProgressText}" 
-                                                   FontSize="11" 
-                                                   Foreground="{DynamicResource TextMutedBrush}"
-                                                   VerticalAlignment="Center"/>
-                                        <Button DockPanel.Dock="Right" 
-                                                Click="BtnOpenDownloadFile_Click" 
-                                                Tag="{Binding FilePath}">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource FlyoutSmallButtonStyle}">
-                                                    <Setter Property="Content" Value="{loc:Loc Downloads_Open}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsCrx}" Value="True">
-                                                            <Setter Property="Content" Value="{loc:Loc Ext_Install}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Dateityp -->
+                                    <Border Width="36" Height="36" CornerRadius="6" Margin="0,0,10,0" VerticalAlignment="Center"
+                                            Background="{DynamicResource SurfaceHoverBrush}">
+                                        <TextBlock Text="{Binding Extension}" FontSize="9.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentSilverBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Name (Klick öffnet die fertige Datei), Status, Fortschritt -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock x:Name="txtName"
+                                                   Text="{Binding FileName}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding FilePath}"
+                                                   Tag="{Binding}"
+                                                   MouseLeftButtonUp="FileName_Click"/>
+                                        <TextBlock Text="{Binding ProgressText}"
+                                                   FontSize="11"
+                                                   Margin="0,2,0,0"
+                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <ProgressBar x:Name="progress"
+                                                     Value="{Binding ProgressPercentage, Mode=OneWay}"
+                                                     Height="4"
+                                                     Margin="0,6,0,0"
+                                                     Foreground="{DynamicResource ShieldActiveBrush}"
+                                                     Background="{DynamicResource SurfaceBrush}"
+                                                     BorderThickness="0"
+                                                     Visibility="Collapsed"/>
+                                    </StackPanel>
+
+                                    <!-- Aktionen -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <Button x:Name="btnPause" Style="{DynamicResource IconButtonStyle}" Width="26" Height="26"
+                                                Tag="{Binding}" Click="BtnPauseResume_Click" Visibility="Collapsed"
+                                                ToolTip="{loc:Loc Downloads_Pause}">
+                                            <Path x:Name="pathPause" Data="M6 19h4V5H6v14zm8-14v14h4V5h-4z"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="10" Height="10" Stretch="Uniform"/>
                                         </Button>
-                                    </DockPanel>
-                                </StackPanel>
+                                        <Button x:Name="btnCancel" Style="{DynamicResource IconButtonStyle}" Width="26" Height="26"
+                                                Tag="{Binding}" Click="BtnCancel_Click" Visibility="Collapsed"
+                                                ToolTip="{loc:Loc Downloads_Cancel}">
+                                            <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="9" Height="9" Stretch="Uniform"/>
+                                        </Button>
+                                        <Button x:Name="btnInstall" Style="{DynamicResource FlyoutSmallButtonStyle}" Margin="0,0,4,0"
+                                                Content="{loc:Loc Ext_Install}" Tag="{Binding}" Click="BtnInstall_Click" Visibility="Collapsed"/>
+                                        <Button x:Name="btnRetry" Style="{DynamicResource FlyoutSmallButtonStyle}" Margin="0,0,4,0"
+                                                Content="{loc:Loc Downloads_Retry}" Tag="{Binding}" Click="BtnRetry_Click" Visibility="Collapsed"/>
+                                        <Button x:Name="btnShowInFolder" Style="{DynamicResource IconButtonStyle}" Width="26" Height="26"
+                                                Tag="{Binding}" Click="BtnShowInFolder_Click" Visibility="Collapsed"
+                                                ToolTip="{loc:Loc Downloads_ShowInFolder}">
+                                            <Path Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"/>
+                                        </Button>
+                                        <Button x:Name="btnRemove" Style="{DynamicResource IconButtonStyle}" Width="26" Height="26"
+                                                Tag="{Binding}" Click="BtnRemove_Click" Visibility="Collapsed"
+                                                ToolTip="{loc:Loc Downloads_RemoveFromList}">
+                                            <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="10" Height="10" Stretch="Uniform"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            <DataTemplate.Triggers>
+                                <!-- Läuft: Fortschritt, Pause, Abbrechen -->
+                                <DataTrigger Binding="{Binding IsInProgress}" Value="True">
+                                    <Setter TargetName="progress" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="btnPause" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="btnCancel" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding HasKnownSize}" Value="False">
+                                    <Setter TargetName="progress" Property="IsIndeterminate" Value="True"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                    <Setter TargetName="pathPause" Property="Data" Value="M8 5v14l11-7z"/>
+                                    <Setter TargetName="btnPause" Property="ToolTip" Value="{loc:Loc Downloads_Resume}"/>
+                                    <Setter TargetName="progress" Property="IsIndeterminate" Value="False"/>
+                                    <Setter TargetName="progress" Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                </DataTrigger>
+                                <!-- Fertig: im Ordner zeigen, entfernen; Klick auf den Namen öffnet -->
+                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                    <Setter TargetName="btnShowInFolder" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="btnRemove" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="txtName" Property="Cursor" Value="Hand"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsFileMissing}" Value="True">
+                                    <Setter TargetName="btnShowInFolder" Property="Visibility" Value="Collapsed"/>
+                                    <Setter TargetName="txtName" Property="TextDecorations" Value="Strikethrough"/>
+                                    <Setter TargetName="txtName" Property="Cursor" Value="Arrow"/>
+                                </DataTrigger>
+                                <!-- Abgebrochen: erneut versuchen, entfernen -->
+                                <DataTrigger Binding="{Binding IsCancelled}" Value="True">
+                                    <Setter TargetName="btnRetry" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="btnRemove" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="card" Property="Opacity" Value="0.75"/>
+                                </DataTrigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsCrx}" Value="True"/>
+                                        <Condition Binding="{Binding IsCompleted}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter TargetName="btnInstall" Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

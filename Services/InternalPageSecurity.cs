@@ -15,15 +15,15 @@ namespace EchoBrowser.Services
         public const string TokenPlaceholder = "##ECHO_BRIDGE_TOKEN##";
         public const string TokenPropertyName = "__echoToken";
 
-        /// <summary>Zufälliges Token, nur in den per NavigateToString erzeugten internen Seiten enthalten.</summary>
+        /// <summary>Zufälliges Token, nur in den unter echo:// ausgelieferten internen Seiten enthalten.</summary>
         public static string Token { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
         /// <summary>Nachrichten, die von Chrome-Web-Store-Seiten gesendet werden dürfen.</summary>
         private static readonly string[] WebStoreMessageTypes = { "installExtensionFromWebStore" };
 
         /// <summary>
-        /// Prüft, ob eine Nachricht vom internen Echo-Dokument stammt: Quelle muss die
-        /// lokal erzeugte Seite sein (data:/about:blank) und das Token muss passen.
+        /// Prüft, ob eine Nachricht vom internen Echo-Dokument stammt: Quelle muss eine
+        /// echo://-Seite sein und das Token muss passen.
         /// </summary>
         public static bool IsTrustedInternalMessage(string? source, JsonElement root)
         {
@@ -55,15 +55,10 @@ namespace EchoBrowser.Services
 
         private static bool IsInternalPageSource(string? source)
         {
-            // NavigateToString-Seiten melden je nach Runtime "about:blank" oder eine data:-URL.
-            // Echte Webseiten, lokale Dateien und Erweiterungsseiten sind nie intern –
-            // das eigentliche Vertrauen kommt aber erst durch das Token zustande.
-            if (string.IsNullOrEmpty(source)) return true;
-            return !(source.StartsWith("http:", StringComparison.OrdinalIgnoreCase) ||
-                     source.StartsWith("https:", StringComparison.OrdinalIgnoreCase) ||
-                     source.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ||
-                     source.StartsWith("chrome-extension:", StringComparison.OrdinalIgnoreCase) ||
-                     source.StartsWith("blob:", StringComparison.OrdinalIgnoreCase));
+            // Interne Seiten werden ausschließlich unter echo:// ausgeliefert (MainWindow.InternalPages.cs).
+            // Alles andere – Webseiten, Dateien, Erweiterungen, about:blank, data: – ist nie intern.
+            // Das eigentliche Vertrauen kommt zusätzlich erst durch das Token zustande.
+            return InternalPages.IsInternalUrl(source);
         }
 
         /// <summary>Setzt das Token in das HTML-Template einer internen Seite ein.</summary>
