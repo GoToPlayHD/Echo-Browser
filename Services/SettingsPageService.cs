@@ -17,9 +17,24 @@ namespace EchoBrowser.Services
             html = html.Replace("##SETTINGS_JSON##", settingsJson);
             html = html.Replace("##WEBVIEW_VERSION##", webViewVersion);
             html = html.Replace("##APP_VERSION##", appVersion);
+            html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
+            html = html.Replace("##START_BACKGROUND_STATUS##", System.Net.WebUtility.HtmlEncode(StartBackgroundStatus(settings)));
+            bool isDefault = DefaultBrowserService.IsDefault();
+            html = html.Replace("##DEFAULT_BROWSER_STATUS##", System.Net.WebUtility.HtmlEncode(
+                Tr.Get(isDefault ? "Settings_DefaultBrowserIs" : "Settings_DefaultBrowserIsNot")));
+            html = html.Replace("##DEFAULT_BROWSER_BUTTON_STYLE##", isDefault ? "display: none;" : "");
             html = InternalPageSecurity.InjectToken(html);
 
             return html;
+        }
+
+        /// <summary>Statuszeile zum Hintergrundbild: Dateiname oder Hinweis auf den Farbverlauf des Themes.</summary>
+        public static string StartBackgroundStatus(AppSettings settings)
+        {
+            string path = settings.StartpageBackgroundPath ?? "";
+            return path.Length > 0 && System.IO.File.Exists(path)
+                ? Tr.Format("Settings_StartBackgroundSet", System.IO.Path.GetFileName(path))
+                : Tr.Get("Settings_StartBackgroundNone");
         }
 
         private const string RawHtmlTemplate = @"<!DOCTYPE html>
@@ -28,25 +43,27 @@ namespace EchoBrowser.Services
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
     <title>{{t:Tab_Settings}} – Echo-Browser</title>
+    <!-- Farben des aktuellen Echo-Themes (ThemeManager.GetCssVariables), werden bei Theme-Wechsel live ersetzt -->
+    <style id=""echo-theme"">##THEME_CSS##</style>
     <style>
         :root {
-            --bg-color: #16171B;
-            --sidebar-bg: #1C1D22;
-            --surface-color: #22242B;
-            --surface-hover: #2B2E37;
-            --surface-active: #343742;
-            --border-color: #2F323B;
-            --border-subtle: #24262E;
-            --border-focus: #C4C7CC;
-            --text-primary: #F0F2F5;
-            --text-secondary: #9DA3AF;
-            --text-muted: #6B7280;
-            --accent-silver: #C4C7CC;
-            --accent-silver-bright: #FFFFFF;
-            --accent-glow: rgba(196, 199, 204, 0.2);
-            --accent-blue: #38BDF8;
-            --accent-green: #34D399;
-            --danger-color: #F87171;
+            --bg-color: var(--echo-window);
+            --sidebar-bg: var(--echo-toolbar);
+            --surface-color: var(--echo-surface);
+            --surface-hover: var(--echo-surface-hover);
+            --surface-active: var(--echo-surface-active);
+            --border-color: var(--echo-border);
+            --border-subtle: var(--echo-border-subtle);
+            --border-focus: var(--echo-focus);
+            --text-primary: var(--echo-text);
+            --text-secondary: var(--echo-text-secondary);
+            --text-muted: var(--echo-text-muted);
+            --accent-silver: var(--echo-accent);
+            --accent-silver-bright: var(--echo-accent-bright);
+            --accent-glow: color-mix(in srgb, var(--echo-accent) 20%, transparent);
+            --accent-blue: var(--echo-shield);
+            --accent-green: var(--echo-success);
+            --danger-color: var(--echo-danger);
             --danger-hover: #EF4444;
         }
 
@@ -89,14 +106,15 @@ namespace EchoBrowser.Services
         .header-brand svg {
             width: 28px;
             height: 28px;
-            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+            color: var(--accent-silver);
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, calc(0.4 * var(--echo-shadow-k))));
         }
 
         .brand-title {
             font-size: 16px;
             font-weight: 700;
             letter-spacing: 1.5px;
-            background: linear-gradient(135deg, #FFFFFF 0%, #C4C7CC 100%);
+            background: linear-gradient(135deg, var(--accent-silver-bright) 0%, var(--accent-silver) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -105,7 +123,7 @@ namespace EchoBrowser.Services
             font-size: 11px;
             padding: 2px 8px;
             border-radius: 10px;
-            background: rgba(196, 199, 204, 0.12);
+            background: color-mix(in srgb, var(--accent-silver) 12%, transparent);
             color: var(--accent-silver);
             border: 1px solid var(--border-color);
             font-weight: 600;
@@ -233,12 +251,12 @@ namespace EchoBrowser.Services
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 18px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, calc(0.22 * var(--echo-shadow-k)));
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .settings-card:hover {
-            border-color: #3B3F4A;
+            border-color: color-mix(in srgb, var(--border-color) 55%, var(--echo-accent-dim));
         }
 
         .card-row {
@@ -305,7 +323,7 @@ namespace EchoBrowser.Services
             background-color: var(--accent-silver);
             border-radius: 50%;
             transition: .25s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, calc(0.3 * var(--echo-shadow-k)));
         }
 
         input:checked + .toggle-slider {
@@ -400,14 +418,14 @@ namespace EchoBrowser.Services
         }
 
         .btn-primary {
-            background: #2D3748;
-            border-color: #4A5568;
-            color: #FFFFFF;
+            background: color-mix(in srgb, var(--accent-blue) 16%, var(--surface-color));
+            border-color: color-mix(in srgb, var(--accent-blue) 40%, var(--border-color));
+            color: var(--text-primary);
         }
 
         .btn-primary:hover {
-            background: #3B4758;
-            border-color: var(--accent-silver);
+            background: color-mix(in srgb, var(--accent-blue) 26%, var(--surface-color));
+            border-color: var(--accent-blue);
         }
 
         .btn-danger {
@@ -472,7 +490,7 @@ namespace EchoBrowser.Services
         }
 
         .engine-card:hover {
-            border-color: #4A505E;
+            border-color: var(--echo-accent-dim);
             background: var(--surface-hover);
         }
 
@@ -507,6 +525,10 @@ namespace EchoBrowser.Services
             border-radius: 8px;
             font-weight: 700;
         }
+
+        /* ""Aktiv"" nur bei der gewählten Suchmaschine */
+        .engine-card .badge-active { display: none; }
+        .engine-card.active .badge-active { display: inline-block; }
 
         /* Theme Presets Grid */
         .theme-grid {
@@ -543,7 +565,7 @@ namespace EchoBrowser.Services
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.2);
+            border: 2px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
             flex-shrink: 0;
         }
 
@@ -563,7 +585,7 @@ namespace EchoBrowser.Services
             cursor: pointer;
             border: 2px solid transparent;
             transition: transform 0.2s ease, border-color 0.2s ease;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, calc(0.3 * var(--echo-shadow-k)));
         }
 
         .color-swatch:hover {
@@ -571,9 +593,9 @@ namespace EchoBrowser.Services
         }
 
         .color-swatch.active {
-            border-color: #FFFFFF;
+            border-color: var(--accent-silver-bright);
             transform: scale(1.15);
-            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-silver-bright) 30%, transparent);
         }
 
         /* Shield Protection Cards */
@@ -597,7 +619,7 @@ namespace EchoBrowser.Services
         }
 
         .shield-card:hover {
-            border-color: #4A505E;
+            border-color: var(--echo-accent-dim);
             background: var(--surface-hover);
         }
 
@@ -625,7 +647,7 @@ namespace EchoBrowser.Services
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.65);
+            background: rgba(0, 0, 0, calc(0.65 * var(--echo-shadow-k)));
             backdrop-filter: blur(4px);
             display: none;
             align-items: center;
@@ -643,7 +665,7 @@ namespace EchoBrowser.Services
             border-radius: 14px;
             padding: 24px;
             width: 440px;
-            box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, calc(0.6 * var(--echo-shadow-k)));
         }
 
         .modal-title {
@@ -699,7 +721,7 @@ namespace EchoBrowser.Services
             border-radius: 8px;
             font-size: 13px;
             font-weight: 600;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, calc(0.4 * var(--echo-shadow-k)));
             transform: translateY(100px);
             opacity: 0;
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -728,7 +750,8 @@ namespace EchoBrowser.Services
         .about-logo svg {
             width: 72px;
             height: 72px;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+            color: var(--accent-silver);
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, calc(0.5 * var(--echo-shadow-k))));
         }
 
         .about-details {
@@ -741,7 +764,7 @@ namespace EchoBrowser.Services
             font-size: 22px;
             font-weight: 800;
             letter-spacing: 1px;
-            background: linear-gradient(135deg, #FFFFFF 0%, #C4C7CC 100%);
+            background: linear-gradient(135deg, var(--accent-silver-bright) 0%, var(--accent-silver) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -772,12 +795,12 @@ namespace EchoBrowser.Services
 
         .about-status.warning {
             background: rgba(251, 191, 36, 0.15);
-            color: #FBBF24;
+            color: var(--echo-warning);
         }
 
         .about-status.ready {
             background: rgba(52, 211, 153, 0.25);
-            color: #34D399;
+            color: var(--accent-green);
         }
 
         .update-progress-bar {
@@ -803,11 +826,11 @@ namespace EchoBrowser.Services
     <header>
         <div class=""header-brand"">
             <!-- Echo Waves Icon -->
-            <svg viewBox=""0 0 24 24"" fill=""none"" stroke=""#C4C7CC"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
+            <svg viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
                 <path d=""M2 12a10 10 0 0 1 20 0""/>
                 <path d=""M5 12a7 7 0 0 1 14 0""/>
                 <path d=""M8 12a4 4 0 0 1 8 0""/>
-                <circle cx=""12"" cy=""12"" r=""1"" fill=""#C4C7CC""/>
+                <circle cx=""12"" cy=""12"" r=""1"" fill=""currentColor""/>
             </svg>
             <div class=""brand-title"">ECHO BROWSER</div>
             <div class=""brand-badge"">{{t:Settings_Badge}}</div>
@@ -924,12 +947,34 @@ namespace EchoBrowser.Services
                                 <div class=""row-title"">{{t:Settings_Language}}</div>
                                 <div class=""row-desc"">{{t:Settings_LanguageDesc}}</div>
                             </div>
-                            <select id=""selLanguage"" class=""select-dropdown"" style=""background: #1e2025; color: #e2e8f0; border: 1px solid #333842; padding: 6px 12px; border-radius: 6px; font-size: 13px; outline: none; cursor: pointer;"">
+                            <select id=""selLanguage"" class=""select-dropdown"" style=""background: var(--echo-omnibox); color: var(--text-primary); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; font-size: 13px; outline: none; cursor: pointer;"">
                                 <option value=""de"">🇩🇪 Deutsch</option>
                                 <option value=""en"">🇬🇧 English</option>
                                 <option value=""fr"">🇫🇷 Français</option>
                                 <option value=""es"">🇪🇸 Español</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_DefaultBrowser}}</div>
+                                <div class=""row-desc"" id=""lblDefaultBrowser"">##DEFAULT_BROWSER_STATUS##</div>
+                            </div>
+                            <button id=""btnMakeDefault"" class=""btn btn-primary"" style=""##DEFAULT_BROWSER_BUTTON_STYLE##"">{{t:Settings_MakeDefault}}</button>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""row-title"">{{t:Settings_ImportBookmarks}}</div>
+                        <div class=""row-desc"" style=""margin-bottom: 12px;"">{{t:Settings_ImportBookmarksDesc}}</div>
+                        <div style=""display: flex; gap: 10px; flex-wrap: wrap;"">
+                            <button class=""btn btn-import"" data-source=""chrome"">{{t:Settings_ImportChrome}}</button>
+                            <button class=""btn btn-import"" data-source=""edge"">{{t:Settings_ImportEdge}}</button>
+                            <button class=""btn btn-import"" data-source=""brave"">{{t:Settings_ImportBrave}}</button>
+                            <button class=""btn btn-import"" data-source=""html"">{{t:Settings_ImportHtml}}</button>
+                            <button id=""btnExportBookmarks"" class=""btn"">{{t:Settings_ExportHtml}}</button>
                         </div>
                     </div>
                 </section>
@@ -1015,6 +1060,13 @@ namespace EchoBrowser.Services
                         <div class=""row-desc"">{{t:Settings_ThemePresetDesc}}</div>
 
                         <div class=""theme-grid"" id=""themeGrid"">
+                            <div class=""theme-card"" data-preset=""System"">
+                                <div class=""theme-preview-dot"" style=""background: linear-gradient(135deg, #1C1D21 50%, #F4F6F9 50%); border-color: #8A8F99;""></div>
+                                <div>
+                                    <div class=""row-title"">{{t:Settings_ThemeSystem}}</div>
+                                    <div class=""row-desc"">{{t:Settings_ThemeSystemDesc}}</div>
+                                </div>
+                            </div>
                             <div class=""theme-card"" data-preset=""SilverAnthracite"">
                                 <div class=""theme-preview-dot"" style=""background: #1C1D21; border-color: #C4C7CC;""></div>
                                 <div>
@@ -1067,6 +1119,19 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_StartBackground}}</div>
+                                <div class=""row-desc"" id=""lblStartBackground"">##START_BACKGROUND_STATUS##</div>
+                            </div>
+                            <div style=""display: flex; gap: 8px;"">
+                                <button id=""btnChooseBackground"" class=""btn btn-primary"">{{t:Settings_ChooseImage}}</button>
+                                <button id=""btnClearBackground"" class=""btn"">{{t:Settings_RemoveImage}}</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
                                 <div class=""row-title"">{{t:Settings_ShowBookmarksBar}}</div>
                                 <div class=""row-desc"">{{t:Settings_ShowBookmarksBarDesc}}</div>
                             </div>
@@ -1082,6 +1147,16 @@ namespace EchoBrowser.Services
                             </div>
                             <label class=""toggle-switch"">
                                 <input type=""checkbox"" id=""chkSidebar"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_Mica}}</div>
+                                <div class=""row-desc"">{{t:Settings_MicaDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkUseMica"">
                                 <span class=""toggle-slider""></span>
                             </label>
                         </div>
@@ -1267,6 +1342,29 @@ namespace EchoBrowser.Services
                     <div class=""settings-card"">
                         <div class=""card-row"">
                             <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_SavePasswords}}</div>
+                                <div class=""row-desc"">{{t:Settings_SavePasswordsDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkSavePasswords"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_Autofill}}</div>
+                                <div class=""row-desc"">{{t:Settings_AutofillDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkAutofillForms"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class=""settings-card"">
+                        <div class=""card-row"">
+                            <div class=""row-info"">
                                 <div class=""row-title"">{{t:Settings_ClearData}}</div>
                                 <div class=""row-desc"">{{t:Settings_ClearDataDesc}}</div>
                             </div>
@@ -1333,6 +1431,23 @@ namespace EchoBrowser.Services
                                 <span class=""toggle-slider""></span>
                             </label>
                         </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_VerticalTabs}}</div>
+                                <div class=""row-desc"">{{t:Settings_VerticalTabsDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkVerticalTabs"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_TabSleep}}</div>
+                                <div class=""row-desc"">{{t:Settings_TabSleepDesc}}</div>
+                            </div>
+                            <select id=""selTabSleep"" class=""select-input""></select>
+                        </div>
                     </div>
 
                     <div class=""settings-card"">
@@ -1354,11 +1469,11 @@ namespace EchoBrowser.Services
 
                     <div class=""about-card"">
                         <div class=""about-logo"">
-                            <svg viewBox=""0 0 24 24"" fill=""none"" stroke=""#C4C7CC"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
+                            <svg viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"">
                                 <path d=""M2 12a10 10 0 0 1 20 0""/>
                                 <path d=""M5 12a7 7 0 0 1 14 0""/>
                                 <path d=""M8 12a4 4 0 0 1 8 0""/>
-                                <circle cx=""12"" cy=""12"" r=""1.5"" fill=""#C4C7CC""/>
+                                <circle cx=""12"" cy=""12"" r=""1.5"" fill=""currentColor""/>
                             </svg>
                         </div>
                         <div class=""about-details"">
@@ -1518,6 +1633,7 @@ namespace EchoBrowser.Services
 
             document.getElementById('chkBookmarksBar').checked = s.IsBookmarksBarVisible !== false;
             document.getElementById('chkSidebar').checked = s.IsSidebarVisible !== false;
+            document.getElementById('chkUseMica').checked = s.UseMica !== false;
             document.getElementById('selZoom').value = (s.DefaultZoomPercent || 100).toString();
 
             // Toolbar buttons
@@ -1544,6 +1660,8 @@ namespace EchoBrowser.Services
             document.getElementById('chkBlockPopups').checked = s.BlockPopups !== false;
             document.getElementById('chkEnableJavaScript').checked = s.EnableJavaScript !== false;
             document.getElementById('chkSendDoNotTrack').checked = s.SendDoNotTrack !== false;
+            document.getElementById('chkSavePasswords').checked = s.SavePasswords !== false;
+            document.getElementById('chkAutofillForms').checked = s.AutofillForms !== false;
 
             // 5. Downloads
             document.getElementById('txtDownloadPath').value = s.DownloadPath || '';
@@ -1552,11 +1670,23 @@ namespace EchoBrowser.Services
             // 6. Tabs
             document.getElementById('chkOpenTabsInBackground').checked = s.OpenNewTabInBackground === true;
             document.getElementById('chkWarnCloseTabs').checked = s.WarnOnClosingMultipleTabs !== false;
+            document.getElementById('selTabSleep').value = String(s.TabSleepMinutes ?? 30);
+            document.getElementById('chkVerticalTabs').checked = s.VerticalTabs === true;
 
             // 7. Updates
             if (document.getElementById('chkAutoCheckUpdates')) document.getElementById('chkAutoCheckUpdates').checked = s.AutoCheckForUpdates !== false;
             if (document.getElementById('chkCheckPrereleases')) document.getElementById('chkCheckPrereleases').checked = s.CheckPrereleaseUpdates === true;
         }
+
+        // Tab-Schlaf: dieselben Stufen wie im Leistungs-Panel (TabSleepPolicy.Choices)
+        [5, 15, 30, 60, 120, 0].forEach(minutes => {
+            const option = document.createElement('option');
+            option.value = String(minutes);
+            option.textContent = minutes === 0 ? {{js:Perf_Never}}
+                : minutes >= 60 ? fmt({{js:Perf_HoursShort}}, minutes / 60)
+                : fmt({{js:Perf_MinutesShort}}, minutes);
+            document.getElementById('selTabSleep').appendChild(option);
+        });
 
         applySettingsToUI(initialSettings);
 
@@ -1572,6 +1702,15 @@ namespace EchoBrowser.Services
                 }
             });
         });
+
+        // echo://settings#section-… (z.B. aus der Befehlspalette) springt direkt zum Bereich
+        function showSectionFromHash() {
+            const id = decodeURIComponent(location.hash.slice(1));
+            const nav = id && Array.from(document.querySelectorAll('.nav-item')).find(i => i.getAttribute('data-target') === id);
+            if (nav) nav.click();
+        }
+        showSectionFromHash();
+        window.addEventListener('hashchange', showSectionFromHash);
 
         // Search Input Filter
         document.getElementById('searchSettings').addEventListener('input', (e) => {
@@ -1684,6 +1823,14 @@ namespace EchoBrowser.Services
             showToast({{js:Settings_ToastSidebar}});
         });
 
+        document.getElementById('btnChooseBackground').addEventListener('click', () => sendMessage({ type: 'chooseStartpageBackground' }));
+        document.getElementById('btnClearBackground').addEventListener('click', () => sendMessage({ type: 'clearStartpageBackground' }));
+
+        document.getElementById('chkUseMica').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'UseMica', value: e.target.checked });
+            showToast({{js:Settings_Saved}});
+        });
+
         document.getElementById('selZoom').addEventListener('change', (e) => {
             const zoom = parseInt(e.target.value, 10);
             sendMessage({ type: 'updateSetting', key: 'DefaultZoomPercent', value: zoom });
@@ -1770,6 +1917,30 @@ namespace EchoBrowser.Services
             showToast({{js:Settings_ToastDnt}});
         });
 
+        document.getElementById('chkSavePasswords').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'SavePasswords', value: e.target.checked });
+            showToast({{js:Settings_Saved}});
+        });
+
+        document.getElementById('chkAutofillForms').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'AutofillForms', value: e.target.checked });
+            showToast({{js:Settings_Saved}});
+        });
+
+        // Standardbrowser & Lesezeichen-Import/Export
+        document.getElementById('btnMakeDefault').addEventListener('click', () => {
+            sendMessage({ type: 'makeDefaultBrowser' });
+            showToast({{js:Settings_ToastDefaultBrowser}});
+        });
+
+        document.querySelectorAll('.btn-import').forEach(btn => {
+            btn.addEventListener('click', () => sendMessage({ type: 'importBookmarks', source: btn.getAttribute('data-source') }));
+        });
+
+        document.getElementById('btnExportBookmarks').addEventListener('click', () => {
+            sendMessage({ type: 'exportBookmarks' });
+        });
+
         // Clear Browsing Data Modal
         const modalClear = document.getElementById('modalClearData');
         document.getElementById('btnOpenClearData').addEventListener('click', () => {
@@ -1810,6 +1981,14 @@ namespace EchoBrowser.Services
         document.getElementById('chkOpenTabsInBackground').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'OpenNewTabInBackground', value: e.target.checked });
             showToast({{js:Settings_ToastTabBehavior}});
+        });
+
+        document.getElementById('chkVerticalTabs').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'VerticalTabs', value: e.target.checked });
+        });
+
+        document.getElementById('selTabSleep').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'TabSleepMinutes', value: parseInt(e.target.value, 10) });
         });
 
         document.getElementById('chkWarnCloseTabs').addEventListener('change', (e) => {
@@ -1905,6 +2084,19 @@ namespace EchoBrowser.Services
 
         window.onBrowsingDataCleared = function() {
             showToast({{js:Settings_ToastDataCleared}});
+        };
+
+        window.onStartBackgroundChanged = function(status) {
+            document.getElementById('lblStartBackground').innerText = status;
+            showToast({{js:Settings_Saved}});
+        };
+
+        window.onBookmarksImported = function(message) {
+            showToast(message);
+        };
+
+        window.onBookmarksExported = function(message) {
+            showToast(message);
         };
 
         window.onDownloadPathChanged = function(newPath) {

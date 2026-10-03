@@ -26,35 +26,71 @@ namespace EchoBrowser
     {
         #region Multi-Tab Management & Drag-Drop Reordering
 
-        public void AddNewTab(string? targetUrl = null, bool activateTab = true)
+        /// <param name="deferLoad">
+        /// Nur für Tabs im Hintergrund: noch keine WebView anlegen, die Seite lädt erst beim Aktivieren
+        /// (schnellere Wiederherstellung der Sitzung).
+        /// </param>
+        public BrowserTab? AddNewTab(string? targetUrl = null, bool activateTab = true, string? title = null, bool deferLoad = false)
         {
-            if (_webViewEnvironment == null) return;
+            if (_webViewEnvironment == null) return null;
 
             string initialUrl = string.IsNullOrWhiteSpace(targetUrl) ? StartPageService.StartPageUrl : targetUrl;
+            var settings = AppSettingsService.Instance.Settings;
             var tab = new BrowserTab
             {
-                Title = Tr.Get(initialUrl == SettingsPageService.SettingsPageUrl ? "Tab_Settings" : "Tab_NewTab"),
-                Url = initialUrl
+                Title = !string.IsNullOrWhiteSpace(title)
+                    ? title
+                    : Tr.Get(initialUrl == SettingsPageService.SettingsPageUrl ? "Tab_Settings" : "Tab_NewTab"),
+                Url = initialUrl,
+                JavaScriptEnabled = settings.EnableJavaScript,
+                PopupsBlocked = settings.BlockPopups
             };
+            tab.Favicon = InternalPages.IsInternalUrl(initialUrl) || initialUrl == "about:blank"
+                ? AppIcon
+                : _isIncognito ? null : FaviconCache.Instance.Get(initialUrl);
 
-            var webView = new WebView2
+            // Adresse oder Titel geändert -> Sitzung (verzögert) sichern
+            tab.PropertyChanged += (s, e) =>
             {
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch,
-                Visibility = Visibility.Collapsed
+                if (e.PropertyName is nameof(BrowserTab.Url) or nameof(BrowserTab.Title) or nameof(BrowserTab.IsActive))
+                {
+                    ScheduleSessionSave();
+                }
             };
 
-            tab.WebView = webView;
-            WebViewContainer.Children.Add(webView);
-
-            // Register WebView events
-            AttachWebViewEvents(tab, webView, initialUrl);
+            if (deferLoad && !activateTab)
+            {
+                tab.IsDiscarded = true;
+            }
+            else
+            {
+                CreateTabWebView(tab, initialUrl);
+            }
 
             Tabs.Add(tab);
             if (activateTab)
             {
                 SelectTab(tab);
             }
+            return tab;
+        }
+
+        /// <summary>Legt das WebView2-Steuerelement eines Tabs an (auch zum Neuaufbau nach einem Browser-Absturz).</summary>
+        private void CreateTabWebView(BrowserTab tab, string url)
+        {
+            var webView = new WebView2
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Visibility = tab.IsActive ? Visibility.Visible : Visibility.Collapsed
+            };
+
+            tab.WebView = webView;
+            Grid.SetColumnSpan(webView, 3);
+            WebViewContainer.Children.Add(webView);
+            AttachSplitFocusEvents(tab, webView);
+
+            AttachWebViewEvents(tab, webView, url);
         }
 
         /// <summary>
@@ -65,31 +101,45 @@ namespace EchoBrowser
         {
             try
             {
-                await webView.EnsureCoreWebView2Async(_webViewEnvironment);
+                // Nach einem Absturz des Browser-Prozesses liefert das eine neue Umgebung
+                var env = _webViewEnvironment = await BrowserEnvironment.GetAsync();
+                await webView.EnsureCoreWebView2Async(env, BrowserEnvironment.CreateControllerOptions(env, _isIncognito));
 
                 var core = webView.CoreWebView2;
                 if (core != null)
                 {
-                    await ConfigureCoreWebViewAsync(tab, core);
+                    // Interne Seiten (echo://start, echo://settings …) -> MainWindow.InternalPages.cs
+                    AttachInternalPages(env, core);
+
+                    await ConfigureCoreWebViewAsync(tab, webView, core);
                     AttachAdBlocker(tab, core);
 
                     // Nachrichten der internen Seiten & des Web Store -> MainWindow.WebMessages.cs
                     core.WebMessageReceived += async (s, args) => await _webMessageRouter.HandleAsync(tab, core, args);
 
-                    // Neue Fenster / Popups als Tab öffnen
-                    core.NewWindowRequested += (s, args) =>
-                    {
-                        args.Handled = true;
-                        if (!string.IsNullOrWhiteSpace(args.Uri))
-                        {
-                            AddNewTab(args.Uri, activateTab: !AppSettingsService.Instance.Settings.OpenNewTabInBackground);
-                        }
-                    };
+                    // Neue Fenster / Popups als Tab öffnen – ungefragte Popups blockieren
+                    core.NewWindowRequested += (s, args) => HandleNewWindowRequested(tab, args);
 
                     // Downloads -> MainWindow.Downloads.cs
                     core.DownloadStarting += (s, args) => HandleDownloadStarting(core, args);
 
+                    // Abstürze des Renderers oder Browsers -> MainWindow.InternalPages.cs
+                    core.ProcessFailed += (s, args) => HandleProcessFailed(tab, webView, args);
+
+                    // Website-Symbol und Ton-Anzeige im Tab -> MainWindow.TabActions.cs
+                    AttachTabIndicatorEvents(tab, core);
+
+                    // Zoom pro Website & Vollbild-Videos -> MainWindow.Zoom.cs / MainWindow.Fullscreen.cs
+                    AttachZoomEvents(tab, webView);
+                    AttachFullscreenEvents(tab, core);
+
+                    // Kamera, Mikrofon, Standort … -> MainWindow.Permissions.cs
+                    AttachPermissionEvents(tab, core);
+
                     AttachPageStateEvents(tab, webView, core);
+
+                    // Link-Kontextmenü "In geteilter Ansicht öffnen" -> MainWindow.SplitView.cs
+                    AttachSplitLinkMenu(tab, core);
                 }
 
                 AttachNavigationEvents(tab, webView);
@@ -97,16 +147,50 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error initializing tab webview: {ex.Message}");
+                Log.Error($"WebView eines Tabs konnte nicht initialisiert werden ({initialUrl})", ex);
             }
         }
 
-        private async Task ConfigureCoreWebViewAsync(BrowserTab tab, CoreWebView2 core)
+        /// <summary>
+        /// Links mit target=_blank und window.open: als Tab öffnen. Popups, die eine Seite ohne Klick des Nutzers
+        /// öffnen will, werden blockiert und in der Adressleiste angeboten (MainWindow.Popups.cs).
+        /// </summary>
+        private void HandleNewWindowRequested(BrowserTab tab, CoreWebView2NewWindowRequestedEventArgs args)
         {
+            args.Handled = true;
+            if (string.IsNullOrWhiteSpace(args.Uri)) return;
+
+            if (!args.IsUserInitiated && tab.PopupsBlocked)
+            {
+                tab.BlockedPopupUrls.Add(args.Uri);
+                if (tab == ActiveTab)
+                {
+                    UpdatePopupBlockedIndicator();
+                }
+                return;
+            }
+
+            AddNewTab(args.Uri, activateTab: !AppSettingsService.Instance.Settings.OpenNewTabInBackground);
+        }
+
+        private async Task ConfigureCoreWebViewAsync(BrowserTab tab, WebView2 webView, CoreWebView2 core)
+        {
+            var settings = AppSettingsService.Instance.Settings;
+
             core.Settings.IsStatusBarEnabled = false;
             core.Settings.AreDefaultContextMenusEnabled = true;
             core.Settings.IsScriptEnabled = tab.JavaScriptEnabled;
             core.Settings.AreDevToolsEnabled = true;
+
+            // Zoom der ersten Seite; danach stellt ContentLoading den Zoom jeder Website her (MainWindow.Zoom.cs)
+            double startZoom = ZoomService.Instance.Get(tab.Url) ?? ZoomService.DefaultFactor;
+            if (!ZoomLevels.AreEqual(startZoom, 1.0))
+            {
+                SetZoom(webView, startZoom, remember: false);
+            }
+
+            // "Do Not Track" & Global Privacy Control -> MainWindow.Privacy.cs
+            await AttachPrivacySignalsAsync(tab, core);
 
             // Cosmetic element-hiding + Netzwerkfilter (nur wenn Shield aktiv)
             await SyncShieldStateAsync(tab);
@@ -118,7 +202,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] Web-Store-Hilfsskript konnte nicht registriert werden: {ex.Message}");
+                Log.Warn("Web-Store-Hilfsskript konnte nicht registriert werden", ex);
             }
 
             // Allow extension downloads without prompt interruptions.
@@ -133,9 +217,12 @@ namespace EchoBrowser
                 }
             };
 
+            ApplyAutofillSettings(core);
+            ApplyColorScheme(core);
+
             try
             {
-                string trackingLevel = AppSettingsService.Instance.Settings.TrackingPreventionLevel ?? "balanced";
+                string trackingLevel = settings.TrackingPreventionLevel ?? "balanced";
                 core.Profile.PreferredTrackingPreventionLevel = trackingLevel.ToLowerInvariant() switch
                 {
                     "strict" => CoreWebView2TrackingPreventionLevel.Strict,
@@ -145,7 +232,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Echo] Tracking-Prävention konnte nicht gesetzt werden: {ex.Message}");
+                Log.Warn("Tracking-Prävention konnte nicht gesetzt werden", ex);
             }
         }
 
@@ -181,7 +268,7 @@ namespace EchoBrowser
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Echo] Fehler im Shield-Netzwerkfilter: {ex.Message}");
+                    Log.Warn("Fehler im Shield-Netzwerkfilter", ex);
                 }
             };
         }
@@ -196,7 +283,8 @@ namespace EchoBrowser
         {
             core.DocumentTitleChanged += (s, args) =>
             {
-                if (tab.Url == StartPageService.StartPageUrl || tab.Url == SettingsPageService.SettingsPageUrl) return;
+                // Interne Seiten behalten ihren übersetzten Tab-Titel ("Neuer Tab", "Einstellungen")
+                if (InternalPages.IsInternalUrl(tab.Url)) return;
 
                 tab.Title = core.DocumentTitle;
                 RecordHistory(tab);
@@ -217,53 +305,85 @@ namespace EchoBrowser
         {
             webView.NavigationStarting += async (s, args) =>
             {
-                // Check domain whitelist
+                var settings = AppSettingsService.Instance.Settings;
+                bool isInternal = InternalPages.IsInternalUrl(args.Uri);
+
+                // Website-Ausnahmen für Shield und Popup-Blocker
                 if (Uri.TryCreate(args.Uri, UriKind.Absolute, out var navUri) && !string.IsNullOrEmpty(navUri.Host))
                 {
-                    tab.TrackingProtectionEnabled = !AppSettingsService.Instance.Settings.WhitelistedShieldDomains.Contains(navUri.Host);
+                    tab.TrackingProtectionEnabled = !settings.WhitelistedShieldDomains.Contains(navUri.Host);
+                    tab.PopupsBlocked = settings.BlockPopups && !settings.PopupAllowedDomains.Contains(navUri.Host);
                 }
 
-                await SyncShieldStateAsync(tab);
+                // Interne Seiten brauchen immer JavaScript – auch wenn es für Webseiten abgeschaltet ist
+                if (webView.CoreWebView2 != null)
+                {
+                    webView.CoreWebView2.Settings.IsScriptEnabled = isInternal || tab.JavaScriptEnabled;
+                }
+
+                // Die Absturzseite behält die ursprüngliche Adresse (für Adressleiste, Sitzung und "Neu laden")
+                if (!InternalPages.Is(args.Uri, InternalPages.Crashed))
+                {
+                    PrepareFaviconForNavigation(tab, args.Uri);
+                    tab.Url = InternalPages.Normalize(args.Uri);
+                }
 
                 tab.BlockedTrackersCount = 0;
+                tab.BlockedPopupUrls.Clear();
+                DiscardPermissionRequests(tab);
                 tab.IsLoading = true;
-                if (!args.Uri.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase))
-                {
-                    tab.Url = args.Uri;
-                }
                 if (tab == ActiveTab)
                 {
-                    txtUrl.Text = IsStartPage(tab.Url) ? "" : tab.Url;
+                    ShowAddress(tab);
                     UpdateNavigationControls();
                     UpdateShieldBadge();
+                    UpdatePopupBlockedIndicator();
                     if (popupShield.IsOpen)
                     {
                         UpdateShieldUi();
                     }
                 }
+
+                await SyncShieldStateAsync(tab);
             };
 
             webView.NavigationCompleted += (s, args) =>
             {
                 tab.IsLoading = false;
+
+                // Wurde die Navigation nicht übernommen (Download, abgebrochen, 204), gilt weiter die alte Adresse
+                string currentSource = webView.CoreWebView2?.Source ?? "";
+                if (currentSource.Length > 0 && !InternalPages.Is(currentSource, InternalPages.Crashed))
+                {
+                    tab.Url = InternalPages.Normalize(currentSource);
+                }
+
                 if (tab == ActiveTab)
                 {
+                    ShowAddress(tab);
                     UpdateNavigationControls();
                     CheckBookmarkStatus();
+                    UpdateZoomIndicator();
+
+                    // Offene Suchleiste: auf der neuen Seite weitersuchen
+                    if (IsFindBarOpen && !string.IsNullOrEmpty(findBar.SearchText))
+                    {
+                        _ = StartFindAsync(findBar.SearchText, findBar.MatchCase);
+                    }
                 }
                 RecordHistory(tab);
             };
 
             webView.SourceChanged += (s, args) =>
             {
-                string currentSrc = webView.Source.ToString();
-                if (!currentSrc.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase))
+                string currentSrc = webView.Source?.ToString() ?? "";
+                if (currentSrc.Length > 0 && !InternalPages.Is(currentSrc, InternalPages.Crashed))
                 {
-                    tab.Url = currentSrc;
+                    tab.Url = InternalPages.Normalize(currentSrc);
                 }
                 if (tab == ActiveTab)
                 {
-                    txtUrl.Text = IsStartPage(tab.Url) ? "" : tab.Url;
+                    ShowAddress(tab);
                     CheckBookmarkStatus();
                     UpdateShieldUi();
                 }
@@ -274,8 +394,10 @@ namespace EchoBrowser
         private void RecordHistory(BrowserTab tab)
         {
             if (_isIncognito || string.IsNullOrWhiteSpace(tab.Url)) return;
-            if (tab.Url.StartsWith("echo://", StringComparison.OrdinalIgnoreCase) ||
-                tab.Url.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase)) return;
+            if (InternalPages.IsInternalUrl(tab.Url) ||
+                tab.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return;
+            // Die Absturzseite zeigt die alte Adresse – kein Verlaufseintrag "Seite abgestürzt"
+            if (InternalPages.Is(tab.WebView?.CoreWebView2?.Source, InternalPages.Crashed)) return;
 
             _historyService.AddEntry(tab.Title, tab.Url);
         }
@@ -283,25 +405,37 @@ namespace EchoBrowser
         /// <summary>Erste Navigation: Startseite, Einstellungen oder die angeforderte URL.</summary>
         private void NavigateInitially(BrowserTab tab, WebView2 webView, string initialUrl)
         {
-            if (initialUrl == SettingsPageService.SettingsPageUrl)
+            if (initialUrl == StartPageService.StartPageUrl || initialUrl == "about:blank")
             {
-                NavigateToSettingsPage(tab);
-            }
-            else if (initialUrl == StartPageService.StartPageUrl || initialUrl == "about:blank")
-            {
-                tab.Url = StartPageService.StartPageUrl;
                 tab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
-                webView.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
+                initialUrl = StartPageService.StartPageUrl;
             }
-            else
+            else if (initialUrl == SettingsPageService.SettingsPageUrl)
+            {
+                tab.Title = Tr.Get("Tab_Settings");
+            }
+
+            try
             {
                 webView.CoreWebView2?.Navigate(initialUrl);
+            }
+            catch (ArgumentException ex)
+            {
+                // Ungültige Adresse (z.B. aus einer alten Sitzung) – lieber die Startseite als ein leerer Tab
+                Log.Warn($"Ungültige Adresse beim Öffnen eines Tabs: {initialUrl}", ex);
+                webView.CoreWebView2?.Navigate(StartPageService.StartPageUrl);
             }
         }
 
         public void SelectTab(BrowserTab tab)
         {
             if (tab == null) return;
+
+            ExpandGroupOf(tab);
+
+            // Der bisherige Tab ist ab jetzt inaktiv – ab hier läuft seine Zeit bis zum Tab-Schlaf
+            if (ActiveTab != null && ActiveTab != tab) ActiveTab.LastActiveAt = DateTime.Now;
+            tab.LastActiveAt = DateTime.Now;
 
             foreach (var t in Tabs)
             {
@@ -313,15 +447,25 @@ namespace EchoBrowser
                 }
             }
 
+            WakeTab(tab);
             ActiveTab = tab;
+            ApplySplitLayout();
         }
 
-        public void CloseTab(BrowserTab tab)
+        public void CloseTab(BrowserTab tab, bool rememberForReopen = true)
         {
             if (tab == null) return;
 
             int index = Tabs.IndexOf(tab);
             if (index < 0) return;
+
+            OnTabClosingForSplit(tab);
+
+            // Für Strg+Umschalt+T merken
+            if (rememberForReopen)
+            {
+                _closedTabs.Push(tab.Url, tab.Title, index);
+            }
 
             // Remove WebView control from container
             if (tab.WebView != null)
@@ -353,11 +497,19 @@ namespace EchoBrowser
         {
             if (ActiveTab == null) return;
 
-            txtUrl.Text = IsStartPage(ActiveTab.Url) ? "" : ActiveTab.Url;
+            ShowAddress(ActiveTab);
             UpdateNavigationControls();
             CheckBookmarkStatus();
             UpdateShieldBadge();
             UpdateShieldUi();
+            UpdatePopupBlockedIndicator();
+            UpdateZoomIndicator();
+            CloseFindBar();
+            OnActiveTabChangedForPermissions();
+
+            // Bei vielen Tabs zum aktiven Tab scrollen
+            FindVisualChild<EchoBrowser.Views.Controls.TabStripPanel>(itemsTabs)?.InvalidateArrange();
+            UpdateVerticalTabsForActiveTab();
         }
 
         private void BtnNewTab_Click(object sender, RoutedEventArgs e)
@@ -401,9 +553,13 @@ namespace EchoBrowser
                 {
                     if (sender is FrameworkElement fe)
                     {
-                        var data = new DataObject("EchoBrowserTab", _draggedTab);
+                        var dragged = _draggedTab;
+                        var data = new DataObject("EchoBrowserTab", dragged);
                         DragDrop.DoDragDrop(fe, data, DragDropEffects.Move);
                         _draggedTab = null;
+
+                        // Gruppe nach der neuen Position anpassen (MainWindow.TabGroups.cs)
+                        FinishTabDrag(dragged);
                     }
                 }
             }
@@ -425,7 +581,8 @@ namespace EchoBrowser
                 if (e.Data.GetData("EchoBrowserTab") is BrowserTab sourceTab &&
                     sender is FrameworkElement fe && fe.DataContext is BrowserTab targetTab)
                 {
-                    if (sourceTab != targetTab)
+                    // Angeheftete und übrige Tabs bleiben getrennt
+                    if (sourceTab != targetTab && sourceTab.IsPinned == targetTab.IsPinned)
                     {
                         int oldIndex = Tabs.IndexOf(sourceTab);
                         int newIndex = Tabs.IndexOf(targetTab);

@@ -13,17 +13,39 @@
 
 ## Funktionen
 
-- **Tabs** mit Drag & Drop, Inkognito-Fenster und Sitzungswiederherstellung
+- **Tabs** mit Website-Symbolen, Drag & Drop, Kontextmenü (Duplizieren, Stummschalten, Andere schließen …),
+  Ton-Anzeige, Mittelklick zum Schließen und „Geschlossenen Tab wieder öffnen“
+- **Angeheftete Tabs** und **Tab-Gruppen** mit Name und Farbe (Klick auf den Gruppenkopf klappt ein/aus,
+  Rechtsklick bearbeitet); beides bleibt über einen Neustart erhalten
+- **Vertikale Tabs**: Tabs als Liste links (wie Edge), auf Wunsch schmal nur mit Symbolen – Knopf neben dem Logo
+- **Geteilte Ansicht** (Split View): zwei Tabs nebeneinander mit verschiebbarem Trenner; Adressleiste, Zoom und Suche
+  gelten für die Seite mit dem Fokus. Über den Knopf in der Symbolleiste, das Tab- und Link-Kontextmenü oder `Strg+K`
+- **Omnibox** mit Vorschlägen aus offenen Tabs, Lesezeichen, Verlauf und der Suchmaschine,
+  Inline-Vervollständigung und Hinweis „Nicht sicher“ bei unverschlüsselten Seiten
+- **Befehlspalette** (`Strg+K`): eine Suche für alle Befehle, offene Tabs, Lesezeichen, Verlauf und
+  Einstellungsbereiche – mit unscharfer Suche und den Tastenkürzeln daneben
+- **Auf Seite suchen**, **Zoom pro Website**, **Vollbild** (F11 und Videos), Drucken und „Seite speichern unter“
+- **Sitzung** wird laufend gesichert; nach einem Absturz bietet Echo an, alle Fenster und Tabs wiederherzustellen.
+  Beim Wiederherstellen lädt nur der aktive Tab sofort, die übrigen beim ersten Anklicken
+- **Tab-Schlaf**: inaktive Tabs werden nach einstellbarer Zeit eingefroren (Tabs mit Ton bleiben wach) und nach langer
+  Zeit ganz entladen; **Leistung & Speicher** im Menü zeigt den Arbeitsspeicher gesamt und pro Tab
+- **Inkognito-Fenster** mit eigenem InPrivate-Profil (Cookies und Verlauf bleiben getrennt)
+- **Website-Berechtigungen** (Kamera, Mikrofon, Standort, Benachrichtigungen …) mit eigener Abfrage
+- **Downloads** mit Pause/Fortsetzen, Fortschrittsring und gespeicherter Liste
+- **Pop-up-Blocker**, „Do Not Track“ und Global Privacy Control
+- **Lesezeichen-Import** aus Chrome, Edge, Brave oder HTML-Datei sowie HTML-Export
+- **Als Standardbrowser** festlegbar
 - **Echo Shield** – integrierter Werbe- & Tracker-Blocker
   - Netzwerkfilter (StevenBlack-Hosts-Liste, ca. 75.000 Domains, lokal zwischengespeichert)
   - Kosmetisches Ausblenden von Werbeflächen
   - pro Website abschaltbar, mit Zähler in der Adressleiste
 - **Chrome-Erweiterungen** direkt aus dem Chrome Web Store installieren, anheften und über ihr Popup bedienen
 - **Lesezeichenleiste** mit Gruppen/Ordnern und Drag & Drop, **Favoriten-Seitenleiste**
-- **Eigene Startseite** mit Schnellzugriff-Kacheln und wählbarer Suchmaschine
+- **Eigene Startseite** mit Schnellzugriff-Kacheln, „Meistbesucht“, optionalem Hintergrundbild und wählbarer Suchmaschine
   (DuckDuckGo, Google, Bing, Ecosia, Brave Search, Startpage)
 - **Einstellungsseite** (`echo://settings`) für Startverhalten, Suche, Design, Datenschutz, Downloads und Tabs
-- **Themes**: Silber & Anthrazit, Midnight OLED, Titanium Light, Cobalt Slate – plus frei wählbare Akzentfarbe
+- **Themes**: Silber & Anthrazit, Midnight OLED, Titanium Light, Cobalt Slate und „System“ (folgt Windows hell/dunkel) –
+  plus frei wählbare Akzentfarbe; Start- und Einstellungsseite passen sich an, unter Windows 11 mit Mica-Effekt
 - **Anpassbare Symbolleiste** – Schaltflächen per Rechtsklick ein- und ausblenden
 - **Mehrsprachig**: Deutsch, Englisch, Französisch und Spanisch; Sprachwechsel ohne Neustart
 
@@ -66,19 +88,37 @@ das Einlesen der Blockliste, die Sprachdateien (alle Sprachen vollständig, Plat
 dotnet test tests/EchoBrowser.Tests
 ```
 
+Einen Entwicklungsstand neben dem installierten Echo ausprobieren, ohne dessen Daten anzufassen:
+Die Umgebungsvariable `ECHO_USER_DATA_DIR` legt einen eigenen Datenordner fest (wie `--user-data-dir` bei Chrome).
+
+```powershell
+$env:ECHO_USER_DATA_DIR = "$env:TEMP\echo-dev"; dotnet run
+```
+
 ## Tastenkürzel
 
 | Kürzel | Aktion |
 |---|---|
+| `Strg+K` | Befehlspalette (Befehle, Tabs, Lesezeichen, Verlauf) |
 | `Strg+T` / `Strg+W` | Neuer Tab / Tab schließen |
+| `Strg+Umschalt+T` | Geschlossenen Tab wieder öffnen |
+| `Strg+Tab` / `Strg+Umschalt+Tab` | Nächster / vorheriger Tab |
+| `Strg+1` … `Strg+8` / `Strg+9` | Zu Tab 1–8 / zum letzten Tab |
 | `Strg+N` / `Strg+Umschalt+N` | Neues Fenster / Neues Inkognito-Fenster |
-| `Strg+L` / `Alt+D` | Adressleiste fokussieren |
-| `Strg+R` / `F5` | Neu laden |
+| `Strg+L` / `Alt+D` / `F6` | Adressleiste fokussieren |
+| `Alt+Enter` / `Strg+Enter` (Adressleiste) | In neuem Tab öffnen / `www.` und `.com` ergänzen |
+| `Umschalt+Entf` (Vorschlag) | Eintrag aus dem Verlauf löschen |
+| `Strg+R` / `F5` / `Strg+F5` | Neu laden / ohne Cache neu laden |
+| `Alt+Links` / `Alt+Rechts` / `Alt+Pos1` | Zurück / Vor / Startseite |
+| `Strg+F` / `F3` / `Umschalt+F3` | Auf Seite suchen / nächster / vorheriger Treffer |
+| `Strg+Plus` / `Strg+Minus` / `Strg+0` | Vergrößern / Verkleinern / Zoom zurücksetzen |
+| `F11` | Vollbild |
+| `Strg+P` / `Strg+S` / `Strg+U` | Drucken / Seite speichern / Quelltext anzeigen |
 | `Strg+D` | Seite als Lesezeichen speichern |
 | `Strg+Umschalt+B` | Lesezeichenleiste ein-/ausblenden |
 | `Strg+J` / `Strg+H` | Downloads / Verlauf |
-| `Strg+,` | Einstellungen |
-| `F12` | Entwicklertools |
+| `Strg+,` / `Strg+Umschalt+Entf` | Einstellungen |
+| `F12` / `Strg+Umschalt+I` | Entwicklertools |
 
 ## Projektstruktur
 
@@ -106,6 +146,9 @@ dotnet test tests/EchoBrowser.Tests
 
 Benutzerdaten (Einstellungen, Lesezeichen, Verlauf, Erweiterungen, Browserprofil) liegen unter
 `%LOCALAPPDATA%\EchoBrowser`.
+Dort liegt auch das Protokoll (`logs\echo-<datum>.log`, die letzten 7 Tage) – bei Problemen bitte mitschicken.
+
+Echo läuft pro Benutzer nur einmal: `EchoBrowser.exe https://example.com` öffnet die Adresse als Tab im laufenden Fenster.
 
 ## Übersetzungen
 

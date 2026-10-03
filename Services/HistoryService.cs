@@ -9,8 +9,14 @@ using EchoBrowser.Models;
 
 namespace EchoBrowser.Services
 {
+    /// <summary>
+    /// Browserverlauf – eine Instanz für alle Fenster (muss auf dem UI-Thread erzeugt werden, wegen DispatcherTimer).
+    /// </summary>
     public class HistoryService
     {
+        private static HistoryService? _instance;
+        public static HistoryService Instance => _instance ??= new HistoryService();
+
         private readonly string _filePath;
         private const int MaxEntries = 1000;
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
@@ -22,12 +28,9 @@ namespace EchoBrowser.Services
 
         public ObservableCollection<HistoryItem> Entries { get; } = new();
 
-        public HistoryService()
+        private HistoryService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string folder = Path.Combine(appData, "EchoBrowser");
-            Directory.CreateDirectory(folder);
-            _filePath = Path.Combine(folder, "history.json");
+            _filePath = AppPaths.File("history.json");
 
             _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _saveTimer.Tick += (s, e) =>
@@ -96,7 +99,7 @@ namespace EchoBrowser.Services
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[Echo] Verlauf konnte nicht gespeichert werden: {ex.Message}");
+                    Log.Warn("Verlauf konnte nicht gespeichert werden", ex);
                 }
             }
         }

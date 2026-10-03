@@ -78,9 +78,17 @@ namespace EchoBrowser.Models
                 {
                     _iconColor = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayIconColor));
                 }
             }
         }
+
+        /// <summary>Symbolfarbe, die auf dem aktuellen Hintergrund lesbar ist (helles Weiß im hellen Design abgedunkelt).</summary>
+        [JsonIgnore]
+        public string DisplayIconColor => EchoBrowser.Services.ThemeManager.Instance.ReadableOnBackground(_iconColor);
+
+        /// <summary>Nach einem Theme-Wechsel neu berechnen lassen.</summary>
+        public void RefreshThemeColors() => OnPropertyChanged(nameof(DisplayIconColor));
 
         [JsonIgnore]
         public string DisplayInitial => string.IsNullOrWhiteSpace(Title)

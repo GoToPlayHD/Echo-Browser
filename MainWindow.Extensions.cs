@@ -47,7 +47,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to refresh extensions: {ex.Message}");
+                Log.Warn("Failed to refresh extensions", ex);
             }
         }
 
@@ -168,7 +168,7 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to update pinned extensions toolbar: {ex.Message}");
+                Log.Warn("Failed to update pinned extensions toolbar", ex);
             }
         }
 

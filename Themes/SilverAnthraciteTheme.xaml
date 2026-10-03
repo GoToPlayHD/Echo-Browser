@@ -57,6 +57,18 @@
     <!-- Standard Converters -->
     <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
 
+    <!-- Sichtbarer Tastaturfokus (erscheint nur bei Tastaturbedienung, nicht bei Mausklicks) -->
+    <Style x:Key="EchoFocusVisual">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="-2" RadiusX="7" RadiusY="7" StrokeThickness="2" SnapsToDevicePixels="True"
+                               Stroke="{DynamicResource OmniboxFocusBorderBrush}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ========================================== -->
     <!--  2. TOOLTIP STYLE                          -->
     <!-- ========================================== -->
@@ -88,11 +100,12 @@
     <!--  3. ICON BUTTON STYLE                      -->
     <!-- ========================================== -->
     <Style x:Key="IconButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrush}"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Width" Value="32"/>
         <Setter Property="Height" Value="32"/>
@@ -128,10 +141,11 @@
 
     <!-- Small Circular Close / Action Button -->
     <Style x:Key="SmallRoundButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentSilverDimBrush}"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Width" Value="20"/>
         <Setter Property="Height" Value="20"/>
@@ -159,12 +173,13 @@
 
     <!-- Window Chrome System Buttons (Minimize, Maximize, Close) -->
     <Style x:Key="ChromeButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentSilverDimBrush}"/>
         <Setter Property="Width" Value="46"/>
         <Setter Property="Height" Value="38"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -264,7 +279,7 @@
         <Setter Property="Height" Value="26"/>
         <Setter Property="Padding" Value="8,2"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -293,7 +308,7 @@
     <!-- ========================================== -->
     <Style x:Key="ModernToggleSwitch" TargetType="{x:Type CheckBox}">
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Template">
@@ -341,6 +356,26 @@
                 <DropShadowEffect BlurRadius="24" ShadowDepth="6" Direction="270" Color="#000000" Opacity="0.45"/>
             </Setter.Value>
         </Setter>
+        <!-- Beim Öffnen leicht von oben hereingleiten (ergänzt das Einblenden der Popups) -->
+        <Setter Property="RenderTransform">
+            <Setter.Value>
+                <TranslateTransform Y="0"/>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                <BeginStoryboard>
+                    <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                         From="-6" To="0" Duration="0:0:0.16">
+                            <DoubleAnimation.EasingFunction>
+                                <CubicEase EasingMode="EaseOut"/>
+                            </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                    </Storyboard>
+                </BeginStoryboard>
+            </EventTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ========================================== -->
@@ -356,7 +391,7 @@
         <Setter Property="Height" Value="24"/>
         <Setter Property="Padding" Value="8,0"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -392,7 +427,7 @@
         <Setter Property="Height" Value="30"/>
         <Setter Property="Padding" Value="10,0"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -450,6 +485,7 @@
     <!--  9. SIDEBAR FAVORITE BUTTON (ANIMATED)     -->
     <!-- ========================================== -->
     <Style x:Key="SidebarFavoriteButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
         <Setter Property="Background" Value="{DynamicResource TabBackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -457,7 +493,7 @@
         <Setter Property="Height" Value="38"/>
         <Setter Property="Margin" Value="0,3"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
         <Setter Property="RenderTransform">
             <Setter.Value>
@@ -553,7 +589,7 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
         <Setter Property="Padding" Value="8,2,6,2"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -825,6 +861,11 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- In Menüs nutzt WPF einen eigenen Separator-Stil (mit Einrückung für Icons) – hier denselben flachen Stil -->
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}" BasedOn="{StaticResource {x:Type Separator}}">
+        <Setter Property="Margin" Value="6,3"/>
     </Style>
 
 </ResourceDictionary>

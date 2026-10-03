@@ -23,9 +23,10 @@ namespace EchoBrowser
 {
     public partial class MainWindow : Window
     {
-        private readonly BookmarkService _bookmarkService = new();
-        private readonly SidebarService _sidebarService = new();
-        private readonly HistoryService _historyService = new();
+        // Gemeinsame Daten aller Fenster
+        private readonly BookmarkService _bookmarkService = BookmarkService.Instance;
+        private readonly SidebarService _sidebarService = SidebarService.Instance;
+        private readonly HistoryService _historyService = HistoryService.Instance;
         private CoreWebView2Environment? _webViewEnvironment;
         private BrowserTab? _activeTab;
         private bool _isBookmarksBarVisible = true;
@@ -60,9 +61,20 @@ namespace EchoBrowser
         }
 
         private readonly bool _isIncognito;
-        private string? _incognitoFolder;
 
         public bool IsIncognito => _isIncognito;
+
+        /// <summary>Nur das erste Fenster der App führt das Startverhalten aus (Startseite, Sitzung, eigene URL).</summary>
+        public bool IsInitialWindow { get; init; }
+
+        /// <summary>Adressen, die zusätzlich als Tabs geöffnet werden (Kommandozeile, Link aus einer anderen App).</summary>
+        public IReadOnlyList<string> StartupUrls { get; init; } = Array.Empty<string>();
+
+        /// <summary>Beim Wiederherstellen einer Sitzung mit mehreren Fenstern: die Tabs dieses Fensters.</summary>
+        public SessionWindow? WindowToRestore { get; init; }
+
+        /// <summary>Das zuletzt aktive Fenster – Ziel für Adressen, die von außen kommen.</summary>
+        public static MainWindow? LastActive { get; private set; }
 
         public MainWindow() : this(false)
         {
@@ -82,12 +94,40 @@ namespace EchoBrowser
             InitializeBookmarkFormPanels();
             InitializeShieldPanel();
             InitializeExtensionsPanel();
+            InitializeFindBar();
+            InitializeOmnibox();
+            InitializePermissions();
+            InitializeCommandPalette();
+            InitializeTabSleep();
+            InitializeTabGroups();
+            InitializeVerticalTabs();
+            InitializeWindowChrome();
+            InitializeThemeSync();
+
+            // Flyouts der rechten Symbolleiste rechtsbündig unter ihrem Knopf (wie Chrome), statt über den Fensterrand zu ragen
+            foreach (var popup in new[] { popupExtensions, popupDownloads, popupMenu, popupTheme, popupHistory, popupPerformance })
+            {
+                AlignPopupRightEdge(popup);
+            }
+            popupToast.CustomPopupPlacementCallback = (popupSize, targetSize, offset) => new[]
+            {
+                new System.Windows.Controls.Primitives.CustomPopupPlacement(
+                    new Point((targetSize.Width - popupSize.Width) / 2, 18),
+                    System.Windows.Controls.Primitives.PopupPrimaryAxis.Horizontal)
+            };
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
             Closing += MainWindow_Closing;
+            Activated += (s, e) => LastActive = this;
             RegisterWebMessageHandlers();
             LocalizationService.Instance.LanguageChanged += ApplyLocalizationToUi;
+
+            if (!_isIncognito)
+            {
+                SessionService.Instance.Resume();
+                Tabs.CollectionChanged += (s, e) => ScheduleSessionSave();
+            }
 
             if (_isIncognito)
             {
@@ -168,14 +208,18 @@ namespace EchoBrowser
                 // If active tab is on the startpage, reload it to reflect the new default engine
                 if (ActiveTab?.Url == StartPageService.StartPageUrl)
                 {
-                    ActiveTab.WebView?.NavigateToString(StartPageService.GetStartPageHtml(_isIncognito));
+                    ActiveTab.WebView?.CoreWebView2?.Reload();
                 }
             }
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            await InitializeBrowserEnvironmentAsync();
+            if (!await InitializeBrowserEnvironmentAsync())
+            {
+                Close();
+                return;
+            }
 
             // 1. Initialize Localization from AppSettings
             LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
@@ -189,19 +233,8 @@ namespace EchoBrowser
 
             ApplyLocalizationToUi();
 
-            var settings = AppSettingsService.Instance.Settings;
-            if (!_isIncognito && settings.StartupBehavior == "restore_session")
-            {
-                RestorePreviousSession();
-            }
-            else if (!_isIncognito && settings.StartupBehavior == "custom_url" && !string.IsNullOrWhiteSpace(settings.CustomStartupUrl))
-            {
-                AddNewTab(settings.CustomStartupUrl);
-            }
-            else
-            {
-                AddNewTab(StartPageService.StartPageUrl);
-            }
+            // Startseite, Sitzung oder übergebene Adressen öffnen -> MainWindow.Session.cs
+            OpenInitialTabs();
 
             _ = Dispatcher.InvokeAsync(async () =>
             {
@@ -240,45 +273,63 @@ namespace EchoBrowser
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to apply localization: {ex.Message}");
+                Log.Warn("Failed to apply localization", ex);
             }
         }
 
-        private async Task InitializeBrowserEnvironmentAsync()
+        /// <summary>
+        /// Holt die gemeinsame WebView2-Umgebung (alle Fenster, auch Inkognito über ein InPrivate-Profil).
+        /// Gibt false zurück, wenn der Browser nicht starten kann – das Fenster schließt sich dann.
+        /// </summary>
+        private async Task<bool> InitializeBrowserEnvironmentAsync()
         {
             try
             {
-                string userDataFolder;
-                if (_isIncognito)
-                {
-                    _incognitoFolder = Path.Combine(Path.GetTempPath(), "EchoBrowser_Incognito_" + Guid.NewGuid().ToString("N"));
-                    Directory.CreateDirectory(_incognitoFolder);
-                    userDataFolder = _incognitoFolder;
-                }
-                else
-                {
-                    string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                    userDataFolder = Path.Combine(appData, "EchoBrowser", "WebView2Data");
-                    Directory.CreateDirectory(userDataFolder);
-                }
-
-                var options = new CoreWebView2EnvironmentOptions
-                {
-                    AreBrowserExtensionsEnabled = true
-                };
-
-                _webViewEnvironment = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
+                _webViewEnvironment = await BrowserEnvironment.GetAsync();
                 _ = AdBlockerService.Instance.InitializeAsync();
                 borderSplash.Visibility = Visibility.Collapsed;
+                return true;
+            }
+            catch (WebView2RuntimeNotFoundException ex)
+            {
+                Log.Error("WebView2 Runtime nicht gefunden", ex);
+                bool download = ThemedDialogWindow.ShowConfirm(
+                    this,
+                    Tr.Get("Error_WebViewInitTitle"),
+                    Tr.Get("Error_WebViewMissing"),
+                    Tr.Get("Error_WebViewDownload"),
+                    Tr.Get("Common_Close"));
+                if (download)
+                {
+                    Process.Start(new ProcessStartInfo { FileName = WebView2RuntimeDownloadUrl, UseShellExecute = true });
+                }
+                return false;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    Tr.Format("Error_WebViewInit", ex.Message),
+                Log.Error("WebView2-Umgebung konnte nicht erzeugt werden", ex);
+                ThemedDialogWindow.ShowMessage(
+                    this,
                     Tr.Get("Error_WebViewInitTitle"),
-                    MessageBoxButton.OK,
+                    Tr.Format("Error_WebViewInit", ex.Message),
                     MessageBoxImage.Error);
+                return false;
             }
+        }
+
+        private const string WebView2RuntimeDownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+
+        /// <summary>Fenster nach vorne holen, auch wenn es minimiert ist.</summary>
+        public void BringToFront()
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                WindowState = WindowState.Normal;
+            }
+            Activate();
+            Topmost = true;  // Windows verweigert sonst manchmal das Fokussieren aus dem Hintergrund
+            Topmost = false;
+            Focus();
         }
 
         #region TitleBar Window Movement & System Buttons
@@ -306,6 +357,7 @@ namespace EchoBrowser
 
         private void MainWindow_StateChanged(object? sender, EventArgs e)
         {
+            UpdateMaximizedMargin();
             if (WindowState == WindowState.Maximized)
             {
                 pathMaximizeIcon.Data = Geometry.Parse("M4 8H2V2h6v2H4v4zm10-6h6v6h-2V4h-4V2zm6 14v4h-4v2h6v-6h-2zM4 16v4h4v2H2v-6h2z");
@@ -339,6 +391,7 @@ namespace EchoBrowser
 
 private void BtnMenu_Click(object sender, RoutedEventArgs e)
         {
+            UpdateZoomIndicator();
             popupMenu.IsOpen = true;
         }
 
@@ -414,7 +467,7 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
 
                 if (confirmed)
                 {
-                    SaveCurrentSession();
+                    SaveSessionForRestart();
                     UpdateService.Instance.RestartAndApplyUpdate();
                 }
                 return;
@@ -457,7 +510,7 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
 
                 if (confirmed)
                 {
-                    SaveCurrentSession();
+                    SaveSessionForRestart();
                     UpdateService.Instance.RestartAndApplyUpdate();
                 }
             }
@@ -538,6 +591,15 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
 
 #region Visual Helpers
 
+        private static void AlignPopupRightEdge(Popup popup)
+        {
+            popup.Placement = PlacementMode.Custom;
+            popup.CustomPopupPlacementCallback = (popupSize, targetSize, offset) => new[]
+            {
+                new CustomPopupPlacement(new Point(targetSize.Width - popupSize.Width + 4, targetSize.Height), PopupPrimaryAxis.Horizontal)
+            };
+        }
+
         private static T? FindVisualParent<T>(DependencyObject? child, Func<T, bool>? predicate = null) where T : DependencyObject
         {
             while (child != null)
@@ -581,22 +643,16 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
                 _historyService.SaveHistory();
             }
 
+            // Inkognito-Daten liegen im InPrivate-Profil und verschwinden mit der letzten Inkognito-WebView
             foreach (var tab in Tabs.ToList())
             {
                 tab.Dispose();
             }
             Tabs.Clear();
 
-            if (_isIncognito && !string.IsNullOrEmpty(_incognitoFolder))
+            if (LastActive == this)
             {
-                try
-                {
-                    if (Directory.Exists(_incognitoFolder))
-                    {
-                        Directory.Delete(_incognitoFolder, true);
-                    }
-                }
-                catch { }
+                LastActive = null;
             }
         }
     }

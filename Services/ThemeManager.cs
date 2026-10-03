@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Win32;
 
 namespace EchoBrowser.Services
 {
@@ -10,7 +13,9 @@ namespace EchoBrowser.Services
         SilverAnthracite,
         MidnightOled,
         TitaniumLight,
-        CobaltSlate
+        CobaltSlate,
+        /// <summary>Folgt dem hellen bzw. dunklen Modus von Windows (Titanium Light bzw. Silber &amp; Anthrazit).</summary>
+        System
     }
 
     public class ThemeManager
@@ -18,22 +23,42 @@ namespace EchoBrowser.Services
         private static ThemeManager? _instance;
         public static ThemeManager Instance => _instance ??= new ThemeManager();
 
+        private const string DefaultAccentHex = "#C4C7CC";
+
+        /// <summary>Gewähltes Preset (kann "System" sein).</summary>
         public ThemePreset CurrentPreset { get; private set; } = ThemePreset.SilverAnthracite;
 
+        /// <summary>Tatsächlich angezeigtes Preset ("System" aufgelöst).</summary>
+        public ThemePreset EffectivePreset => CurrentPreset == ThemePreset.System
+            ? (WindowsUsesLightTheme() ? ThemePreset.TitaniumLight : ThemePreset.SilverAnthracite)
+            : CurrentPreset;
+
+        /// <summary>Helles Design aktiv – für Webseiten (prefers-color-scheme) und die internen Seiten.</summary>
+        public bool IsLight => EffectivePreset == ThemePreset.TitaniumLight;
+
+        /// <summary>Preset oder Akzentfarbe hat sich geändert (auch durch Umschalten des Windows-Modus).</summary>
         public event Action<ThemePreset>? ThemeChanged;
+
+        private Color? _customAccent;
+        private bool _followsSystem;
 
         private ThemeManager() { }
 
         public void ApplyPreset(ThemePreset preset)
         {
             CurrentPreset = preset;
-            var palette = GetPaletteForPreset(preset);
-
-            foreach (var kvp in palette)
+            foreach (var kvp in GetPaletteForPreset(EffectivePreset))
             {
                 SetResourceColor(kvp.Key, kvp.Value);
             }
 
+            // Eigene Akzentfarbe gilt für alle Presets
+            if (_customAccent is { } accent)
+            {
+                ApplyAccentBrushes(accent);
+            }
+
+            FollowSystemTheme(preset == ThemePreset.System);
             ThemeChanged?.Invoke(preset);
         }
 
@@ -44,20 +69,24 @@ namespace EchoBrowser.Services
 
         public void SetAccentColor(Color color)
         {
-            SetResourceColor("AccentSilverBrush", color);
-            
-            // Generate brighter and dimmer variants
-            Color bright = Color.FromArgb(
-                color.A,
-                (byte)Math.Min(255, color.R + 40),
-                (byte)Math.Min(255, color.G + 40),
-                (byte)Math.Min(255, color.B + 40));
+            _customAccent = string.Equals(ToHex(color), DefaultAccentHex, StringComparison.OrdinalIgnoreCase) ? null : color;
+            ApplyAccentBrushes(color);
+            ThemeChanged?.Invoke(CurrentPreset);
+        }
 
-            Color dim = Color.FromArgb(
-                color.A,
-                (byte)Math.Max(0, color.R - 40),
-                (byte)Math.Max(0, color.G - 40),
-                (byte)Math.Max(0, color.B - 40));
+        private void ApplyAccentBrushes(Color color)
+        {
+            // Im hellen Design ist die Akzentfarbe Text auf hellem Grund: dort muss sie dunkel genug sein,
+            // und die "helle" Variante (Hover) wird dunkler statt heller.
+            bool light = IsLight;
+            if (light && Luminance(color) > 0.55)
+            {
+                color = Shift(color, -90);
+            }
+            SetResourceColor("AccentSilverBrush", color);
+
+            Color bright = Shift(color, light ? -50 : 40);
+            Color dim = Shift(color, light ? 50 : -40);
 
             SetResourceColor("AccentSilverBrightBrush", bright);
             SetResourceColor("AccentSilverDimBrush", dim);
@@ -65,12 +94,136 @@ namespace EchoBrowser.Services
             SetResourceColor("TabActiveIndicatorBrush", bright);
         }
 
+        private static Color Shift(Color c, int delta) => Color.FromArgb(
+            c.A,
+            (byte)Math.Clamp(c.R + delta, 0, 255),
+            (byte)Math.Clamp(c.G + delta, 0, 255),
+            (byte)Math.Clamp(c.B + delta, 0, 255));
+
+        /// <summary>
+        /// Farbe so anpassen, dass sie auf dem aktuellen Hintergrund sichtbar bleibt: zu helle Töne im hellen Design
+        /// werden dunkler, zu dunkle im dunklen Design heller. Ungültige Werte bleiben unverändert.
+        /// </summary>
+        public string ReadableOnBackground(string hex)
+        {
+            Color color;
+            try
+            {
+                color = ColorFromHex(hex);
+            }
+            catch (FormatException)
+            {
+                return hex;
+            }
+
+            double luminance = Luminance(color);
+            if (IsLight && luminance > 0.7) return ToHex(Shift(color, -120));
+            if (!IsLight && luminance < 0.2) return ToHex(Shift(color, 100));
+            return hex;
+        }
+
+        /// <summary>Relative Helligkeit 0 (schwarz) bis 1 (weiß).</summary>
+        private static double Luminance(Color c) => (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0;
+
         private void SetResourceColor(string key, Color color)
         {
             var brush = new SolidColorBrush(color);
             brush.Freeze();
             Application.Current.Resources[key] = brush;
         }
+
+        #region Windows-Modus (hell/dunkel)
+
+        /// <summary>Windows-Einstellung "App-Modus": hell (true) oder dunkel (false).</summary>
+        public static bool WindowsUsesLightTheme()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                return key?.GetValue("AppsUseLightTheme") is int value && value != 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void FollowSystemTheme(bool follow)
+        {
+            if (follow == _followsSystem) return;
+            _followsSystem = follow;
+            if (follow) SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+            else SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        }
+
+        private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        {
+            if (e.Category != UserPreferenceCategory.General || CurrentPreset != ThemePreset.System) return;
+            Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                var shownBefore = (Application.Current.Resources["WindowBackgroundBrush"] as SolidColorBrush)?.Color;
+                var expected = GetPaletteForPreset(EffectivePreset)["WindowBackgroundBrush"];
+                if (shownBefore != expected)
+                {
+                    ApplyPreset(ThemePreset.System);
+                }
+            });
+        }
+
+        #endregion
+
+        #region CSS für interne Seiten
+
+        /// <summary>
+        /// Die aktuelle Palette als CSS-Variablen (--echo-…) für Start-, Einstellungs- und Absturzseite.
+        /// Die Seiten übernehmen damit Preset und Akzentfarbe des Browsers.
+        /// </summary>
+        public string GetCssVariables()
+        {
+            bool light = IsLight;
+            var css = new StringBuilder(":root{");
+            css.Append("color-scheme:").Append(light ? "light" : "dark").Append(';');
+
+            void Var(string name, string resourceKey) => css.Append("--echo-").Append(name).Append(':').Append(ResourceHex(resourceKey)).Append(';');
+            Var("window", "WindowBackgroundBrush");
+            Var("toolbar", "ToolbarBackgroundBrush");
+            Var("surface", "SurfaceBrush");
+            Var("surface-hover", "SurfaceHoverBrush");
+            Var("surface-active", "ButtonPressedBackgroundBrush");
+            Var("border", "BorderBrush");
+            Var("border-subtle", "BorderSubtleBrush");
+            Var("omnibox", "OmniboxBackgroundBrush");
+            Var("focus", "OmniboxFocusBorderBrush");
+            Var("text", "TextPrimaryBrush");
+            Var("text-secondary", "TextSecondaryBrush");
+            Var("text-muted", "TextMutedBrush");
+            Var("accent", "AccentSilverBrush");
+            Var("accent-bright", "AccentSilverBrightBrush");
+            Var("accent-dim", "AccentSilverDimBrush");
+            Var("shield", "ShieldActiveBrush");
+            Var("success", "StatusSuccessBrush");
+            Var("warning", "StatusWarningBrush");
+            Var("danger", "StatusDangerBrush");
+
+            // Schatten sind im hellen Design deutlich zarter; das Logo braucht dort dunkle statt helle Töne
+            css.Append("--echo-shadow-k:").Append(light ? "0.35" : "1").Append(';');
+            string[] logo = light
+                ? new[] { "#1C2028", "#3E4654", "#7E8796", "#A0A8B4" }
+                : new[] { "#FFFFFF", "#E6E9EE", "#9DA3AF", "#525866" };
+            for (int i = 0; i < logo.Length; i++)
+            {
+                css.Append("--echo-logo-").Append(i + 1).Append(':').Append(logo[i]).Append(';');
+            }
+
+            return css.Append('}').ToString();
+        }
+
+        private static string ResourceHex(string key) =>
+            Application.Current?.Resources[key] is SolidColorBrush brush ? ToHex(brush.Color) : "#808080";
+
+        public static string ToHex(Color color) => string.Create(CultureInfo.InvariantCulture, $"#{color.R:X2}{color.G:X2}{color.B:X2}");
+
+        #endregion
 
         private Dictionary<string, Color> GetPaletteForPreset(ThemePreset preset)
         {
@@ -242,6 +395,7 @@ namespace EchoBrowser.Services
         public bool ApplyAndSaveAccentColor(string hex)
         {
             Color color;
+            if (!System.Text.RegularExpressions.Regex.IsMatch(hex, "^#?[0-9A-Fa-f]{6}$")) return false;
             try
             {
                 color = ColorFromHex(hex);

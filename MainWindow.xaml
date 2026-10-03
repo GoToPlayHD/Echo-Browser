@@ -7,6 +7,7 @@
         xmlns:local="clr-namespace:EchoBrowser"
         xmlns:models="clr-namespace:EchoBrowser.Models"
         xmlns:popups="clr-namespace:EchoBrowser.Views.Popups"
+        xmlns:controls="clr-namespace:EchoBrowser.Views.Controls"
         mc:Ignorable="d"
         Icon="app.ico"
         Title="Echo-Browser"
@@ -24,27 +25,31 @@
         <WindowChrome CaptionHeight="42"
                       ResizeBorderThickness="6"
                       GlassFrameThickness="0"
+                      UseAeroCaptionButtons="False"
                       CornerRadius="0"/>
     </WindowChrome.WindowChrome>
 
-    <Grid Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid x:Name="rootGrid" Background="{DynamicResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
             <!-- Row 0: Custom Window Chrome & Tabs (Edge/Brave Style) -->
-            <RowDefinition Height="42"/>
+            <RowDefinition x:Name="rowTabStrip" Height="42"/>
             <!-- Row 1: Main Navigation & Omnibox Bar -->
-            <RowDefinition Height="46"/>
+            <RowDefinition x:Name="rowToolbar" Height="46"/>
             <!-- Row 2: Bookmarks Bar (Toggleable) -->
             <RowDefinition Height="Auto"/>
             <!-- Row 3: Loading Progress Bar (Micro indicator) -->
             <RowDefinition Height="Auto"/>
-            <!-- Row 4: Sidebar + Chromium Content Host Area -->
+            <!-- Row 4: Auf Seite suchen (Strg+F) -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 5: Sidebar + Chromium Content Host Area -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <!-- ============================================================ -->
         <!-- ROW 0: WINDOW CHROME & TABS STRIP                            -->
         <!-- ============================================================ -->
-        <Grid Grid.Row="0" 
+        <Grid Grid.Row="0"
+              x:Name="gridTabStrip"
               Background="{DynamicResource TabBarBackgroundBrush}"
               MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid.ColumnDefinitions>
@@ -75,8 +80,8 @@
                             Visibility="Collapsed" 
                             Margin="8,0,0,0" 
                             Padding="6,2" 
-                            Background="#232731" 
-                            BorderBrush="#484E5E" 
+                            Background="{DynamicResource SurfaceHoverBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}" 
                             BorderThickness="1" 
                             CornerRadius="8" 
                             VerticalAlignment="Center"
@@ -89,103 +94,315 @@
                                        Foreground="{DynamicResource AccentSilverBrightBrush}" Margin="5,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Tabs links bzw. oben anzeigen (wie Edge), MainWindow.VerticalTabs.cs -->
+                    <Button x:Name="btnTabLayout"
+                            Style="{DynamicResource IconButtonStyle}"
+                            Width="28" Height="28" Margin="10,0,0,0"
+                            Click="BtnTabLayout_Click"
+                            WindowChrome.IsHitTestVisibleInChrome="True"
+                            ToolTip="{loc:Loc VTabs_TurnOn}"
+                            AutomationProperties.Name="{loc:Loc VTabs_TurnOn}">
+                        <Path Data="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h5V6H4zm7 0v12h9V6h-9zM5 8h3v1.5H5zm0 3h3v1.5H5zm0 3h3v1.5H5z"
+                              Fill="{DynamicResource AccentSilverBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                    </Button>
                 </StackPanel>
             </Border>
 
+            <!-- Titel des aktiven Tabs, wenn die Tabs links stehen -->
+            <TextBlock x:Name="txtWindowTitle"
+                       Grid.Column="1"
+                       Visibility="Collapsed"
+                       Margin="8,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       IsHitTestVisible="False"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+
             <!-- Multi-Tab Strip Area -->
-            <Grid Grid.Column="1" Margin="4,0,0,0">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" 
-                              VerticalScrollBarVisibility="Disabled"
-                              Focusable="False">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+            <Grid Grid.Column="1" x:Name="gridHorizontalTabs" Margin="4,0,0,0">
+                <!-- Tabs teilen sich die Breite wie in Chrome, "+" folgt direkt dahinter (Views/Controls/TabStripPanel.cs) -->
+                <controls:TabStripLayout VerticalAlignment="Bottom" HorizontalAlignment="Left" ClipToBounds="True">
                         <!-- Dynamic Tabs Collection with Drag & Drop Reordering -->
-                        <ItemsControl ItemsSource="{Binding Tabs, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <ItemsControl x:Name="itemsTabs" ItemsSource="{Binding StripItems, RelativeSource={RelativeSource AncestorType=Window}}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal"/>
+                                    <controls:TabStripPanel/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
+                            <ItemsControl.Resources>
+                                <!-- Kopf einer Tab-Gruppe: Klick klappt ein/aus, Rechtsklick bearbeitet (MainWindow.TabGroups.cs) -->
+                                <DataTemplate DataType="{x:Type models:TabGroup}">
+                                    <Border x:Name="groupHeader"
+                                            Height="22" MinWidth="14" Margin="4,0,6,4" Padding="9,0"
+                                            CornerRadius="7" VerticalAlignment="Center" Cursor="Hand"
+                                            Background="{Binding ColorBrush}"
+                                            WindowChrome.IsHitTestVisibleInChrome="True"
+                                            AutomationProperties.Name="{Binding HeaderText}"
+                                            ToolTip="{loc:Loc Group_HeaderTooltip}"
+                                            MouseLeftButtonUp="GroupHeader_MouseLeftButtonUp"
+                                            MouseRightButtonUp="GroupHeader_MouseRightButtonUp">
+                                        <TextBlock x:Name="groupTitle" Text="{Binding HeaderText}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="#202124" VerticalAlignment="Center" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <!-- Ohne Namen (und aufgeklappt) nur ein farbiger Punkt -->
+                                        <DataTrigger Binding="{Binding HeaderText}" Value="">
+                                            <Setter TargetName="groupHeader" Property="Width" Value="14"/>
+                                            <Setter TargetName="groupHeader" Property="Height" Value="14"/>
+                                            <Setter TargetName="groupHeader" Property="Padding" Value="0"/>
+                                            <Setter TargetName="groupTitle" Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+
                                 <DataTemplate DataType="{x:Type models:BrowserTab}">
                                     <Border x:Name="tabBorder"
                                             Height="35"
-                                            MinWidth="140"
-                                            MaxWidth="220"
                                             Margin="0,0,3,0"
                                             CornerRadius="8,8,0,0"
                                             Cursor="Hand"
                                             Background="{DynamicResource TabBackgroundBrush}"
                                             BorderBrush="{DynamicResource TabBorderBrush}"
                                             BorderThickness="1,1,1,0"
+                                            RenderTransformOrigin="0.5,1"
+                                            AutomationProperties.Name="{Binding DisplayTitle}"
                                             WindowChrome.IsHitTestVisibleInChrome="True"
                                             AllowDrop="True"
                                             PreviewMouseLeftButtonDown="Tab_PreviewMouseLeftButtonDown"
                                             PreviewMouseMove="Tab_PreviewMouseMove"
                                             PreviewMouseLeftButtonUp="Tab_PreviewMouseLeftButtonUp"
+                                            MouseUp="Tab_MouseUp"
                                             DragOver="Tab_DragOver"
-                                            Drop="Tab_Drop">
-                                        <Grid Margin="10,0,8,0">
+                                            Drop="Tab_Drop"
+                                            ToolTipOpening="Tab_ToolTipOpening">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                        </Border.RenderTransform>
+                                        <!-- Infokarte beim Überfahren: Titel, Website und Speicher bzw. Schlaf -->
+                                        <Border.ToolTip>
+                                            <ToolTip Placement="Bottom" VerticalOffset="4">
+                                                <StackPanel MaxWidth="320">
+                                                    <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding DisplayHost}" FontSize="11" Margin="0,3,0,0"
+                                                               Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding CardStatus}" FontSize="11" Margin="0,6,0,0"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="Text" Value="">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </ToolTip>
+                                        </Border.ToolTip>
+                                        <Grid x:Name="tabContent" Margin="10,0,8,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Tab Icon or Loading Dot -->
-                                            <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
-                                                <!-- Idle Globe Icon -->
-                                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                                            <!-- Website-Symbol, Globus als Ersatz, Lade-Spinner -->
+                                            <Grid x:Name="tabIconHost" Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <Path x:Name="iconGlobe"
+                                                      Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
                                                       Fill="{DynamicResource AccentSilverDimBrush}"
-                                                      Stretch="Uniform"
-                                                      Visibility="{Binding IsLoaded, Converter={StaticResource BoolToVisConverter}}"/>
-                                                <!-- Loading Circle Spinner -->
-                                                <Ellipse Width="12" Height="12"
+                                                      Stretch="Uniform"/>
+                                                <Image x:Name="iconFavicon"
+                                                       Source="{Binding Favicon}"
+                                                       Stretch="Uniform"
+                                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                                       Visibility="Collapsed"/>
+                                                <Ellipse x:Name="iconSpinner"
+                                                         Width="14" Height="14"
                                                          Stroke="{DynamicResource ShieldActiveBrush}"
                                                          StrokeThickness="2"
-                                                         StrokeDashArray="2 1"
-                                                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisConverter}}"/>
+                                                         StrokeDashArray="7 14"
+                                                         StrokeDashCap="Round"
+                                                         RenderTransformOrigin="0.5,0.5"
+                                                         Visibility="Collapsed">
+                                                    <Ellipse.RenderTransform>
+                                                        <RotateTransform Angle="0"/>
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
                                             </Grid>
 
                                             <!-- Tab Title -->
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="{Binding DisplayTitle}" 
+                                            <TextBlock x:Name="tabTitle"
+                                                       Grid.Column="1"
+                                                       Text="{Binding DisplayTitle}"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        FontSize="12"
                                                        FontWeight="Normal"
-                                                       VerticalAlignment="Center" 
+                                                       VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>
 
+                                            <!-- Ton läuft / stummgeschaltet: Klick schaltet stumm bzw. wieder laut -->
+                                            <Button x:Name="btnTabAudio"
+                                                    Grid.Column="2"
+                                                    Style="{DynamicResource SmallRoundButtonStyle}"
+                                                    Margin="4,0,0,0"
+                                                    Click="BtnTabAudio_Click"
+                                                    Tag="{Binding}"
+                                                    ToolTip="{loc:Loc Tab_Mute}"
+                                                    Visibility="Collapsed"
+                                                    WindowChrome.IsHitTestVisibleInChrome="True">
+                                                <Grid Width="11" Height="11">
+                                                    <Path x:Name="pathAudioOn"
+                                                          Data="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
+                                                          Fill="{DynamicResource AccentSilverBrush}" Stretch="Uniform"/>
+                                                    <Path x:Name="pathAudioOff"
+                                                          Data="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"
+                                                          Fill="{DynamicResource TextMutedBrush}" Stretch="Uniform"
+                                                          Visibility="Collapsed"/>
+                                                </Grid>
+                                            </Button>
+
                                             <!-- Tab Close Button -->
-                                            <Button Grid.Column="2" 
+                                            <Button x:Name="btnTabClose"
+                                                    Grid.Column="3"
                                                     Style="{DynamicResource SmallRoundButtonStyle}"
                                                     Margin="6,0,0,0"
                                                     Click="BtnCloseTab_Click"
                                                     Tag="{Binding}"
                                                     ToolTip="{loc:Loc Nav_CloseTab}"
                                                     WindowChrome.IsHitTestVisibleInChrome="True">
-                                                <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                                                      Fill="{DynamicResource AccentSilverDimBrush}" 
+                                                <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                                      Fill="{DynamicResource AccentSilverDimBrush}"
                                                       Width="9" Height="9" Stretch="Uniform"/>
                                             </Button>
 
                                             <!-- Active Tab Bottom Accent Indicator -->
                                             <Border x:Name="activeIndicator"
-                                                    Grid.ColumnSpan="3"
+                                                    Grid.ColumnSpan="4"
                                                     Height="2"
                                                     VerticalAlignment="Bottom"
                                                     Background="{DynamicResource TabActiveIndicatorBrush}"
                                                     Visibility="Collapsed"/>
+                                            <!-- Farbe der Tab-Gruppe -->
+                                            <Border x:Name="groupLine"
+                                                    Grid.ColumnSpan="4"
+                                                    Height="3"
+                                                    CornerRadius="1.5"
+                                                    VerticalAlignment="Bottom"
+                                                    Background="{Binding Group.ColorBrush}"
+                                                    Visibility="Collapsed"/>
                                         </Grid>
                                     </Border>
                                     <DataTemplate.Triggers>
+                                        <!-- Reihenfolge zählt: spätere Trigger gewinnen (aktiver Tab vor Hover) -->
+                                        <Trigger SourceName="tabBorder" Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource TabHoverBackgroundBrush}"/>
+                                            <Setter TargetName="tabTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding IsSplitVisible}" Value="True">
+                                            <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource TabActiveBackgroundBrush}"/>
+                                            <Setter TargetName="tabTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsActive}" Value="True">
                                             <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource TabActiveBackgroundBrush}"/>
                                             <Setter TargetName="activeIndicator" Property="Visibility" Value="Visible"/>
                                             <Setter TargetName="tabBorder" Property="BorderBrush" Value="{DynamicResource AccentSilverDimBrush}"/>
+                                            <Setter TargetName="tabTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                         </DataTrigger>
+                                        <DataTrigger Binding="{Binding HasFavicon}" Value="True">
+                                            <Setter TargetName="iconGlobe" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="iconFavicon" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSleeping}" Value="True">
+                                            <Setter TargetName="tabIconHost" Property="Opacity" Value="0.45"/>
+                                            <Setter TargetName="tabTitle" Property="Opacity" Value="0.6"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsGrouped}" Value="True">
+                                            <Setter TargetName="groupLine" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <!-- Tab einer eingeklappten Gruppe: ausgeblendet (TabStripPanel gibt ihm keine Breite) -->
+                                        <DataTrigger Binding="{Binding IsHiddenByGroup}" Value="True">
+                                            <Setter TargetName="tabBorder" Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                            <Setter TargetName="iconGlobe" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="iconFavicon" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="iconSpinner" Property="Visibility" Value="Visible"/>
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard x:Name="spinTab">
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="iconSpinner"
+                                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                         From="0" To="360" Duration="0:0:0.9"
+                                                                         RepeatBehavior="Forever"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="spinTab"/>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                            <Setter TargetName="pathAudioOn" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="pathAudioOff" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="btnTabAudio" Property="ToolTip" Value="{loc:Loc Tab_Unmute}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding ShowAudioIndicator}" Value="True">
+                                            <Setter TargetName="btnTabAudio" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+
+                                        <!-- Schmale Tabs (viele offen): nur das Symbol, zentriert -->
+                                        <DataTrigger Binding="{Binding (controls:TabStripPanel.IsCompact), ElementName=tabBorder}" Value="True">
+                                            <Setter TargetName="tabTitle" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="btnTabAudio" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="btnTabClose" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="tabContent" Property="Margin" Value="0"/>
+                                            <Setter TargetName="tabIconHost" Property="Margin" Value="0"/>
+                                            <Setter TargetName="tabIconHost" Property="Grid.ColumnSpan" Value="4"/>
+                                            <Setter TargetName="tabIconHost" Property="HorizontalAlignment" Value="Center"/>
+                                        </DataTrigger>
+                                        <!-- … beim aktiven schmalen Tab stattdessen das Schließen-Kreuz (wie Chrome) -->
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding (controls:TabStripPanel.IsCompact), ElementName=tabBorder}" Value="True"/>
+                                                <Condition Binding="{Binding IsActive}" Value="True"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter TargetName="tabIconHost" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="btnTabClose" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="btnTabClose" Property="Grid.Column" Value="0"/>
+                                            <Setter TargetName="btnTabClose" Property="Grid.ColumnSpan" Value="4"/>
+                                            <Setter TargetName="btnTabClose" Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter TargetName="btnTabClose" Property="Margin" Value="0"/>
+                                        </MultiDataTrigger>
+                                        <!-- Angeheftet: immer nur das Symbol, nie ein Schließen-Kreuz -->
+                                        <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                            <Setter TargetName="tabIconHost" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="btnTabClose" Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+
+                                        <!-- Neuer Tab: kurz einblenden -->
+                                        <EventTrigger SourceName="tabBorder" RoutedEvent="FrameworkElement.Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="tabBorder" Storyboard.TargetProperty="Opacity"
+                                                                     From="0" To="1" Duration="0:0:0.18"/>
+                                                    <DoubleAnimation Storyboard.TargetName="tabBorder"
+                                                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                                     From="0.85" To="1" Duration="0:0:0.18">
+                                                        <DoubleAnimation.EasingFunction>
+                                                            <CubicEase EasingMode="EaseOut"/>
+                                                        </DoubleAnimation.EasingFunction>
+                                                    </DoubleAnimation>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
+                            </ItemsControl.Resources>
                         </ItemsControl>
 
                         <!-- Add New Tab Button (+) -->
@@ -197,12 +414,11 @@
                                 Click="BtnNewTab_Click"
                                 ToolTip="{loc:Loc Nav_NewTab}"
                                 WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" 
-                                  Fill="{DynamicResource AccentSilverBrush}" 
+                            <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                  Fill="{DynamicResource AccentSilverBrush}"
                                   Width="12" Height="12" Stretch="Uniform"/>
                         </Button>
-                    </StackPanel>
-                </ScrollViewer>
+                </controls:TabStripLayout>
             </Grid>
 
             <!-- Window System Caption Controls -->
@@ -218,9 +434,10 @@
                           Fill="{DynamicResource AccentSilverBrush}" 
                           Width="11" Height="11" Stretch="Uniform"/>
                 </Button>
-                <!-- Maximize / Restore Button -->
-                <Button Style="{DynamicResource ChromeButtonStyle}" 
-                        Click="BtnMaximize_Click" 
+                <!-- Maximize / Restore Button (Snap-Layouts: MainWindow.WindowChrome.cs) -->
+                <Button x:Name="btnMaximize"
+                        Style="{DynamicResource ChromeButtonStyle}"
+                        Click="BtnMaximize_Click"
                         ToolTip="{loc:Loc Window_Maximize}">
                     <Path x:Name="pathMaximizeIcon"
                           Data="M3 3h18v18H3V3zm16 16V5H5v14h14z" 
@@ -334,6 +551,17 @@
                     <!-- Pinned Extensions Container -->
                     <StackPanel x:Name="pnlPinnedExtensions" Orientation="Horizontal" Margin="0,0,2,0" VerticalAlignment="Center"/>
 
+                    <!-- Geteilte Ansicht (MainWindow.SplitView.cs) -->
+                    <Button x:Name="btnSplitView"
+                            Style="{DynamicResource IconButtonStyle}"
+                            Click="BtnSplitView_Click"
+                            ToolTip="{loc:Loc Split_Open}"
+                            AutomationProperties.Name="{loc:Loc Split_Open}">
+                        <Path Data="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h7V6H4zm9 0v12h7V6h-7z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              Width="15" Height="15" Stretch="Uniform"/>
+                    </Button>
+
                     <!-- WebExtensions Button -->
                     <Button x:Name="btnExtensions" 
                             Style="{DynamicResource IconButtonStyle}" 
@@ -353,12 +581,20 @@
                             <Path Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" 
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                                   Width="14" Height="14" Stretch="Uniform"/>
-                            <Ellipse x:Name="downloadBadge"
-                                     Width="7" Height="7"
-                                     HorizontalAlignment="Right"
-                                     VerticalAlignment="Top"
-                                     Fill="{DynamicResource ShieldActiveBrush}"
-                                     Visibility="Collapsed"/>
+                            <!-- Fortschrittsring aller laufenden Downloads (MainWindow.Downloads.cs) -->
+                            <Grid x:Name="gridDownloadRing" Width="22" Height="22" Visibility="Collapsed" IsHitTestVisible="False">
+                                <Ellipse Stroke="{DynamicResource BorderBrush}" StrokeThickness="2"/>
+                                <Ellipse x:Name="ellipseDownloadProgress"
+                                         Stroke="{DynamicResource ShieldActiveBrush}"
+                                         StrokeThickness="2"
+                                         StrokeDashCap="Round"
+                                         StrokeDashArray="0.01 100"
+                                         RenderTransformOrigin="0.5,0.5">
+                                    <Ellipse.RenderTransform>
+                                        <RotateTransform Angle="-90"/>
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
+                            </Grid>
                         </Grid>
                     </Button>
 
@@ -395,13 +631,17 @@
                             <ColumnDefinition Width="Auto"/>
                             <!-- Address Input Text -->
                             <ColumnDefinition Width="*"/>
+                            <!-- Zoom Indicator -->
+                            <ColumnDefinition Width="Auto"/>
+                            <!-- Popup Blocked Indicator -->
+                            <ColumnDefinition Width="Auto"/>
                             <!-- Bookmark Star Button -->
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Brave-Style Site-Info & Shield Button with Badge Counter -->
-                        <Button x:Name="btnShield" 
-                                Grid.Column="0"
+                        <!-- Brave-Style Site-Info & Shield Button with Badge Counter (+ "Nicht sicher" für http) -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Button x:Name="btnShield"
                                 Style="{DynamicResource IconButtonStyle}"
                                 Height="28"
                                 MinWidth="30"
@@ -434,16 +674,46 @@
                                 </Border>
                             </StackPanel>
                         </Button>
+                        <!-- Unverschlüsselte Verbindung (http) -->
+                        <Border x:Name="chipNotSecure"
+                                Visibility="Collapsed"
+                                Margin="0,0,4,0"
+                                Padding="8,2"
+                                CornerRadius="10"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource SurfaceHoverBrush}"
+                                ToolTip="{loc:Loc Security_NotSecureTooltip}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+                                      Fill="{DynamicResource StatusWarningBrush}" Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center"/>
+                                <TextBlock Text="{loc:Loc Security_NotSecure}" FontSize="11.5" Margin="5,0,0,0"
+                                           Foreground="{DynamicResource StatusWarningBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        </StackPanel>
 
                         <!-- Address / Search Input TextBox & Placeholder -->
                         <Grid Grid.Column="1">
-                            <TextBox x:Name="txtUrl" 
+                            <TextBox x:Name="txtUrl"
                                      Style="{DynamicResource OmniboxTextBoxStyle}"
                                      BorderThickness="0"
                                      Background="Transparent"
-                                     KeyDown="TxtUrl_KeyDown"
+                                     AutomationProperties.Name="{loc:Loc Nav_AddressPlaceholder}"
+                                     PreviewKeyDown="TxtUrl_PreviewKeyDown"
+                                     PreviewMouseLeftButtonDown="TxtUrl_PreviewMouseLeftButtonDown"
+                                     TextChanged="TxtUrl_TextChanged"
                                      GotFocus="TxtUrl_GotFocus"
                                      LostFocus="TxtUrl_LostFocus"/>
+                            <!-- Anzeige ohne Fokus: Domain hervorgehoben, Rest gedimmt (MainWindow.Omnibox.cs) -->
+                            <TextBlock x:Name="txtUrlDisplay"
+                                       Visibility="Collapsed"
+                                       IsHitTestVisible="False"
+                                       Margin="10,0,10,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="13.5"
+                                       FontFamily="Segoe UI, Inter, sans-serif"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <TextBlock x:Name="txtUrlPlaceholder"
                                        Text="{loc:Loc Nav_AddressPlaceholder}"
                                        Foreground="{DynamicResource TextMutedBrush}"
@@ -465,9 +735,41 @@
                             </TextBlock>
                         </Grid>
 
+                        <!-- Zoom-Anzeige: nur wenn die Seite vom Standard-Zoom abweicht, Klick setzt zurück -->
+                        <Button x:Name="btnZoomIndicator"
+                                Grid.Column="2"
+                                Style="{DynamicResource IconButtonStyle}"
+                                Width="Auto" Height="26"
+                                Padding="6,0"
+                                Margin="0,0,1,0"
+                                Visibility="Collapsed"
+                                Click="BtnZoomIndicator_Click">
+                            <StackPanel Orientation="Horizontal" Margin="6,0">
+                                <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm.5-7H9v2H7v1h2v2h1v-2h2V9h-2z"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtZoomIndicator" Text="100 %" FontSize="11" Margin="4,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Popup-Blocker: erscheint, wenn die Seite ein Popup ohne Klick öffnen wollte -->
+                        <Button x:Name="btnPopupBlocked"
+                                Grid.Column="3"
+                                Style="{DynamicResource IconButtonStyle}"
+                                Width="30" Height="28"
+                                Margin="0,0,1,0"
+                                Visibility="Collapsed"
+                                Click="BtnPopupBlocked_Click">
+                            <Path Data="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.89-2-2-2zm0 14H5V8h14v10zM9.41 10L8 11.41 10.59 14 8 16.59 9.41 18 12 15.41 14.59 18 16 16.59 13.41 14 16 11.41 14.59 10 12 12.59 9.41 10z"
+                                  Fill="{DynamicResource StatusWarningBrush}"
+                                  Width="13" Height="13" Stretch="Uniform"/>
+                        </Button>
+
                         <!-- Omnibox Bookmark Star Button -->
                         <Button x:Name="btnBookmark" 
-                                Grid.Column="2"
+                                Grid.Column="4"
                                 Style="{DynamicResource IconButtonStyle}"
                                 Width="30" Height="28"
                                 Margin="0,0,3,0"
@@ -547,17 +849,7 @@
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Border Width="16" Height="16" 
-                                                    CornerRadius="8" 
-                                                    Background="{DynamicResource SurfaceHoverBrush}" 
-                                                    Margin="0,0,6,0">
-                                                <TextBlock Text="{Binding DisplayInitial}" 
-                                                           FontSize="10" 
-                                                           FontWeight="SemiBold" 
-                                                           Foreground="{DynamicResource AccentSilverBrush}" 
-                                                           HorizontalAlignment="Center" 
-                                                           VerticalAlignment="Center"/>
-                                            </Border>
+                                            <controls:SiteIcon Url="{Binding Url}" Fallback="{Binding DisplayInitial}" IconSize="16" Margin="0,0,6,0"/>
                                             <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
@@ -627,18 +919,289 @@
                      Visibility="Collapsed"/>
 
         <!-- ============================================================ -->
-        <!-- ROW 4: FAVORITEN SIDEBAR + CHROMIUM RENDER CONTAINER         -->
+        <!-- ROW 4: AUF SEITE SUCHEN (STRG+F)                             -->
         <!-- ============================================================ -->
-        <Grid Grid.Row="4">
+        <popups:FindBar x:Name="findBar" Grid.Row="4" Visibility="Collapsed"/>
+
+        <!-- ============================================================ -->
+        <!-- ROW 5: FAVORITEN SIDEBAR + CHROMIUM RENDER CONTAINER         -->
+        <!-- ============================================================ -->
+        <Grid Grid.Row="5">
             <Grid.ColumnDefinitions>
-                <!-- Column 0: Vertical Favorites Sidebar -->
+                <!-- Column 0: Vertikale Tabs (optional) -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Column 1: Vertical Favorites Sidebar -->
                 <ColumnDefinition Width="Auto" x:Name="colSidebar"/>
-                <!-- Column 1: Chromium Multi-Tab Host -->
+                <!-- Column 2: Chromium Multi-Tab Host -->
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
+            <!-- VERTIKALE TABS (Einstellung "Tabs links", MainWindow.VerticalTabs.cs) – eigene Spalte, kein Airspace-Problem -->
+            <Border Grid.Column="0"
+                    x:Name="borderVerticalTabs"
+                    Width="240"
+                    Visibility="Collapsed"
+                    Background="{DynamicResource TabBarBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="0,0,1,0">
+                <Border.Resources>
+                    <!-- Zeilen-Knopf links ausgerichtet (Neuer Tab) -->
+                    <Style x:Key="VerticalRowButtonStyle" TargetType="Button">
+                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                        <Setter Property="Height" Value="34"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="FocusVisualStyle" Value="{StaticResource EchoFocusVisual}"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="b" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="b" Property="Background" Value="{DynamicResource TabHoverBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Border.Resources>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Kopf: schmal/breit und Neuer Tab (schmal: untereinander, MainWindow.VerticalTabs.cs) -->
+                    <DockPanel Margin="6,6,6,4" LastChildFill="True">
+                        <Button x:Name="btnVerticalNarrow" DockPanel.Dock="Right" Style="{DynamicResource IconButtonStyle}" Width="30" Height="30"
+                                Margin="4,0,0,0" Click="BtnVerticalNarrow_Click"
+                                ToolTip="{loc:Loc VTabs_Collapse}" AutomationProperties.Name="{loc:Loc VTabs_Collapse}">
+                            <Path x:Name="pathVerticalNarrow" Data="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                                  Fill="{DynamicResource AccentSilverBrush}" Width="10" Height="10" Stretch="Uniform"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform>
+                                    <RotateTransform x:Name="rotateVerticalNarrow" Angle="0"/>
+                                </Path.RenderTransform>
+                            </Path>
+                        </Button>
+                        <Button x:Name="btnVerticalNewTab" Style="{StaticResource VerticalRowButtonStyle}" Padding="10,0"
+                                HorizontalContentAlignment="Left" Click="BtnNewTab_Click"
+                                ToolTip="{loc:Loc Nav_NewTab}" AutomationProperties.Name="{loc:Loc Nav_NewTab}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Fill="{DynamicResource AccentSilverBrush}"
+                                      Width="12" Height="12" Stretch="Uniform"/>
+                                <TextBlock x:Name="txtVerticalNewTab" Text="{loc:Loc Tab_NewTab}" FontSize="12.5" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </DockPanel>
+
+                    <ScrollViewer x:Name="scrollVerticalTabs" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="itemsVerticalTabs" Margin="0,0,0,8"
+                                      ItemsSource="{Binding StripItems, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <ItemsControl.Resources>
+                                <!-- Gruppenkopf: farbiger Punkt, Name, Pfeil -->
+                                <DataTemplate DataType="{x:Type models:TabGroup}">
+                                    <Border x:Name="vGroup" Height="28" Margin="6,6,6,1" CornerRadius="7" Cursor="Hand" Background="Transparent"
+                                            AutomationProperties.Name="{Binding HeaderText}"
+                                            ToolTip="{loc:Loc Group_HeaderTooltip}"
+                                            MouseLeftButtonUp="GroupHeader_MouseLeftButtonUp"
+                                            MouseRightButtonUp="GroupHeader_MouseRightButtonUp">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="vGroupDot" Width="10" Height="10" Margin="13,0,11,0" Fill="{Binding ColorBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="vGroupName" Grid.Column="1" Text="{Binding HeaderText}" FontSize="12" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <Path x:Name="vGroupChevron" Grid.Column="2" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"
+                                                  Fill="{DynamicResource AccentSilverDimBrush}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,10,0"
+                                                  RenderTransformOrigin="0.5,0.5"/>
+                                        </Grid>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <Trigger SourceName="vGroup" Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="vGroup" Property="Background" Value="{DynamicResource TabHoverBackgroundBrush}"/>
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                            <Setter TargetName="vGroupChevron" Property="RenderTransform">
+                                                <Setter.Value>
+                                                    <RotateTransform Angle="-90"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsVerticalTabsNarrow, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter TargetName="vGroupName" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vGroupChevron" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vGroupDot" Property="Grid.ColumnSpan" Value="3"/>
+                                            <Setter TargetName="vGroupDot" Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter TargetName="vGroupDot" Property="Margin" Value="0"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+
+                                <!-- Tab-Zeile -->
+                                <DataTemplate DataType="{x:Type models:BrowserTab}">
+                                    <Border x:Name="vTab" Height="34" Margin="6,1" CornerRadius="7" Cursor="Hand" Background="Transparent"
+                                            AllowDrop="True"
+                                            AutomationProperties.Name="{Binding DisplayTitle}"
+                                            PreviewMouseLeftButtonDown="Tab_PreviewMouseLeftButtonDown"
+                                            PreviewMouseMove="Tab_PreviewMouseMove"
+                                            PreviewMouseLeftButtonUp="Tab_PreviewMouseLeftButtonUp"
+                                            MouseUp="Tab_MouseUp"
+                                            DragOver="Tab_DragOver"
+                                            Drop="Tab_Drop"
+                                            ToolTipOpening="Tab_ToolTipOpening">
+                                        <Border.ToolTip>
+                                            <ToolTip Placement="Right" HorizontalOffset="8">
+                                                <StackPanel MaxWidth="320">
+                                                    <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding DisplayHost}" FontSize="11" Margin="0,3,0,0"
+                                                               Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding CardStatus}" FontSize="11" Margin="0,6,0,0"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="Text" Value="">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </ToolTip>
+                                        </Border.ToolTip>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Farbe der Tab-Gruppe -->
+                                            <Border x:Name="vGroupBar" Width="3" CornerRadius="1.5" Margin="0,8" HorizontalAlignment="Left"
+                                                    Background="{Binding Group.ColorBrush}" Visibility="Collapsed"/>
+
+                                            <Grid x:Name="vIcon" Width="16" Height="16" Margin="12,0,10,0" VerticalAlignment="Center">
+                                                <Path x:Name="vGlobe"
+                                                      Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                                                      Fill="{DynamicResource AccentSilverDimBrush}" Stretch="Uniform"/>
+                                                <Image x:Name="vFavicon" Source="{Binding Favicon}" Stretch="Uniform"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" Visibility="Collapsed"/>
+                                                <Ellipse x:Name="vSpinner" Width="14" Height="14" Stroke="{DynamicResource ShieldActiveBrush}" StrokeThickness="2"
+                                                         StrokeDashArray="7 14" StrokeDashCap="Round" RenderTransformOrigin="0.5,0.5" Visibility="Collapsed">
+                                                    <Ellipse.RenderTransform>
+                                                        <RotateTransform Angle="0"/>
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
+                                            </Grid>
+
+                                            <TextBlock x:Name="vTitle" Grid.Column="1" Text="{Binding DisplayTitle}" FontSize="12.5"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+                                            <Button x:Name="vAudio" Grid.Column="2" Style="{DynamicResource SmallRoundButtonStyle}" Margin="4,0,0,0"
+                                                    Click="BtnTabAudio_Click" Tag="{Binding}" ToolTip="{loc:Loc Tab_Mute}" Visibility="Collapsed">
+                                                <Path x:Name="vAudioIcon"
+                                                      Data="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
+                                                      Fill="{DynamicResource AccentSilverBrush}" Width="11" Height="11" Stretch="Uniform"/>
+                                            </Button>
+
+                                            <Button x:Name="vClose" Grid.Column="3" Style="{DynamicResource SmallRoundButtonStyle}" Margin="4,0,6,0"
+                                                    Click="BtnCloseTab_Click" Tag="{Binding}" ToolTip="{loc:Loc Nav_CloseTab}" Visibility="Hidden">
+                                                <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                                      Fill="{DynamicResource AccentSilverDimBrush}" Width="9" Height="9" Stretch="Uniform"/>
+                                            </Button>
+                                            <Path x:Name="vPin" Grid.Column="3" Margin="4,0,12,0" Visibility="Collapsed"
+                                                  Data="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"
+                                                  Fill="{DynamicResource AccentSilverDimBrush}" Width="11" Height="11" Stretch="Uniform"/>
+                                        </Grid>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <Trigger SourceName="vTab" Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="vTab" Property="Background" Value="{DynamicResource TabHoverBackgroundBrush}"/>
+                                            <Setter TargetName="vTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                            <Setter TargetName="vClose" Property="Visibility" Value="Visible"/>
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding IsSplitVisible}" Value="True">
+                                            <Setter TargetName="vTab" Property="Background" Value="{DynamicResource TabActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                            <Setter TargetName="vTab" Property="Background" Value="{DynamicResource TabActiveBackgroundBrush}"/>
+                                            <Setter TargetName="vTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                            <Setter TargetName="vClose" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding HasFavicon}" Value="True">
+                                            <Setter TargetName="vGlobe" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vFavicon" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                            <Setter TargetName="vGlobe" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vFavicon" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vSpinner" Property="Visibility" Value="Visible"/>
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard x:Name="spinVerticalTab">
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="vSpinner"
+                                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                         From="0" To="360" Duration="0:0:0.9" RepeatBehavior="Forever"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="spinVerticalTab"/>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding ShowAudioIndicator}" Value="True">
+                                            <Setter TargetName="vAudio" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                            <Setter TargetName="vAudioIcon" Property="Fill" Value="{DynamicResource TextMutedBrush}"/>
+                                            <Setter TargetName="vAudio" Property="ToolTip" Value="{loc:Loc Tab_Unmute}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSleeping}" Value="True">
+                                            <Setter TargetName="vIcon" Property="Opacity" Value="0.45"/>
+                                            <Setter TargetName="vTitle" Property="Opacity" Value="0.6"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsGrouped}" Value="True">
+                                            <Setter TargetName="vGroupBar" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsHiddenByGroup}" Value="True">
+                                            <Setter TargetName="vTab" Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <!-- Angeheftet: Nadel statt Schließen-Kreuz -->
+                                        <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                            <Setter TargetName="vClose" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vPin" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <!-- Schmale Spalte: nur das Symbol -->
+                                        <DataTrigger Binding="{Binding IsVerticalTabsNarrow, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter TargetName="vTitle" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vAudio" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vClose" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vPin" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="vIcon" Property="Grid.ColumnSpan" Value="4"/>
+                                            <Setter TargetName="vIcon" Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter TargetName="vIcon" Property="Margin" Value="0"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.Resources>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+
             <!-- FAVORITEN SIDEBAR -->
-            <Border Grid.Column="0" 
+            <Border Grid.Column="1"
                     x:Name="borderSidebar"
                     Width="52"
                     Background="{DynamicResource SurfaceBrush}"
@@ -671,7 +1234,7 @@
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                         <Path Data="{Binding IconPathData}" 
-                                              Fill="{Binding IconColor}" 
+                                              Fill="{Binding DisplayIconColor}" 
                                               Width="18" Height="18" 
                                               Stretch="Uniform"/>
                                     </Button>
@@ -696,9 +1259,32 @@
             </Border>
 
             <!-- Chromium Render Container (Multi-Tab Host) -->
-            <Grid Grid.Column="1" x:Name="WebViewContainer" Background="{DynamicResource WindowBackgroundBrush}">
+            <Grid Grid.Column="2" x:Name="WebViewContainer" Background="{DynamicResource WindowBackgroundBrush}">
+                <!-- Geteilte Ansicht (MainWindow.SplitView.cs): links | Trenner | rechts; ohne Teilung nur die linke Spalte -->
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="colSplitLeft" Width="*" MinWidth="0"/>
+                    <ColumnDefinition x:Name="colSplitter" Width="0"/>
+                    <ColumnDefinition x:Name="colSplitRight" Width="0" MinWidth="0"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Rahmen um die Seite mit dem Fokus: liegt hinter der WebView, die 2 px Rand lassen ihn sehen -->
+                <Border x:Name="paneFrameLeft" Grid.Column="0" BorderThickness="2" CornerRadius="4" Visibility="Collapsed"/>
+                <Border x:Name="paneFrameRight" Grid.Column="2" BorderThickness="2" CornerRadius="4" Visibility="Collapsed"/>
+                <GridSplitter x:Name="splitterPanes"
+                              Grid.Column="1"
+                              Width="6"
+                              HorizontalAlignment="Stretch"
+                              ResizeBehavior="PreviousAndNext"
+                              ResizeDirection="Columns"
+                              ShowsPreview="False"
+                              Background="{DynamicResource WindowBackgroundBrush}"
+                              Cursor="SizeWE"
+                              Visibility="Collapsed"
+                              AutomationProperties.Name="{loc:Loc Split_Button}"/>
+
                 <!-- Splash / Blank State -->
                 <Border x:Name="borderSplash"
+                        Grid.ColumnSpan="3"
                         Background="{DynamicResource WindowBackgroundBrush}" 
                         HorizontalAlignment="Center" 
                         VerticalAlignment="Center">
@@ -765,6 +1351,39 @@
                     <MenuItem Header="{loc:Loc Tab_NewTab}" InputGestureText="Ctrl+T" Click="MenuNewTab_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <MenuItem Header="{loc:Loc Menu_NewWindow}" InputGestureText="Ctrl+N" Click="MenuNewWindow_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <MenuItem Header="{loc:Loc Menu_NewIncognitoWindow}" InputGestureText="Ctrl+Shift+N" Click="MenuNewIncognitoWindow_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <MenuItem Header="{loc:Loc Menu_CommandPalette}" InputGestureText="Ctrl+K" Click="MenuCommandPalette_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+
+                    <!-- Zoom-Zeile wie in Chrome/Edge: − 100 % + und Vollbild -->
+                    <Grid Margin="10,0,2,0" Height="32">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{loc:Loc Menu_Zoom}" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Style="{DynamicResource IconButtonStyle}" Width="28" Height="28"
+                                    Click="MenuZoomOut_Click" ToolTip="{loc:Loc Menu_ZoomOut}" AutomationProperties.Name="{loc:Loc Menu_ZoomOut}">
+                                <Path Data="M19 13H5v-2h14v2z" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="11" Height="11" Stretch="Uniform"/>
+                            </Button>
+                            <TextBlock x:Name="txtMenuZoom" Text="100 %" Width="46" TextAlignment="Center" FontSize="12"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <Button Style="{DynamicResource IconButtonStyle}" Width="28" Height="28"
+                                    Click="MenuZoomIn_Click" ToolTip="{loc:Loc Menu_ZoomIn}" AutomationProperties.Name="{loc:Loc Menu_ZoomIn}">
+                                <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="11" Height="11" Stretch="Uniform"/>
+                            </Button>
+                            <Border Width="1" Margin="6,7" Background="{DynamicResource BorderBrush}"/>
+                            <Button Style="{DynamicResource IconButtonStyle}" Width="28" Height="28"
+                                    Click="MenuFullscreen_Click" ToolTip="{loc:Loc Menu_Fullscreen}" AutomationProperties.Name="{loc:Loc Menu_Fullscreen}">
+                                <Path Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                    <MenuItem Header="{loc:Loc Menu_Find}" InputGestureText="Ctrl+F" Click="MenuFind_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <MenuItem Header="{loc:Loc Menu_Print}" InputGestureText="Ctrl+P" Click="MenuPrint_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <MenuItem Header="{loc:Loc Menu_SavePage}" InputGestureText="Ctrl+S" Click="MenuSavePage_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <Separator Background="{DynamicResource BorderBrush}" Margin="0,4"/>
                     
                     <MenuItem Header="{loc:Loc Menu_BookmarksBar}" InputGestureText="Ctrl+Shift+B" Click="MenuToggleBookmarksBar_Click" Foreground="{DynamicResource TextPrimaryBrush}">
@@ -808,6 +1427,7 @@
                         </MenuItem.Icon>
                     </MenuItem>
 
+                    <MenuItem Header="{loc:Loc Menu_Performance}" Click="MenuPerformance_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <MenuItem Header="{loc:Loc Menu_SettingsAbout}" InputGestureText="Ctrl+," Click="MenuSettings_Click" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </StackPanel>
             </Border>
@@ -942,14 +1562,9 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Initial circle badge -->
-                                                <Border Grid.Column="0" Width="18" Height="18" CornerRadius="9"
-                                                        Background="{DynamicResource SurfaceHoverBrush}"
-                                                        Margin="0,0,8,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding DisplayInitial}" FontSize="10" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource AccentSilverBrush}"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </Border>
+                                                <!-- Website-Symbol (Buchstabe als Ersatz) -->
+                                                <controls:SiteIcon Grid.Column="0" Url="{Binding Url}" Fallback="{Binding DisplayInitial}"
+                                                                   IconSize="18" Margin="0,0,8,0"/>
 
                                                 <!-- Title & URL -->
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -993,6 +1608,76 @@
                         </DockPanel>
                     </Border>
                 </Grid>
+            </Border>
+        </Popup>
+
+        <!-- 15. TAB-GRUPPE BEARBEITEN (Rechtsklick auf den Gruppenkopf) -->
+        <Popup x:Name="popupGroupEditor"
+               Placement="Bottom"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <popups:TabGroupEditor x:Name="groupEditor"/>
+        </Popup>
+
+        <!-- 14. LEISTUNG: Speicher und Tab-Schlaf -->
+        <Popup x:Name="popupPerformance"
+               PlacementTarget="{Binding ElementName=btnMenu}"
+               Placement="Custom"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <popups:PerformancePanel x:Name="performancePanel"/>
+        </Popup>
+
+        <!-- 13. BEFEHLSPALETTE (Strg+K) – oben mittig über dem Seiteninhalt -->
+        <Popup x:Name="popupPalette"
+               PlacementTarget="{Binding ElementName=WebViewContainer}"
+               Placement="Custom"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <popups:CommandPalette x:Name="commandPalette"/>
+        </Popup>
+
+        <!-- 12. WEBSITE-BERECHTIGUNG ABFRAGEN (Kamera, Standort, …) -->
+        <Popup x:Name="popupPermission"
+               PlacementTarget="{Binding ElementName=btnShield}"
+               Placement="Bottom"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <popups:PermissionPrompt x:Name="permissionPrompt"/>
+        </Popup>
+
+        <!-- 11. OMNIBOX-VORSCHLÄGE (Tabs, Lesezeichen, Verlauf, Suchvorschläge) -->
+        <Popup x:Name="popupOmnibox"
+               PlacementTarget="{Binding ElementName=omniboxContainer}"
+               Placement="Bottom"
+               HorizontalOffset="-8"
+               StaysOpen="True"
+               AllowsTransparency="True"
+               Focusable="False">
+            <popups:OmniboxSuggestionsPanel x:Name="omniboxPanel"/>
+        </Popup>
+
+        <!-- 10. HINWEIS-TOAST (z.B. "F11 zum Beenden des Vollbilds") -->
+        <Popup x:Name="popupToast"
+               PlacementTarget="{Binding ElementName=WebViewContainer}"
+               Placement="Custom"
+               AllowsTransparency="True"
+               IsHitTestVisible="False"
+               PopupAnimation="Fade">
+            <Border Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="18"
+                    Padding="18,9"
+                    Margin="8">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.4"/>
+                </Border.Effect>
+                <TextBlock x:Name="txtToast" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
             </Border>
         </Popup>
 

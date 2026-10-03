@@ -18,9 +18,9 @@ public class InternalPageSecurityTests
     }
 
     [Theory]
-    [InlineData("about:blank")]
-    [InlineData("data:text/html;charset=utf-8;base64,PGh0bWw+")]
-    [InlineData(null)]
+    [InlineData("echo://start/")]
+    [InlineData("echo://settings/")]
+    [InlineData("echo://crashed/?url=https%3A%2F%2Fexample.com")]
     public void InternalPage_WithValidToken_IsTrusted(string? source)
     {
         Assert.True(InternalPageSecurity.IsTrustedInternalMessage(source, Message(InternalPageSecurity.Token)));
@@ -29,22 +29,27 @@ public class InternalPageSecurityTests
     [Fact]
     public void InternalPage_WithoutToken_IsRejected()
     {
-        Assert.False(InternalPageSecurity.IsTrustedInternalMessage("about:blank", Message(null)));
+        Assert.False(InternalPageSecurity.IsTrustedInternalMessage("echo://settings/", Message(null)));
     }
 
     [Fact]
     public void InternalPage_WithWrongToken_IsRejected()
     {
-        Assert.False(InternalPageSecurity.IsTrustedInternalMessage("about:blank", Message("falsches-token")));
+        Assert.False(InternalPageSecurity.IsTrustedInternalMessage("echo://settings/", Message("falsches-token")));
     }
 
     [Theory]
+    [InlineData("about:blank")]
+    [InlineData("data:text/html;charset=utf-8;base64,PGh0bWw+")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("https://echo.example.com/")]
     [InlineData("https://evil.example.com/")]
     [InlineData("http://localhost:8080/")]
     [InlineData("file:///C:/temp/page.html")]
     [InlineData("chrome-extension://abcdefghijklmnop/popup.html")]
     [InlineData("blob:https://example.com/123")]
-    public void WebPage_IsRejected_EvenWithCorrectToken(string source)
+    public void WebPage_IsRejected_EvenWithCorrectToken(string? source)
     {
         // Selbst wenn eine Webseite das Token kennen würde, kommt sie nicht durch
         Assert.False(InternalPageSecurity.IsTrustedInternalMessage(source, Message(InternalPageSecurity.Token)));

@@ -1,31 +1,27 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using EchoBrowser.Models;
 using EchoBrowser.Services;
 using EchoBrowser.Views;
-using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
-using Microsoft.Web.WebView2.Wpf;
 
 namespace EchoBrowser
 {
-    /// <summary>Downloads-Flyout und Download-Aktionen.</summary>
+    /// <summary>Downloads-Flyout, Fortschrittsring am Download-Knopf und der eigene Download-Ablauf.</summary>
     public partial class MainWindow
     {
+        /// <summary>Umfang des Fortschrittsrings in Einheiten der Strichstärke (π · (22 − 2) / 2).</summary>
+        private const double ProgressRingLength = 31.4;
+
+        private bool _isDownloadRingSpinning;
+
         private void BtnDownloads_Click(object sender, RoutedEventArgs e)
         {
+            downloadsPanel.Refresh();
             popupDownloads.IsOpen = true;
         }
 
@@ -39,10 +35,56 @@ namespace EchoBrowser
                     _ = InstallCrxWithPromptAsync(profile, crxPath);
                 }
             };
+            downloadsPanel.RetryRequested += url =>
+            {
+                popupDownloads.IsOpen = false;
+                AddNewTab(url, activateTab: false);
+            };
+
+            DownloadService.Instance.ProgressChanged += UpdateDownloadProgressRing;
+            Closed += (s, e) => DownloadService.Instance.ProgressChanged -= UpdateDownloadProgressRing;
+            UpdateDownloadProgressRing();
+        }
+
+        /// <summary>Ring um den Download-Knopf: Fortschritt aller laufenden Downloads (drehend bei unbekannter Größe).</summary>
+        private void UpdateDownloadProgressRing()
+        {
+            double? progress = DownloadService.Instance.OverallProgress();
+            var rotation = (RotateTransform)ellipseDownloadProgress.RenderTransform;
+
+            if (progress == null)
+            {
+                gridDownloadRing.Visibility = Visibility.Collapsed;
+                rotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                _isDownloadRingSpinning = false;
+                return;
+            }
+
+            gridDownloadRing.Visibility = Visibility.Visible;
+            if (progress < 0)
+            {
+                ellipseDownloadProgress.StrokeDashArray = new DoubleCollection { ProgressRingLength * 0.25, 100 };
+                if (!_isDownloadRingSpinning)
+                {
+                    rotation.BeginAnimation(RotateTransform.AngleProperty,
+                        new DoubleAnimation(0, 360, TimeSpan.FromSeconds(1.1)) { RepeatBehavior = RepeatBehavior.Forever });
+                    _isDownloadRingSpinning = true;
+                }
+            }
+            else
+            {
+                if (_isDownloadRingSpinning)
+                {
+                    rotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                    _isDownloadRingSpinning = false;
+                }
+                rotation.Angle = -90; // Fortschritt beginnt oben
+                ellipseDownloadProgress.StrokeDashArray = new DoubleCollection { Math.Max(0.01, progress.Value * ProgressRingLength), 100 };
+            }
         }
 
         /// <summary>
-        /// Eigener Download-Ablauf: Zielordner bestimmen, optional nachfragen, im Flyout anzeigen
+        /// Eigener Download-Ablauf: Zielordner bestimmen, optional nachfragen, in der gemeinsamen Liste anzeigen
         /// und heruntergeladene .crx-Erweiterungen zur Installation anbieten.
         /// </summary>
         private void HandleDownloadStarting(CoreWebView2 core, CoreWebView2DownloadStartingEventArgs args)
@@ -76,35 +118,64 @@ namespace EchoBrowser
             var operation = args.DownloadOperation;
             var download = new DownloadItem
             {
-                FileName = fileName,
+                FileName = Path.GetFileName(args.ResultFilePath),
                 FilePath = args.ResultFilePath,
-                TotalBytes = operation.TotalBytesToReceive.HasValue ? (long)operation.TotalBytesToReceive.Value : 0
+                SourceUrl = operation.Uri,
+                TotalBytes = operation.TotalBytesToReceive.HasValue ? (long)operation.TotalBytesToReceive.Value : 0,
+                Operation = operation
             };
 
-            downloadsPanel.Add(download);
-            downloadBadge.Visibility = Visibility.Visible;
+            DownloadService.Instance.Add(download);
 
-            operation.BytesReceivedChanged += (s, e) => download.BytesReceived = (long)operation.BytesReceived;
+            // Wie in Chrome: das Flyout zeigt den neuen Download sofort
+            if (IsActive)
+            {
+                downloadsPanel.Refresh();
+                popupDownloads.IsOpen = true;
+            }
+
+            operation.BytesReceivedChanged += (s, e) =>
+            {
+                download.BytesReceived = (long)operation.BytesReceived;
+                if (download.TotalBytes == 0 && operation.TotalBytesToReceive is ulong total)
+                {
+                    download.TotalBytes = (long)total;
+                }
+            };
 
             operation.StateChanged += (s, e) =>
             {
-                if (operation.State == CoreWebView2DownloadState.Completed)
+                switch (operation.State)
                 {
-                    download.IsCompleted = true;
-                    download.State = Tr.Get("Downloads_Completed");
-                    downloadBadge.Visibility = Visibility.Collapsed;
+                    case CoreWebView2DownloadState.Completed:
+                        download.IsPaused = false;
+                        download.BytesReceived = (long)operation.BytesReceived;
+                        download.IsCompleted = true;
+                        download.Operation = null;
 
-                    // Auto-install CRX if it is a downloaded extension
-                    if (download.FilePath.EndsWith(".crx", StringComparison.OrdinalIgnoreCase) && File.Exists(download.FilePath))
-                    {
-                        _ = OfferCrxInstallAsync(core, download.FilePath);
-                    }
-                }
-                else if (operation.State == CoreWebView2DownloadState.Interrupted)
-                {
-                    download.IsCancelled = true;
-                    download.State = Tr.Get("Downloads_Interrupted");
-                    downloadBadge.Visibility = Visibility.Collapsed;
+                        // Auto-install CRX if it is a downloaded extension
+                        if (download.IsCrx && File.Exists(download.FilePath))
+                        {
+                            _ = OfferCrxInstallAsync(core, download.FilePath);
+                        }
+                        break;
+
+                    case CoreWebView2DownloadState.Interrupted:
+                        // Pausieren meldet WebView2 ebenfalls als "unterbrochen" – das merken wir uns selbst
+                        if (download.IsPaused || operation.InterruptReason == CoreWebView2DownloadInterruptReason.UserPaused)
+                        {
+                            download.IsPaused = true;
+                        }
+                        else
+                        {
+                            download.IsCancelled = true;
+                            download.Operation = null;
+                        }
+                        break;
+
+                    case CoreWebView2DownloadState.InProgress:
+                        download.IsPaused = false;
+                        break;
                 }
             };
         }
@@ -123,7 +194,7 @@ namespace EchoBrowser
             catch (Exception ex)
             {
                 // z.B. wenn der Tab inzwischen geschlossen wurde
-                Debug.WriteLine($"[Echo] Erweiterungsinstallation nach Download nicht möglich: {ex.Message}");
+                Log.Warn("Erweiterungsinstallation nach Download nicht möglich", ex);
             }
         }
 

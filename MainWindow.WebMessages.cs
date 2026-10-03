@@ -43,6 +43,11 @@ namespace EchoBrowser
             _webMessageRouter.Register("resetSettings", OnResetSettingsMessage);
             _webMessageRouter.Register("updateAdBlockFilter", OnUpdateAdBlockFilterMessage);
             _webMessageRouter.Register("checkForUpdates", OnCheckForUpdatesMessage);
+            _webMessageRouter.Register("makeDefaultBrowser", OnMakeDefaultBrowserMessage);
+            _webMessageRouter.Register("importBookmarks", OnImportBookmarksMessage);
+            _webMessageRouter.Register("exportBookmarks", OnExportBookmarksMessage);
+            _webMessageRouter.Register("chooseStartpageBackground", OnChooseStartpageBackgroundMessage);
+            _webMessageRouter.Register("clearStartpageBackground", OnClearStartpageBackgroundMessage);
             _webMessageRouter.Register("restartToApplyUpdate", OnRestartToApplyUpdateMessage);
         }
 
@@ -53,7 +58,7 @@ namespace EchoBrowser
             string? url = ctx.GetString("url");
             if (!string.IsNullOrWhiteSpace(url))
             {
-                NavigateToInput(url);
+                NavigateToInput(url, ctx.Tab);
             }
         }
 
@@ -174,9 +179,16 @@ namespace EchoBrowser
                     menuChkSidebar.IsChecked = showSb;
                     settings.IsSidebarVisible = showSb;
                     break;
+                case "UseMica":
+                    settings.UseMica = value.GetBoolean();
+                    foreach (var window in Application.Current.Windows.OfType<MainWindow>())
+                    {
+                        window.ApplyWindowEffects();
+                    }
+                    break;
                 case "DefaultZoomPercent":
                     settings.DefaultZoomPercent = value.GetInt32();
-                    ApplyDefaultZoom(settings.DefaultZoomPercent);
+                    ApplyDefaultZoom();
                     break;
 
                 // Symbolleiste
@@ -216,12 +228,19 @@ namespace EchoBrowser
                     break;
                 case "BlockPopups":
                     settings.BlockPopups = value.GetBoolean();
+                    foreach (var tab in Tabs)
+                    {
+                        string host = Uri.TryCreate(tab.Url, UriKind.Absolute, out var tabUri) ? tabUri.Host : "";
+                        tab.PopupsBlocked = settings.BlockPopups && !settings.PopupAllowedDomains.Contains(host);
+                    }
                     break;
                 case "EnableJavaScript":
-                    bool js = value.GetBoolean();
-                    settings.EnableJavaScript = js;
-                    ctx.Tab.JavaScriptEnabled = js;
-                    ctx.Core.Settings.IsScriptEnabled = js;
+                    // Gilt für Webseiten ab dem nächsten Laden; interne Seiten behalten JavaScript (NavigationStarting)
+                    settings.EnableJavaScript = value.GetBoolean();
+                    foreach (var tab in Tabs)
+                    {
+                        tab.JavaScriptEnabled = settings.EnableJavaScript;
+                    }
                     break;
                 case "IsAdBlockerEnabled":
                     settings.IsAdBlockerEnabled = value.GetBoolean();
@@ -231,6 +250,15 @@ namespace EchoBrowser
                     break;
                 case "SendDoNotTrack":
                     settings.SendDoNotTrack = value.GetBoolean();
+                    _ = SyncPrivacySignalsForAllTabsAsync();
+                    break;
+                case "SavePasswords":
+                    settings.SavePasswords = value.GetBoolean();
+                    ApplyAutofillSettings(ctx.Core);
+                    break;
+                case "AutofillForms":
+                    settings.AutofillForms = value.GetBoolean();
+                    ApplyAutofillSettings(ctx.Core);
                     break;
 
                 // Downloads & Tabs
@@ -240,12 +268,19 @@ namespace EchoBrowser
                 case "OpenNewTabInBackground":
                     settings.OpenNewTabInBackground = value.GetBoolean();
                     break;
+                case "VerticalTabs":
+                    settings.VerticalTabs = value.GetBoolean();
+                    ApplyTabLayoutToAllWindows();
+                    break;
+                case "TabSleepMinutes":
+                    settings.TabSleepMinutes = Math.Max(0, value.GetInt32());
+                    break;
                 case "WarnOnClosingMultipleTabs":
                     settings.WarnOnClosingMultipleTabs = value.GetBoolean();
                     break;
 
                 default:
-                    Debug.WriteLine($"[Echo] Unbekannte Einstellung von der Einstellungsseite: '{key}'");
+                    Log.Warn($"Unbekannte Einstellung von der Einstellungsseite: '{key}'");
                     break;
             }
         }
@@ -260,7 +295,7 @@ namespace EchoBrowser
             string hex = ctx.GetString("hex") ?? "";
             if (!ThemeManager.Instance.ApplyAndSaveAccentColor(hex))
             {
-                Debug.WriteLine($"[Echo] Ungültige Akzentfarbe '{hex}'");
+                Log.Warn($"Ungültige Akzentfarbe '{hex}'");
             }
         }
 
@@ -306,7 +341,7 @@ namespace EchoBrowser
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Echo] Browserdaten konnten nicht gelöscht werden: {ex.Message}");
+                    Log.Warn("Browserdaten konnten nicht gelöscht werden", ex);
                 }
             }
 
@@ -333,7 +368,7 @@ namespace EchoBrowser
 
         private void OnRestartToApplyUpdateMessage(WebMessageContext ctx)
         {
-            SaveCurrentSession();
+            SaveSessionForRestart();
             UpdateService.Instance.RestartAndApplyUpdate();
         }
 

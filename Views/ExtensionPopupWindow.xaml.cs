@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using EchoBrowser.Services;
 using Microsoft.Web.WebView2.Core;
 
 namespace EchoBrowser.Views
@@ -91,7 +92,7 @@ namespace EchoBrowser.Views
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to load extension popup: {ex.Message}");
+                Log.Warn("Failed to load extension popup", ex);
             }
         }
 
@@ -123,7 +124,7 @@ namespace EchoBrowser.Views
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error positioning extension popup: {ex.Message}");
+                Log.Warn("Error positioning extension popup", ex);
                 WindowStartupLocation = WindowStartupLocation.CenterOwner;
             }
         }

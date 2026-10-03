@@ -18,10 +18,7 @@ namespace EchoBrowser.Services
 
         private AppSettingsService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string folder = Path.Combine(appData, "EchoBrowser");
-            Directory.CreateDirectory(folder);
-            _filePath = Path.Combine(folder, "settings.json");
+            _filePath = AppPaths.File("settings.json");
             Load();
         }
 
