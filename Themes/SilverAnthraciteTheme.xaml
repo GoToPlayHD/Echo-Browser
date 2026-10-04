@@ -111,6 +111,7 @@
         <Setter Property="Height" Value="32"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Button}">
@@ -118,16 +119,86 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            CornerRadius="6"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="btnScale" ScaleX="1.0" ScaleY="1.0"/>
+                        </Border.RenderTransform>
+                        <Grid>
+                            <Border x:Name="hoverBg"
+                                    Background="{DynamicResource ButtonHoverBackgroundBrush}"
+                                    CornerRadius="6"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <Border x:Name="pressedBg"
+                                    Background="{DynamicResource ButtonPressedBackgroundBrush}"
+                                    CornerRadius="6"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrightBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="hoverBg"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.12"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="hoverBg"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.18"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="btnScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                         To="0.94" Duration="0:0:0.06"/>
+                                        <DoubleAnimation Storyboard.TargetName="btnScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                         To="0.94" Duration="0:0:0.06"/>
+                                        <DoubleAnimation Storyboard.TargetName="pressedBg"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.06"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="btnScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                         To="1.0" Duration="0:0:0.12">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="btnScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                         To="1.0" Duration="0:0:0.12">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="pressedBg"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.1"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.35"/>
@@ -154,16 +225,78 @@
                 <ControlTemplate TargetType="{x:Type Button}">
                     <Border x:Name="circleBorder"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="10">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            CornerRadius="10"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="roundScale" ScaleX="1.0" ScaleY="1.0"/>
+                        </Border.RenderTransform>
+                        <Grid>
+                            <Border x:Name="roundHover"
+                                    Background="{DynamicResource ButtonHoverBackgroundBrush}"
+                                    CornerRadius="10"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <Border x:Name="roundPressed"
+                                    Background="{DynamicResource ButtonPressedBackgroundBrush}"
+                                    CornerRadius="10"
+                                    Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="circleBorder" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrightBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="roundHover"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.12"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="roundHover"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.18"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="circleBorder" Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="roundScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                         To="0.9" Duration="0:0:0.06"/>
+                                        <DoubleAnimation Storyboard.TargetName="roundScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                         To="0.9" Duration="0:0:0.06"/>
+                                        <DoubleAnimation Storyboard.TargetName="roundPressed"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.06"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="roundScale"
+                                                         Storyboard.TargetProperty="ScaleX"
+                                                         To="1.0" Duration="0:0:0.12"/>
+                                        <DoubleAnimation Storyboard.TargetName="roundScale"
+                                                         Storyboard.TargetProperty="ScaleY"
+                                                         To="1.0" Duration="0:0:0.12"/>
+                                        <DoubleAnimation Storyboard.TargetName="roundPressed"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.1"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -315,26 +448,71 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type CheckBox}">
                     <DockPanel LastChildFill="True">
-                        <Border x:Name="switchTrack"
-                                DockPanel.Dock="Right"
-                                Width="38" Height="20"
-                                CornerRadius="10"
-                                Background="{DynamicResource BorderBrush}"
-                                Margin="10,0,0,0">
+                        <Grid x:Name="switchTrackContainer"
+                              DockPanel.Dock="Right"
+                              Width="38" Height="20"
+                              Margin="10,0,0,0">
+                            <!-- Inactive Track -->
+                            <Border x:Name="switchTrackOff"
+                                    CornerRadius="10"
+                                    Background="{DynamicResource BorderBrush}"/>
+                            <!-- Active Track Overlay (animates opacity) -->
+                            <Border x:Name="switchTrackOn"
+                                    CornerRadius="10"
+                                    Background="{DynamicResource ShieldActiveBrush}"
+                                    Opacity="0"/>
+                            <!-- Thumb -->
                             <Ellipse x:Name="switchThumb"
                                      Width="14" Height="14"
                                      HorizontalAlignment="Left"
                                      Margin="3,0,0,0"
-                                     Fill="{DynamicResource AccentSilverBrush}"/>
-                        </Border>
+                                     Fill="{DynamicResource AccentSilverBrush}"
+                                     RenderTransformOrigin="0.5,0.5">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="thumbTransform" X="0"/>
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
+                        </Grid>
                         <ContentPresenter VerticalAlignment="Center"/>
                     </DockPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="switchTrack" Property="Background" Value="{DynamicResource ShieldActiveBrush}"/>
-                            <Setter TargetName="switchThumb" Property="HorizontalAlignment" Value="Right"/>
-                            <Setter TargetName="switchThumb" Property="Margin" Value="0,0,3,0"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="thumbTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="18" Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="switchTrackOn"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.18"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="thumbTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="0" Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="switchTrackOn"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.18"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                             <Setter TargetName="switchThumb" Property="Fill" Value="#FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="switchTrackOff" Property="BorderBrush" Value="{DynamicResource AccentSilverDimBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -458,8 +636,8 @@
     <!-- ========================================== -->
     <Style TargetType="{x:Type ScrollBar}">
         <Setter Property="Background" Value="{DynamicResource ScrollBarTrackBrush}"/>
-        <Setter Property="Width" Value="8"/>
-        <Setter Property="MinWidth" Value="8"/>
+        <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false"/>
+        <Setter Property="Stylus.IsFlicksEnabled" Value="false"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ScrollBar}">
@@ -469,13 +647,50 @@
                                 <Thumb>
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="{x:Type Thumb}">
-                                            <Border CornerRadius="4" Background="{DynamicResource ScrollBarThumbBrush}"/>
+                                            <Grid>
+                                                <Border CornerRadius="4" Background="{DynamicResource ScrollBarThumbBrush}"/>
+                                                <Border x:Name="thumbHover" CornerRadius="4" Background="{DynamicResource ScrollBarThumbHoverBrush}" Opacity="0"/>
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Trigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="thumbHover"
+                                                                                 Storyboard.TargetProperty="Opacity"
+                                                                                 To="1" Duration="0:0:0.12"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.EnterActions>
+                                                    <Trigger.ExitActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="thumbHover"
+                                                                                 Storyboard.TargetProperty="Opacity"
+                                                                                 To="0" Duration="0:0:0.18"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.ExitActions>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
                             </Track.Thumb>
                         </Track>
                     </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Orientation" Value="Vertical">
+                            <Setter Property="Width" Value="8"/>
+                            <Setter Property="MinWidth" Value="8"/>
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="true"/>
+                        </Trigger>
+                        <Trigger Property="Orientation" Value="Horizontal">
+                            <Setter Property="Height" Value="8"/>
+                            <Setter Property="MinHeight" Value="8"/>
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="false"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

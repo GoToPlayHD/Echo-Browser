@@ -38,6 +38,11 @@ public partial class App : Application
             return;
         }
 
+        if (args.Any(a => string.Equals(a, "--restored-after-update", StringComparison.OrdinalIgnoreCase)))
+        {
+            SessionService.Instance.IsRestoredAfterUpdate = true;
+        }
+
         // 3. WPF-Anwendung initialisieren und Hauptfenster starten
         var app = new App();
         app.InitializeComponent();
@@ -47,7 +52,11 @@ public partial class App : Application
             .Where(w => w.IsPartOfSession)
             .Select(w => w.CaptureSession()));
         SessionService.Instance.MarkRunning();
-        app.Exit += (s, e) => SessionService.Instance.MarkCleanExit();
+        app.Exit += (s, e) =>
+        {
+            SessionService.Instance.MarkCleanExit();
+            UpdateService.Instance.ApplyPendingUpdateOnExit();
+        };
 
         instance.StartListening(urls => app.Dispatcher.BeginInvoke(() => app.OpenFromOtherInstance(urls)));
 

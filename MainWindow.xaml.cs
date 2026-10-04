@@ -636,6 +636,7 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
         {
             base.OnClosed(e);
             LocalizationService.Instance.LanguageChanged -= ApplyLocalizationToUi;
+            UpdateService.Instance.StatusChanged -= OnUpdateStatusChanged;
 
             // Ausstehende (verzögerte) Verlaufsänderungen sofort schreiben
             if (!_isIncognito)

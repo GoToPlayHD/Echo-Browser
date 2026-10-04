@@ -279,6 +279,25 @@ namespace EchoBrowser
                     settings.WarnOnClosingMultipleTabs = value.GetBoolean();
                     break;
 
+                // Updates (Velopack)
+                case "AutoCheckForUpdates":
+                    settings.AutoCheckForUpdates = value.GetBoolean();
+                    if (settings.AutoCheckForUpdates)
+                    {
+                        UpdateService.Instance.StartAutoCheckTimer();
+                    }
+                    else
+                    {
+                        UpdateService.Instance.StopAutoCheckTimer();
+                    }
+                    break;
+                case "CheckPrereleaseUpdates":
+                    settings.CheckPrereleaseUpdates = value.GetBoolean();
+                    break;
+                case "UpdateUrl":
+                    settings.UpdateUrl = value.GetString() ?? UpdateService.DefaultUpdateUrl;
+                    break;
+
                 default:
                     Log.Warn($"Unbekannte Einstellung von der Einstellungsseite: '{key}'");
                     break;

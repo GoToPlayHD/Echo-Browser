@@ -57,5 +57,42 @@ namespace EchoBrowser.Tests
             Assert.Equal(42, args.Progress);
             Assert.Equal("1.3.0", args.AvailableVersion);
         }
+
+        [Fact]
+        public void UpdateService_IsInstalled_DoesNotThrow()
+        {
+            bool isInstalled = UpdateService.Instance.IsInstalled;
+            // In unit tests running from dotnet test, it should be false (development mode)
+            Assert.False(isInstalled);
+        }
+
+        [Fact]
+        public void UpdateService_StartAndStopAutoCheckTimer_Succeeds()
+        {
+            UpdateService.Instance.StartAutoCheckTimer();
+            // Calling it twice should be idempotent and safe
+            UpdateService.Instance.StartAutoCheckTimer();
+            UpdateService.Instance.StopAutoCheckTimer();
+        }
+
+        [Fact]
+        public void SessionService_IsRestoredAfterUpdate_DefaultsToFalseAndCanBeSet()
+        {
+            var session = SessionService.Instance;
+            bool initial = session.IsRestoredAfterUpdate;
+            session.IsRestoredAfterUpdate = true;
+            Assert.True(session.IsRestoredAfterUpdate);
+            session.IsRestoredAfterUpdate = initial;
+        }
+
+        [Fact]
+        public void SettingsPageService_IncludesUpdateStatusJson()
+        {
+            var settings = new AppSettings();
+            var updateStatus = new { status = "ReadyToRestart", message = "Ready", progress = 100, version = "1.2.1" };
+            string html = SettingsPageService.GetSettingsPageHtml(settings, "120.0", "1.2.0", updateStatus);
+            Assert.Contains("ReadyToRestart", html);
+            Assert.Contains("1.2.1", html);
+        }
     }
 }

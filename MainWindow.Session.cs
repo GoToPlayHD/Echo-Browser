@@ -100,7 +100,7 @@ namespace EchoBrowser
             var session = SessionService.Instance.Load();
             bool hasSession = session.Windows.Count > 0;
 
-            bool restore = hasSession && (settings.StartupBehavior == "restore_session" || OfferRestoreAfterCrash());
+            bool restore = hasSession && (settings.StartupBehavior == "restore_session" || SessionService.Instance.IsRestoredAfterUpdate || OfferRestoreAfterCrash());
             if (restore)
             {
                 RestoreSession(session);

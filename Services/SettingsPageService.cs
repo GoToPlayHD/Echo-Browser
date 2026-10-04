@@ -8,13 +8,17 @@ namespace EchoBrowser.Services
     {
         public const string SettingsPageUrl = "echo://settings";
 
-        public static string GetSettingsPageHtml(AppSettings settings, string webViewVersion = "120.0", string appVersion = "1.2")
+        public static string GetSettingsPageHtml(AppSettings settings, string webViewVersion = "120.0", string appVersion = "1.2", object? initialUpdateStatus = null)
         {
             string settingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = false });
+            string updateStatusJson = initialUpdateStatus != null
+                ? JsonSerializer.Serialize(initialUpdateStatus, new JsonSerializerOptions { WriteIndented = false })
+                : "null";
 
             // Erst übersetzen, dann Nutzerdaten (Einstellungen) einsetzen – so werden darin keine Platzhalter ersetzt
             string html = PageLocalizer.Apply(RawHtmlTemplate);
             html = html.Replace("##SETTINGS_JSON##", settingsJson);
+            html = html.Replace("##UPDATE_STATUS_JSON##", updateStatusJson);
             html = html.Replace("##WEBVIEW_VERSION##", webViewVersion);
             html = html.Replace("##APP_VERSION##", appVersion);
             html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
@@ -777,46 +781,77 @@ namespace EchoBrowser.Services
         .about-status {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(52, 211, 153, 0.15);
+            gap: 7px;
+            background: rgba(52, 211, 153, 0.12);
+            border: 1px solid rgba(52, 211, 153, 0.28);
             color: var(--accent-green);
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: 700;
             width: fit-content;
-            margin-top: 4px;
+            margin-top: 6px;
+            transition: all 0.25s ease;
         }
 
         .about-status.checking {
-            background: rgba(56, 189, 248, 0.15);
+            background: rgba(56, 189, 248, 0.12);
+            border-color: rgba(56, 189, 248, 0.35);
             color: var(--accent-blue);
         }
 
+        .about-status.checking svg {
+            animation: echo-spin 0.9s linear infinite;
+        }
+
+        @keyframes echo-spin {
+            100% { transform: rotate(360deg); }
+        }
+
         .about-status.warning {
-            background: rgba(251, 191, 36, 0.15);
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.35);
             color: var(--echo-warning);
         }
 
         .about-status.ready {
-            background: rgba(52, 211, 153, 0.25);
+            background: rgba(52, 211, 153, 0.2);
+            border-color: rgba(52, 211, 153, 0.45);
             color: var(--accent-green);
+            box-shadow: 0 0 12px rgba(52, 211, 153, 0.2);
         }
 
         .update-progress-bar {
-            height: 5px;
-            background: var(--border-color);
-            border-radius: 3px;
+            height: 6px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
             overflow: hidden;
-            margin-top: 8px;
-            width: 240px;
+            margin-top: 10px;
+            width: 260px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
         }
 
         .update-progress-fill {
             height: 100%;
-            background: var(--accent-blue);
+            background: linear-gradient(90deg, var(--accent-blue) 0%, #60a5fa 50%, var(--accent-blue) 100%);
+            background-size: 200% 100%;
+            animation: progress-shimmer 2s ease infinite;
             width: 0%;
-            transition: width 0.2s ease;
+            border-radius: 3px;
+            transition: width 0.25s ease-out;
+        }
+
+        @keyframes progress-shimmer {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .about-status.checking svg,
+            .update-progress-fill {
+                animation: none;
+            }
         }
     </style>
 </head>
@@ -1562,6 +1597,7 @@ namespace EchoBrowser.Services
     <!-- Interactive Logic Script -->
     <script>
         const initialSettings = ##SETTINGS_JSON##;
+        const initialUpdateStatus = ##UPDATE_STATUS_JSON##;
 
         function sendMessage(msg) {
             if (window.chrome && window.chrome.webview) {
@@ -2032,6 +2068,7 @@ namespace EchoBrowser.Services
             const box = document.getElementById('aboutStatusBox');
             const lbl = document.getElementById('lblAboutStatus');
             const btn = document.getElementById('btnCheckUpdates');
+            const svgIcon = document.getElementById('svgStatusIcon');
             const progCont = document.getElementById('updateProgressContainer');
             const progBar = document.getElementById('updateProgressBar');
 
@@ -2046,11 +2083,13 @@ namespace EchoBrowser.Services
             if (data.status === 'Checking') {
                 box.classList.add('checking');
                 lbl.innerText = data.message || {{js:Update_Checking}};
+                if (svgIcon) svgIcon.innerHTML = '<path d=""M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15""/>';
                 btn.disabled = true;
                 btnSpan.innerText = {{js:Update_Checking}};
             } else if (data.status === 'Downloading') {
                 box.classList.add('checking');
                 lbl.innerText = data.message || (data.progress + '%');
+                if (svgIcon) svgIcon.innerHTML = '<path d=""M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3""/>';
                 if (progCont) progCont.style.display = 'block';
                 if (progBar) progBar.style.width = (data.progress || 0) + '%';
                 btn.disabled = true;
@@ -2058,24 +2097,33 @@ namespace EchoBrowser.Services
             } else if (data.status === 'ReadyToRestart') {
                 box.classList.add('ready');
                 lbl.innerText = data.message || {{js:Update_Ready}};
+                if (svgIcon) svgIcon.innerHTML = '<path d=""M20 6L9 17l-5-5""/>';
                 btn.setAttribute('data-action', 'restart');
                 btnSpan.innerText = {{js:Update_RestartNow}};
             } else if (data.status === 'UpToDate') {
                 lbl.innerText = data.message || {{js:Settings_AboutUpToDate}};
+                if (svgIcon) svgIcon.innerHTML = '<path d=""M20 6L9 17l-5-5""/>';
                 btnSpan.innerText = {{js:Settings_CheckForUpdates}};
             } else if (data.status === 'NotInstalled') {
                 box.classList.add('warning');
                 lbl.innerText = data.message || {{js:Update_DevMode}};
+                if (svgIcon) svgIcon.innerHTML = '<circle cx=""12"" cy=""12"" r=""10""/><line x1=""12"" y1=""8"" x2=""12"" y2=""12""/><line x1=""12"" y1=""16"" x2=""12.01"" y2=""16""/>';
                 btnSpan.innerText = {{js:Settings_CheckForUpdates}};
             } else if (data.status === 'Error') {
                 box.classList.add('warning');
                 lbl.innerText = data.message || {{js:Update_Error}};
+                if (svgIcon) svgIcon.innerHTML = '<circle cx=""12"" cy=""12"" r=""10""/><line x1=""12"" y1=""8"" x2=""12"" y2=""12""/><line x1=""12"" y1=""16"" x2=""12.01"" y2=""16""/>';
                 btnSpan.innerText = {{js:Settings_CheckForUpdates}};
             } else {
                 lbl.innerText = {{js:Settings_AboutUpToDate}};
+                if (svgIcon) svgIcon.innerHTML = '<path d=""M20 6L9 17l-5-5""/>';
                 btnSpan.innerText = {{js:Settings_CheckForUpdates}};
             }
         };
+
+        if (typeof initialUpdateStatus === 'object' && initialUpdateStatus !== null) {
+            window.onUpdateStatusChanged(initialUpdateStatus);
+        }
 
         window.onSettingUpdatedFromHost = function(newSettings) {
             applySettingsToUI(newSettings);

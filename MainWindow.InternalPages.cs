@@ -95,10 +95,18 @@ namespace EchoBrowser
                     return StartPageService.GetStartPageHtml(_isIncognito);
 
                 case InternalPages.Settings:
+                    var updateStatus = new
+                    {
+                        status = UpdateService.Instance.Status.ToString(),
+                        message = UpdateService.Instance.StatusMessage,
+                        progress = UpdateService.Instance.DownloadProgress,
+                        version = UpdateService.Instance.AvailableVersion
+                    };
                     return SettingsPageService.GetSettingsPageHtml(
                         AppSettingsService.Instance.Settings,
                         _webViewEnvironment?.BrowserVersionString ?? "",
-                        UpdateService.Instance.CurrentVersion);
+                        UpdateService.Instance.CurrentVersion,
+                        updateStatus);
 
                 case InternalPages.Crashed:
                     string? originalUrl = Uri.TryCreate(url, UriKind.Absolute, out var uri)

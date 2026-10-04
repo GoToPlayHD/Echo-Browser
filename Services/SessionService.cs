@@ -73,6 +73,9 @@ namespace EchoBrowser.Services
         /// <summary>True, wenn Echo beim letzten Mal nicht ordentlich beendet wurde (Absturz, Task-Manager, Stromausfall).</summary>
         public bool PreviousRunCrashed { get; }
 
+        /// <summary>True, wenn Echo nach einem automatischen Update mit gespeicherter Sitzung neu gestartet wurde.</summary>
+        public bool IsRestoredAfterUpdate { get; set; }
+
         private SessionService()
         {
             PreviousRunCrashed = File.Exists(_runningMarker);

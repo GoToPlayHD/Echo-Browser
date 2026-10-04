@@ -93,6 +93,9 @@ namespace EchoBrowser.Services
             StatusMessage = Tr.Get("Update_Idle");
         }
 
+        private string? _cachedCurrentVersion;
+        private bool? _cachedIsInstalled;
+
         /// <summary>
         /// Liefert die aktuell ausgeführte Version der App (entweder aus Velopack oder der Assembly).
         /// </summary>
@@ -100,13 +103,16 @@ namespace EchoBrowser.Services
         {
             get
             {
+                if (_cachedCurrentVersion != null) return _cachedCurrentVersion;
+
                 try
                 {
                     var source = CreateUpdateSource();
                     var mgr = new UpdateManager(source);
                     if (mgr.IsInstalled && mgr.CurrentVersion != null)
                     {
-                        return mgr.CurrentVersion.ToString();
+                        _cachedCurrentVersion = mgr.CurrentVersion.ToString();
+                        return _cachedCurrentVersion;
                     }
                 }
                 catch
@@ -115,7 +121,8 @@ namespace EchoBrowser.Services
                 }
 
                 var ver = Assembly.GetExecutingAssembly().GetName().Version;
-                return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "1.2.0";
+                _cachedCurrentVersion = ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "1.2.0";
+                return _cachedCurrentVersion;
             }
         }
 
@@ -126,14 +133,18 @@ namespace EchoBrowser.Services
         {
             get
             {
+                if (_cachedIsInstalled.HasValue) return _cachedIsInstalled.Value;
+
                 try
                 {
                     var source = CreateUpdateSource();
                     var mgr = new UpdateManager(source);
-                    return mgr.IsInstalled;
+                    _cachedIsInstalled = mgr.IsInstalled;
+                    return _cachedIsInstalled.Value;
                 }
                 catch
                 {
+                    _cachedIsInstalled = false;
                     return false;
                 }
             }
@@ -159,11 +170,12 @@ namespace EchoBrowser.Services
         /// <summary>
         /// Startet den Timer für die periodische Hintergrundprüfung.
         /// Startet nach einer kurzen Verzögerung von 12 Sekunden (für einen schnellen Browserstart)
-        /// und prüft danach alle 4 Stunden.
+        /// und prüft danach alle 4 Stunden. Idempotent: Mehrfache Aufrufe erneuern den Timer nicht unnötig.
         /// </summary>
         public void StartAutoCheckTimer()
         {
-            _autoCheckTimer?.Dispose();
+            if (_autoCheckTimer != null) return;
+
             _autoCheckTimer = new Timer(async _ =>
             {
                 try
@@ -192,6 +204,12 @@ namespace EchoBrowser.Services
         /// </summary>
         public async Task<UpdateCheckResult> CheckForUpdatesAsync(bool isManualCheck = false)
         {
+            // Wenn bereits ein Update heruntergeladen bereitliegt und es sich nur um den periodischen Check handelt
+            if (IsUpdateReadyToRestart && !isManualCheck)
+            {
+                return new UpdateCheckResult(true, Status, StatusMessage, AvailableVersion);
+            }
+
             // Wenn bereits ein Check oder Download läuft, nicht parallel ausführen
             if (!await _lock.WaitAsync(0).ConfigureAwait(false))
             {
@@ -244,17 +262,25 @@ namespace EchoBrowser.Services
                 _downloadCts?.Dispose();
                 _downloadCts = new CancellationTokenSource();
 
+                int lastReportedProgress = -1;
+                DateTime lastReportedTime = DateTime.MinValue;
+
                 await mgr.DownloadUpdatesAsync(updateInfo, progress =>
                 {
-                    DownloadProgress = progress;
-                    StatusMessage = Tr.Format("Update_DownloadingPercent", AvailableVersion, progress);
-                    NotifyStatusChanged();
+                    var now = DateTime.UtcNow;
+                    if (progress == 100 || progress - lastReportedProgress >= 2 || (now - lastReportedTime).TotalMilliseconds >= 250)
+                    {
+                        lastReportedProgress = progress;
+                        lastReportedTime = now;
+                        DownloadProgress = progress;
+                        StatusMessage = Tr.Format("Update_DownloadingPercent", AvailableVersion, progress);
+                        NotifyStatusChanged();
+                    }
                 }, _downloadCts.Token).ConfigureAwait(false);
 
-                // 4. Update heruntergeladen und einsatzbereit
-                // Registriere für automatische Installation beim Schließen des Browsers
-                mgr.WaitExitThenApplyUpdates(updateInfo.TargetFullRelease, silent: true, restart: false);
-
+                // 4. Update heruntergeladen und einsatzbereit.
+                // Hinweis: WaitExitThenApplyUpdates wird nicht sofort gerufen, da Velopack einen 60-Sekunden-Timeout hat.
+                // Stattdessen wird es bei App.Exit (ApplyPendingUpdateOnExit) oder bei manuellem Neustart angewendet.
                 Status = UpdateStatus.ReadyToRestart;
                 StatusMessage = Tr.Format("Update_Ready", AvailableVersion);
                 NotifyStatusChanged();
@@ -273,7 +299,12 @@ namespace EchoBrowser.Services
                 Log.Warn("Update-Prüfung fehlgeschlagen", ex);
                 Status = UpdateStatus.Error;
                 LastError = ex.Message;
-                StatusMessage = Tr.Format("Update_Error", ex.Message);
+                string detail = ex.Message;
+                if (detail.Contains("404") || (ex.InnerException?.Message.Contains("404") ?? false))
+                {
+                    detail = "Keine kompatiblen Release-Dateien auf GitHub gefunden (404).";
+                }
+                StatusMessage = Tr.Format("Update_Error", detail);
                 NotifyStatusChanged();
                 return new UpdateCheckResult(false, UpdateStatus.Error, StatusMessage, null, ex);
             }
@@ -285,6 +316,8 @@ namespace EchoBrowser.Services
 
         /// <summary>
         /// Wendet das heruntergeladene Update an und startet den Browser sofort neu.
+        /// Sichert vor dem Beenden die Sitzung und markiert einen sauberen Exit,
+        /// damit der Browser nach dem Neustart nahtlos ohne Absturzwarnung fortfährt.
         /// </summary>
         public void RestartAndApplyUpdate()
         {
@@ -292,9 +325,13 @@ namespace EchoBrowser.Services
 
             try
             {
+                // Sitzung sofort synchron sichern und sauberen Exit markieren
+                SessionService.Instance.SaveNow();
+                SessionService.Instance.MarkCleanExit();
+
                 var source = CreateUpdateSource();
                 var mgr = new UpdateManager(source);
-                mgr.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
+                mgr.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease, new[] { "--restored-after-update" });
             }
             catch (Exception ex)
             {
@@ -303,6 +340,30 @@ namespace EchoBrowser.Services
                 LastError = ex.Message;
                 StatusMessage = Tr.Format("Update_Error", ex.Message);
                 NotifyStatusChanged();
+            }
+        }
+
+        /// <summary>
+        /// Wird beim normalen Schließen des Browsers aufgerufen:
+        /// Wenn ein Update heruntergeladen wurde, wartet Velopack auf das vollständige Beenden des Prozesses
+        /// und installiert das Update im Hintergrund.
+        /// </summary>
+        public void ApplyPendingUpdateOnExit()
+        {
+            if (!IsUpdateReadyToRestart || _pendingUpdate == null) return;
+
+            try
+            {
+                var source = CreateUpdateSource();
+                var mgr = new UpdateManager(source);
+                if (mgr.IsInstalled)
+                {
+                    mgr.WaitExitThenApplyUpdates(_pendingUpdate.TargetFullRelease, silent: true, restart: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Ausstehendes Update konnte beim Beenden nicht vorbereitet werden", ex);
             }
         }
 

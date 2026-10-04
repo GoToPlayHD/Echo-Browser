@@ -9,6 +9,7 @@
     <RootNamespace>EchoBrowser</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <StartupObject>EchoBrowser.App</StartupObject>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 
   <!-- App.xaml als Page deklarieren, damit Main() den VelopackApp-Bootstrap vor WPF ausführen kann -->

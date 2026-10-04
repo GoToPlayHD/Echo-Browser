@@ -167,3 +167,9 @@
 - [x] **Geteilte Ansicht (Split View)**: zwei Tabs nebeneinander (Spalten + `GridSplitter` im `WebViewContainer`, kein Airspace-Problem), Akzentrahmen um die Seite mit dem Fokus, Adressleiste/Navigation/Zoom/Suche folgen dem Fokus; die Teilung bleibt erhalten, solange einer der beiden Tabs aktiv ist (wie Edge), beide Tabs sind in der Tab-Leiste hervorgehoben und stehen nebeneinander. Einstiege: Knopf in der Symbolleiste (ausblendbar), Tab-Kontextmenü („Neben aktuellem Tab anzeigen“), Link-Kontextmenü („Link in geteilter Ansicht öffnen“), Befehlspalette. Beide Seiten bleiben wach (Tab-Schlaf), Videos im Vollbild nehmen die ganze Fläche ein.
 - [x] **Sitzung**: ist der aktive Tab nicht speicherbar (Startseite), wird beim nächsten Start der nächstgelegene Tab aktiv statt immer der erste.
 - [x] **Eigener Datenordner** über `ECHO_USER_DATA_DIR` (alle Dienste nutzen `AppPaths`); eigene Einzelinstanz pro Datenordner – Entwicklungsstände laufen neben dem installierten Echo.
+
+
+Bugs:
+- Seitliche und obere Lesezeichen leiste ist nicht syncronisiert.
+- Lokale dateien können nicht auf der Seitlichen Lesezeichenleiste verwendete weren (es wird immer https davor geschrieben)
+- Wenn man Lesezeichen Manuell hinzufügt kann man nichts ins URL Feld schreiben oder kopieren.
