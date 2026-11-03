@@ -31,12 +31,15 @@ namespace EchoBrowser.Services
             // Erst übersetzen, dann Nutzerdaten (Verknüpfungen) einsetzen – so werden darin keine Platzhalter ersetzt
             string html = RawHtmlTemplate.Replace("##INCOGNITO_EXTRA##", incognitoExtra);
             html = PageLocalizer.Apply(html);
+            // Theme und Token zuerst einsetzen: danach eingefügte Nutzerdaten (Adressen, Titel) dürfen keine
+            // Platzhalter mehr enthalten, die noch ersetzt werden – sonst landet z.B. das Token in einer fremden URL
+            html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
+            html = InternalPageSecurity.InjectToken(html);
             html = html.Replace("##TITLE##", System.Net.WebUtility.HtmlEncode(Tr.Get(isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab")));
             html = html.Replace("##CURRENT_ENGINE##", currentEngine);
             html = html.Replace("##SHOW_FAVORITES##", showFavorites ? "true" : "false");
             html = html.Replace("##SHORTCUTS_SECTION_CLASS##", showFavorites ? "" : "hidden");
             html = html.Replace("##TOGGLE_TEXT##", System.Net.WebUtility.HtmlEncode(Tr.Get(showFavorites ? "Start_HideShortcuts" : "Start_ShowShortcuts")));
-            html = html.Replace("##SHORTCUTS_JSON##", shortcutsJson);
 
             // "Meistbesucht" aus dem Verlauf (nicht im Inkognito-Modus)
             var mostVisited = isIncognito
@@ -45,15 +48,17 @@ namespace EchoBrowser.Services
                     HistoryService.Instance.Entries.Select(h => new SuggestionSource(h.Title, h.Url, h.VisitedAt)),
                     (settings.StartpageShortcuts ?? new()).Select(s => s.Url),
                     DateTime.Now);
-            html = html.Replace("##MOST_VISITED_JSON##", JsonSerializer.Serialize(mostVisited));
+            string mostVisitedJson = JsonSerializer.Serialize(mostVisited);
 
             // Eigenes Hintergrundbild
             string wallpaper = settings.StartpageBackgroundPath ?? "";
             bool hasWallpaper = wallpaper.Length > 0 && System.IO.File.Exists(wallpaper);
             html = html.Replace("##WALLPAPER_CLASS##", hasWallpaper ? "has-wallpaper" : "");
             html = html.Replace("##WALLPAPER_VERSION##", hasWallpaper ? System.IO.File.GetLastWriteTimeUtc(wallpaper).Ticks.ToString() : "0");
-            html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
-            html = InternalPageSecurity.InjectToken(html);
+
+            // Nutzerdaten zuletzt und in einem Durchgang: ein Titel wie "##MOST_VISITED_JSON##" wird so nicht ersetzt
+            html = System.Text.RegularExpressions.Regex.Replace(html, "##(SHORTCUTS_JSON|MOST_VISITED_JSON)##",
+                m => m.Groups[1].Value == "SHORTCUTS_JSON" ? shortcutsJson : mostVisitedJson);
 
             return html;
         }

@@ -21,7 +21,10 @@ namespace EchoBrowser.Views.Popups
             InitializeComponent();
         }
 
-        /// <summary>Formular füllen und den Fokus in das Namensfeld setzen.</summary>
+        /// <summary>Erstes Eingabefeld – das Hauptfenster setzt den Fokus darauf (siehe FocusWpfInput).</summary>
+        public TextBox InitialFocusTarget => txtAddBmTitle;
+
+        /// <summary>Formular füllen.</summary>
         /// <param name="title">Vorschlag für den Namen (z.B. Titel des aktuellen Tabs).</param>
         /// <param name="url">Vorschlag für die Adresse, leer = "https://".</param>
         /// <param name="groups">Verfügbare Lesezeichen-Gruppen.</param>
@@ -45,15 +48,13 @@ namespace EchoBrowser.Views.Popups
                     cmbAddBmGroup.SelectedItem = item;
                 }
             }
-
-            txtAddBmTitle.Focus();
         }
 
         private void BtnSaveAddBm_Click(object sender, RoutedEventArgs e)
         {
             if (UrlHelper.IsEmptyInput(txtAddBmUrl.Text)) return;
 
-            string url = UrlHelper.EnsureScheme(txtAddBmUrl.Text);
+            string url = UrlHelper.NormalizeUserUrl(txtAddBmUrl.Text);
             string title = txtAddBmTitle.Text.Trim();
             if (title.Length == 0)
             {

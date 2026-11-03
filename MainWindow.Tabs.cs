@@ -30,7 +30,12 @@ namespace EchoBrowser
         /// Nur für Tabs im Hintergrund: noch keine WebView anlegen, die Seite lädt erst beim Aktivieren
         /// (schnellere Wiederherstellung der Sitzung).
         /// </param>
-        public BrowserTab? AddNewTab(string? targetUrl = null, bool activateTab = true, string? title = null, bool deferLoad = false)
+        /// <param name="openerRequest">
+        /// window.open/target=_blank: Die neue WebView wird der Seite als Fenster übergeben (args.NewWindow),
+        /// damit window.opener und postMessage funktionieren (OAuth-/SSO- und Zahlungs-Popups).
+        /// </param>
+        public BrowserTab? AddNewTab(string? targetUrl = null, bool activateTab = true, string? title = null, bool deferLoad = false,
+            CoreWebView2NewWindowRequestedEventArgs? openerRequest = null)
         {
             if (_webViewEnvironment == null) return null;
 
@@ -58,13 +63,13 @@ namespace EchoBrowser
                 }
             };
 
-            if (deferLoad && !activateTab)
+            if (deferLoad && !activateTab && openerRequest == null)
             {
                 tab.IsDiscarded = true;
             }
             else
             {
-                CreateTabWebView(tab, initialUrl);
+                CreateTabWebView(tab, initialUrl, openerRequest);
             }
 
             Tabs.Add(tab);
@@ -76,7 +81,7 @@ namespace EchoBrowser
         }
 
         /// <summary>Legt das WebView2-Steuerelement eines Tabs an (auch zum Neuaufbau nach einem Browser-Absturz).</summary>
-        private void CreateTabWebView(BrowserTab tab, string url)
+        private void CreateTabWebView(BrowserTab tab, string url, CoreWebView2NewWindowRequestedEventArgs? openerRequest = null)
         {
             var webView = new WebView2
             {
@@ -90,22 +95,30 @@ namespace EchoBrowser
             WebViewContainer.Children.Add(webView);
             AttachSplitFocusEvents(tab, webView);
 
-            AttachWebViewEvents(tab, webView, url);
+            AttachWebViewEvents(tab, webView, url, openerRequest);
         }
 
         /// <summary>
         /// Initialisiert die WebView eines Tabs und hängt alle Ereignisse an.
         /// WebView2-Ereignisse feuern auf dem UI-Thread – ein Dispatcher.Invoke ist nicht nötig.
         /// </summary>
-        private async void AttachWebViewEvents(BrowserTab tab, WebView2 webView, string initialUrl)
+        private async void AttachWebViewEvents(BrowserTab tab, WebView2 webView, string initialUrl,
+            CoreWebView2NewWindowRequestedEventArgs? openerRequest = null)
         {
+            // Die öffnende Seite wartet, bis die neue WebView bereit ist – auch im Fehlerfall freigeben
+            var openerDeferral = openerRequest?.GetDeferral();
             try
             {
                 // Nach einem Absturz des Browser-Prozesses liefert das eine neue Umgebung
                 var env = _webViewEnvironment = await BrowserEnvironment.GetAsync();
-                await webView.EnsureCoreWebView2Async(env, BrowserEnvironment.CreateControllerOptions(env, _isIncognito));
+                await webView.EnsureCoreWebView2Async(env, BrowserEnvironment.CreateControllerOptions(env, _isIncognito, _incognitoWithExtensions));
 
                 var core = webView.CoreWebView2;
+                if (core != null && _incognitoWithExtensions)
+                {
+                    // Das temporäre Inkognito-Profil startet leer: die installierten Erweiterungen hineinladen
+                    await ExtensionService.Instance.EnsureInstalledInProfileAsync(core.Profile);
+                }
                 if (core != null)
                 {
                     // Interne Seiten (echo://start, echo://settings …) -> MainWindow.InternalPages.cs
@@ -140,14 +153,31 @@ namespace EchoBrowser
 
                     // Link-Kontextmenü "In geteilter Ansicht öffnen" -> MainWindow.SplitView.cs
                     AttachSplitLinkMenu(tab, core);
+
+                    // window.close() aus einem Popup (z.B. nach der OAuth-Anmeldung) schließt den Tab.
+                    // Chromium erlaubt das nur Fenstern, die per Skript geöffnet wurden.
+                    core.WindowCloseRequested += (s, args) => CloseTab(tab, rememberForReopen: false);
                 }
 
                 AttachNavigationEvents(tab, webView);
-                NavigateInitially(tab, webView, initialUrl);
+
+                if (openerRequest != null && core != null)
+                {
+                    // WebView2 lädt die Adresse selbst und verbindet window.opener mit der öffnenden Seite
+                    openerRequest.NewWindow = core;
+                }
+                else
+                {
+                    NavigateInitially(tab, webView, initialUrl);
+                }
             }
             catch (Exception ex)
             {
                 Log.Error($"WebView eines Tabs konnte nicht initialisiert werden ({initialUrl})", ex);
+            }
+            finally
+            {
+                openerDeferral?.Complete();
             }
         }
 
@@ -158,10 +188,11 @@ namespace EchoBrowser
         private void HandleNewWindowRequested(BrowserTab tab, CoreWebView2NewWindowRequestedEventArgs args)
         {
             args.Handled = true;
-            if (string.IsNullOrWhiteSpace(args.Uri)) return;
 
             if (!args.IsUserInitiated && tab.PopupsBlocked)
             {
+                // Ohne Adresse (window.open() ohne URL) gibt es nichts anzubieten
+                if (string.IsNullOrWhiteSpace(args.Uri)) return;
                 tab.BlockedPopupUrls.Add(args.Uri);
                 if (tab == ActiveTab)
                 {
@@ -170,7 +201,12 @@ namespace EchoBrowser
                 return;
             }
 
-            AddNewTab(args.Uri, activateTab: !AppSettingsService.Instance.Settings.OpenNewTabInBackground);
+            // Per Skript geöffnete Fenster (OAuth, Zahlung) immer im Vordergrund, Links mit target=_blank
+            // wie eingestellt; die Seite behält über window.opener die Verbindung zum neuen Tab
+            bool isScriptPopup = args.WindowFeatures?.HasPosition == true || args.WindowFeatures?.HasSize == true;
+            bool activate = isScriptPopup || !AppSettingsService.Instance.Settings.OpenNewTabInBackground;
+            string url = string.IsNullOrWhiteSpace(args.Uri) ? "about:blank" : args.Uri;
+            AddNewTab(url, activateTab: activate, title: url == "about:blank" ? "about:blank" : null, openerRequest: args);
         }
 
         private async Task ConfigureCoreWebViewAsync(BrowserTab tab, WebView2 webView, CoreWebView2 core)
@@ -254,6 +290,12 @@ namespace EchoBrowser
                     if (!reqUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) &&
                         !reqUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)) return;
 
+                    // Wie uBlock Origin/Brave im Standardmodus: Ruft der Nutzer eine gelistete Website selbst auf
+                    // (Adressleiste, Link), wird die Seite geladen – blockiert werden nur ihre Unterressourcen
+                    // und eingebettete Frames. Sonst bleibt der Tab ohne Erklärung leer.
+                    if (args.ResourceContext == CoreWebView2WebResourceContext.Document &&
+                        AdBlockerService.IsSameDocumentUrl(args.Request.Uri, tab.MainFrameNavigationUri)) return;
+
                     if (!AdBlockerService.Instance.IsBlocked(reqUri.Host) && !IsAdScriptPath(reqUri.AbsolutePath)) return;
 
                     if (_webViewEnvironment != null)
@@ -307,6 +349,7 @@ namespace EchoBrowser
             {
                 var settings = AppSettingsService.Instance.Settings;
                 bool isInternal = InternalPages.IsInternalUrl(args.Uri);
+                tab.MainFrameNavigationUri = args.Uri;
 
                 // Website-Ausnahmen für Shield und Popup-Blocker
                 if (Uri.TryCreate(args.Uri, UriKind.Absolute, out var navUri) && !string.IsNullOrEmpty(navUri.Host))
@@ -496,6 +539,12 @@ namespace EchoBrowser
         private void OnActiveTabChanged()
         {
             if (ActiveTab == null) return;
+
+            // Video-Vollbild gehört zum bisherigen Tab: nach Tabwechsel oder Schließen nicht im Vollbild hängen bleiben
+            if (_isFullscreen && _fullscreenFromPage && ActiveTab.WebView?.CoreWebView2?.ContainsFullScreenElement != true)
+            {
+                SetFullscreen(false, fromPage: true);
+            }
 
             ShowAddress(ActiveTab);
             UpdateNavigationControls();

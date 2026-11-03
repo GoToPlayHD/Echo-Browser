@@ -36,7 +36,8 @@ namespace EchoBrowser.Views.Popups
             Refresh();
         }
 
-        public void FocusSearch() => txtSearchHistory.Focus();
+        /// <summary>Suchfeld – das Hauptfenster setzt den Fokus darauf (siehe FocusWpfInput).</summary>
+        public TextBox SearchBox => txtSearchHistory;
 
         /// <summary>Liste anhand des aktuellen Suchtexts neu aufbauen.</summary>
         public void Refresh()

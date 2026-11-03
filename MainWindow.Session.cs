@@ -230,6 +230,26 @@ namespace EchoBrowser
             UpdateZoomIndicator();
         }
 
+        /// <summary>
+        /// Letztes Inkognito-Fenster mit Erweiterungen: das temporäre Profil samt Cookies und Websitedaten löschen.
+        /// (Bleiben Reste, weil der Browser-Prozess die Dateien noch hält, räumt der nächste Start sie weg.)
+        /// </summary>
+        private void DeleteIncognitoProfileIfLastWindow()
+        {
+            if (!_incognitoWithExtensions) return;
+            bool othersOpen = Application.Current.Windows.OfType<MainWindow>().Any(w => w != this && w._incognitoWithExtensions);
+            if (othersOpen) return;
+
+            try
+            {
+                Tabs.Select(t => t.WebView?.CoreWebView2).FirstOrDefault(c => c != null)?.Profile.Delete();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Temporäres Inkognito-Profil konnte nicht gelöscht werden", ex);
+            }
+        }
+
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             if (!_isIncognito && Tabs.Count > 1 && AppSettingsService.Instance.Settings.WarnOnClosingMultipleTabs)
@@ -247,9 +267,12 @@ namespace EchoBrowser
                 }
             }
 
-            if (_isIncognito)
+            // Konnte der Browser gar nicht starten (keine WebView2-Umgebung), gibt es nichts zu sichern –
+            // die gespeicherte Sitzung darf dann nicht mit einer leeren überschrieben werden
+            if (_isIncognito || _webViewEnvironment == null)
             {
                 _isClosingForGood = true;
+                DeleteIncognitoProfileIfLastWindow();
                 return;
             }
 

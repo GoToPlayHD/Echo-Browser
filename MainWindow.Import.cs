@@ -15,13 +15,14 @@ namespace EchoBrowser
     public partial class MainWindow
     {
         /// <summary>Passwort-Speicher und Formular-Autofill des Profils an die Einstellungen anpassen.</summary>
-        private static void ApplyAutofillSettings(CoreWebView2 core)
+        private void ApplyAutofillSettings(CoreWebView2 core)
         {
             var settings = AppSettingsService.Instance.Settings;
             try
             {
-                core.Profile.IsPasswordAutosaveEnabled = settings.SavePasswords;
-                core.Profile.IsGeneralAutofillEnabled = settings.AutofillForms;
+                // Inkognito speichert nie Passwörter oder Formulardaten (auch nicht im temporären Profil)
+                core.Profile.IsPasswordAutosaveEnabled = settings.SavePasswords && !_isIncognito;
+                core.Profile.IsGeneralAutofillEnabled = settings.AutofillForms && !_isIncognito;
             }
             catch (Exception ex)
             {

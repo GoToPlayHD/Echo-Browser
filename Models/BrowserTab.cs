@@ -355,6 +355,9 @@ namespace EchoBrowser.Models
             }
         }
 
+        /// <summary>Adresse der laufenden Hauptseiten-Navigation (auch nach Weiterleitungen) – für den Shield-Netzwerkfilter.</summary>
+        public string? MainFrameNavigationUri { get; set; }
+
         /// <summary>Zuletzt sichtbar – Grundlage für den Tab-Schlaf.</summary>
         public DateTime LastActiveAt { get; set; } = DateTime.Now;
 

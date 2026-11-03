@@ -1,91 +1,36 @@
 using System;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using EchoBrowser.Models;
 
 namespace EchoBrowser.Services
 {
-    /// <summary>Favoriten der Seitenleiste – eine Instanz für alle Fenster.</summary>
-    public class SidebarService
+    /// <summary>
+    /// Die Seitenleiste zeigt dieselben Lesezeichen wie die Lesezeichenleiste (<see cref="BookmarkService"/>).
+    /// Früher hatte sie eine eigene Liste (sidebar_favorites.json) – diese wird einmalig in die Lesezeichen
+    /// übernommen und danach als "sidebar_favorites.json.migrated" aufbewahrt.
+    /// </summary>
+    public static class SidebarService
     {
-        private static SidebarService? _instance;
-        public static SidebarService Instance => _instance ??= new SidebarService();
+        internal static string LegacyFilePath => AppPaths.File("sidebar_favorites.json");
 
-        private readonly string _filePath;
+        public static void MigrateInto(BookmarkService bookmarks) => MigrateInto(bookmarks.MergeSidebarFavorites, LegacyFilePath);
 
-        public ObservableCollection<SidebarFavorite> Favorites { get; } = new();
-
-        private SidebarService()
+        internal static void MigrateInto(Func<IEnumerable<SidebarFavorite>, int> merge, string legacyFile)
         {
-            _filePath = AppPaths.File("sidebar_favorites.json");
-            LoadFavorites();
-        }
+            if (!File.Exists(legacyFile)) return;
 
-        public void LoadFavorites()
-        {
-            Favorites.Clear();
             try
             {
-                if (File.Exists(_filePath))
-                {
-                    string json = File.ReadAllText(_filePath);
-                    var items = JsonSerializer.Deserialize<ObservableCollection<SidebarFavorite>>(json);
-                    if (items != null)
-                    {
-                        foreach (var item in items)
-                        {
-                            item.UpdateIconData();
-                            Favorites.Add(item);
-                        }
-                    }
-                }
+                var favorites = JsonSerializer.Deserialize<List<SidebarFavorite>>(File.ReadAllText(legacyFile)) ?? new();
+                int added = merge(favorites);
+                File.Move(legacyFile, legacyFile + ".migrated", overwrite: true);
+                Log.Info($"Seitenleisten-Favoriten in die Lesezeichen übernommen ({added} neu)");
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback on corrupt file
-            }
-
-            if (Favorites.Count == 0)
-            {
-                // Sensible default favorites
-                Favorites.Add(new SidebarFavorite("Google", "https://www.google.com", "google", "#D0D3D9"));
-                Favorites.Add(new SidebarFavorite("YouTube", "https://www.youtube.com", "youtube", "#FF4A4A"));
-                Favorites.Add(new SidebarFavorite("GitHub", "https://github.com", "github", "#F0F2F5"));
-                Favorites.Add(new SidebarFavorite("ChatGPT", "https://chatgpt.com", "chatgpt", "#34D399"));
-                Favorites.Add(new SidebarFavorite("Wikipedia", "https://de.wikipedia.org", "wikipedia", "#C4C7CC"));
-                Favorites.Add(new SidebarFavorite("Reddit", "https://reddit.com", "reddit", "#FF6633"));
-                SaveFavorites();
-            }
-        }
-
-        public void SaveFavorites()
-        {
-            try
-            {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(Favorites, options);
-                AtomicFile.WriteAllText(_filePath, json);
-            }
-            catch
-            {
-                // Suppress save issues
-            }
-        }
-
-        public void AddFavorite(string title, string url, string iconKey, string color = "#C4C7CC")
-        {
-            var fav = new SidebarFavorite(title, url, iconKey, color);
-            Favorites.Add(fav);
-            SaveFavorites();
-        }
-
-        public void RemoveFavorite(SidebarFavorite fav)
-        {
-            if (Favorites.Contains(fav))
-            {
-                Favorites.Remove(fav);
-                SaveFavorites();
+                AtomicFile.Quarantine(legacyFile, ex);
             }
         }
     }

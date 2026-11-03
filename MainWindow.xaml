@@ -1216,28 +1216,61 @@
 
                     <!-- Scrollable list of Favorite Icons with Hover & Click Animation -->
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding SidebarFavorites, RelativeSource={RelativeSource AncestorType=Window}}"
+                        <!-- Dieselben Lesezeichen wie die Lesezeichenleiste (eine gemeinsame Liste, BookmarkService) -->
+                        <ItemsControl ItemsSource="{Binding Bookmarks, RelativeSource={RelativeSource AncestorType=Window}}"
                                       Margin="0,6,0,6">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type models:SidebarFavorite}">
-                                    <Button Style="{DynamicResource SidebarFavoriteButtonStyle}"
-                                            Click="SidebarFavorite_Click"
-                                            Tag="{Binding}"
-                                            ToolTip="{Binding Title}">
-                                        <Button.ContextMenu>
-                                            <ContextMenu Background="{DynamicResource SurfaceBrush}" 
-                                                         BorderBrush="{DynamicResource BorderBrush}" 
-                                                         Foreground="{DynamicResource TextPrimaryBrush}">
-                                                <MenuItem Header="{loc:Loc Common_OpenInNewTab}" Click="MenuSidebarOpenNewTab_Click" Tag="{Binding}"/>
-                                                <Separator Background="{DynamicResource BorderSubtleBrush}"/>
-                                                <MenuItem Header="{loc:Loc Sidebar_DeleteFavorite}" Click="MenuSidebarDelete_Click" Tag="{Binding}"/>
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
-                                        <Path Data="{Binding IconPathData}" 
-                                              Fill="{Binding DisplayIconColor}" 
-                                              Width="18" Height="18" 
-                                              Stretch="Uniform"/>
-                                    </Button>
+                                <DataTemplate DataType="{x:Type models:Bookmark}">
+                                    <Grid>
+                                        <!-- Lesezeichen: eigenes Symbol (falls gewählt) oder Website-Symbol -->
+                                        <Button x:Name="btnSidebarBookmark"
+                                                Style="{DynamicResource SidebarFavoriteButtonStyle}"
+                                                Click="SidebarFavorite_Click"
+                                                Tag="{Binding}"
+                                                ToolTip="{Binding Title}">
+                                            <Button.ContextMenu>
+                                                <ContextMenu Background="{DynamicResource SurfaceBrush}"
+                                                             BorderBrush="{DynamicResource BorderBrush}"
+                                                             Foreground="{DynamicResource TextPrimaryBrush}">
+                                                    <MenuItem Header="{loc:Loc Common_OpenInNewTab}" Click="MenuSidebarOpenNewTab_Click" Tag="{Binding}"/>
+                                                    <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                                                    <MenuItem Header="{loc:Loc Sidebar_DeleteFavorite}" Click="MenuSidebarDelete_Click" Tag="{Binding}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <Grid>
+                                                <Path x:Name="sidebarCustomIcon"
+                                                      Data="{Binding IconPathData}"
+                                                      Fill="{Binding DisplayIconColor}"
+                                                      Width="18" Height="18"
+                                                      Stretch="Uniform"
+                                                      Visibility="Collapsed"/>
+                                                <controls:SiteIcon x:Name="sidebarSiteIcon" Url="{Binding Url}" Fallback="{Binding DisplayInitial}" IconSize="18"/>
+                                            </Grid>
+                                        </Button>
+
+                                        <!-- Gruppe: Ordner in Gruppenfarbe, Klick öffnet dasselbe Flyout wie in der Lesezeichenleiste -->
+                                        <Button x:Name="btnSidebarGroup"
+                                                Style="{DynamicResource SidebarFavoriteButtonStyle}"
+                                                Click="SidebarGroup_Click"
+                                                Tag="{Binding}"
+                                                ToolTip="{Binding Title}"
+                                                Visibility="Collapsed">
+                                            <Path Data="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                                                  Fill="{Binding GroupColor}"
+                                                  Width="18" Height="18"
+                                                  Stretch="Uniform"/>
+                                        </Button>
+                                    </Grid>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding HasCustomIcon}" Value="True">
+                                            <Setter TargetName="sidebarCustomIcon" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="sidebarSiteIcon" Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                            <Setter TargetName="btnSidebarBookmark" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="btnSidebarGroup" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

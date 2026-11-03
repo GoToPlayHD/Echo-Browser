@@ -26,7 +26,14 @@ namespace EchoBrowser.Views.Popups
         {
             InitializeComponent();
             listDownloads.ItemsSource = DownloadService.Instance.Items;
-            DownloadService.Instance.Items.CollectionChanged += (s, e) => UpdateEmptyState();
+            // Die Liste gehört allen Fenstern: nur abonnieren, solange das Panel lebt – sonst hält sie geschlossene Fenster fest
+            Loaded += (s, e) =>
+            {
+                DownloadService.Instance.Items.CollectionChanged -= OnItemsChanged;
+                DownloadService.Instance.Items.CollectionChanged += OnItemsChanged;
+                UpdateEmptyState();
+            };
+            Unloaded += (s, e) => DownloadService.Instance.Items.CollectionChanged -= OnItemsChanged;
             UpdateEmptyState();
         }
 
@@ -39,6 +46,8 @@ namespace EchoBrowser.Views.Popups
             }
             UpdateEmptyState();
         }
+
+        private void OnItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => UpdateEmptyState();
 
         private void UpdateEmptyState()
         {

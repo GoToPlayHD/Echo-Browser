@@ -61,9 +61,9 @@ namespace EchoBrowser.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback on corrupt file
+                AtomicFile.Quarantine(_filePath, ex);
             }
         }
 

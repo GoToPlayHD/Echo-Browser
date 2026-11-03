@@ -61,7 +61,15 @@ namespace EchoBrowser.Services
                 throw new InvalidOperationException(Tr.Get("Ext_ErrorManifestMissingFolder"));
             }
 
-            SanitizeUnpackedExtension(manifestFolder);
+            // Den Ordner des Nutzers nie verändern: Enthält er Namen, die Chromium ablehnt (z.B. "_metadata"),
+            // wird eine Kopie unter Extensions\ installiert und nur diese bereinigt.
+            if (HasReservedEntries(manifestFolder))
+            {
+                string copy = Path.Combine(_extensionsDirectory, $"{Path.GetFileName(manifestFolder)}_{Guid.NewGuid():N}");
+                CopyDirectory(manifestFolder, copy);
+                manifestFolder = copy;
+                SanitizeUnpackedExtension(manifestFolder);
+            }
 
             var ext = await profile.AddBrowserExtensionAsync(manifestFolder);
             RememberExtensionFolder(ext, manifestFolder);
@@ -70,7 +78,8 @@ namespace EchoBrowser.Services
 
         public async Task<CoreWebView2BrowserExtension?> DownloadAndInstallExtensionAsync(CoreWebView2Profile profile, string extensionId, string? extensionName = null)
         {
-            if (string.IsNullOrWhiteSpace(extensionId))
+            // Die ID kommt von einer Webseite und landet in URL und Dateiname: nur echte Store-IDs zulassen
+            if (!IsValidExtensionId(extensionId))
                 throw new ArgumentException(Tr.Get("Ext_ErrorInvalidId"), nameof(extensionId));
 
             string downloadUrl = $"https://clients2.google.com/service/update2/crx?response=redirect&prodversion=128.0&acceptformat=crx2,crx3&x=id%3D{extensionId}%26uc";
@@ -457,13 +466,66 @@ namespace EchoBrowser.Services
             SanitizeUnpackedExtension(destinationDirectory);
         }
 
-        private static void SanitizeUnpackedExtension(string directory)
+        private readonly Dictionary<string, Task> _profileSetups = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Alle in Echo installierten Erweiterungen auch in ein weiteres Profil laden (temporäres Inkognito-Profil).
+        /// Läuft pro Profil nur einmal, auch wenn mehrere Tabs gleichzeitig starten.
+        /// </summary>
+        public Task EnsureInstalledInProfileAsync(CoreWebView2Profile profile)
+        {
+            lock (_profileSetups)
+            {
+                if (!_profileSetups.TryGetValue(profile.ProfileName, out var setup))
+                {
+                    setup = InstallAllIntoProfileAsync(profile);
+                    _profileSetups[profile.ProfileName] = setup;
+                }
+                return setup;
+            }
+        }
+
+        private async Task InstallAllIntoProfileAsync(CoreWebView2Profile profile)
+        {
+            List<string> folders;
+            lock (_indexLock)
+            {
+                folders = FolderIndex.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+
+            var present = (await profile.GetBrowserExtensionsAsync()).Select(e => e.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (string folder in folders)
+            {
+                if (!Directory.Exists(folder)) continue;
+                try
+                {
+                    var ext = await profile.AddBrowserExtensionAsync(folder);
+                    present.Add(ext.Id);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Erweiterung konnte nicht ins Inkognito-Profil geladen werden: {folder}", ex);
+                }
+            }
+        }
+
+        /// <summary>Chrome-Erweiterungs-IDs bestehen aus genau 32 Buchstaben a–p.</summary>
+        public static bool IsValidExtensionId(string? extensionId) =>
+            extensionId != null && Regex.IsMatch(extensionId, "^[a-p]{32}$");
+
+        /// <summary>Gibt es auf oberster Ebene Einträge mit "_" (außer "_locales"), die Chromium ablehnt?</summary>
+        internal static bool HasReservedEntries(string directory) =>
+            Directory.EnumerateFileSystemEntries(directory, "_*", SearchOption.TopDirectoryOnly)
+                .Any(path => !Path.GetFileName(path).Equals("_locales", StringComparison.OrdinalIgnoreCase));
+
+        internal static void SanitizeUnpackedExtension(string directory)
         {
             try
             {
-                // Chromium unpacked extension loader strictly forbids any directory starting with '_'
-                // (e.g. '_metadata' which Chrome Web Store packages contain) EXCEPT '_locales'.
-                foreach (var dir in Directory.GetDirectories(directory, "_*", SearchOption.AllDirectories))
+                // Chromium lehnt entpackte Erweiterungen mit Namen ab, die mit '_' beginnen (z.B. '_metadata'
+                // aus Web-Store-Paketen) – außer '_locales'. Geprüft wird nur die oberste Ebene, tiefer liegende
+                // Dateien wie 'js/_helpers.js' gehören zur Erweiterung und bleiben erhalten.
+                foreach (var dir in Directory.GetDirectories(directory, "_*", SearchOption.TopDirectoryOnly))
                 {
                     string name = Path.GetFileName(dir);
                     if (!name.Equals("_locales", StringComparison.OrdinalIgnoreCase))
@@ -472,12 +534,25 @@ namespace EchoBrowser.Services
                     }
                 }
 
-                foreach (var file in Directory.GetFiles(directory, "_*", SearchOption.AllDirectories))
+                foreach (var file in Directory.GetFiles(directory, "_*", SearchOption.TopDirectoryOnly))
                 {
                     try { File.Delete(file); } catch { }
                 }
             }
             catch { }
+        }
+
+        private static void CopyDirectory(string source, string target)
+        {
+            foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+            {
+                Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, dir)));
+            }
+            Directory.CreateDirectory(target);
+            foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            {
+                File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)), overwrite: true);
+            }
         }
 
         private static int FindZipSignatureOffset(byte[] bytes)
@@ -601,7 +676,7 @@ namespace EchoBrowser.Services
                     </svg>
                 </div>
                 <div>
-                    <div style=""font-size:13px; font-weight:600; color:#FFFFFF; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"">${getExtensionTitle()}</div>
+                    <div style=""font-size:13px; font-weight:600; color:#FFFFFF; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"" id=""echo-ext-install-title""></div>
                     <div style=""font-size:11px; color:#9BA1AC;"">Echo-Browser Erweiterung</div>
                 </div>
             </div>
@@ -611,6 +686,8 @@ namespace EchoBrowser.Services
             </button>
         `;
 
+        // Name kommt vom Entwickler der Erweiterung – nur als Text einsetzen, nie als HTML
+        banner.querySelector('#echo-ext-install-title').textContent = getExtensionTitle();
         document.body.appendChild(banner);
 
         const btn = document.getElementById('echo-btn-install');
@@ -662,7 +739,7 @@ namespace EchoBrowser.Services
                 btn.innerHTML = `✓ Installiert`;
             } else {
                 btn.className = 'echo-install-btn';
-                btn.innerHTML = `Fehler: ${message || 'Wiederholen'}`;
+                btn.textContent = `Fehler: ${message || 'Wiederholen'}`;
             }
         }
     };

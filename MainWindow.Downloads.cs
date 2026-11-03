@@ -121,6 +121,7 @@ namespace EchoBrowser
                 FileName = Path.GetFileName(args.ResultFilePath),
                 FilePath = args.ResultFilePath,
                 SourceUrl = operation.Uri,
+                IsIncognito = _isIncognito,
                 TotalBytes = operation.TotalBytesToReceive.HasValue ? (long)operation.TotalBytesToReceive.Value : 0,
                 Operation = operation
             };
@@ -153,8 +154,9 @@ namespace EchoBrowser
                         download.IsCompleted = true;
                         download.Operation = null;
 
-                        // Auto-install CRX if it is a downloaded extension
-                        if (download.IsCrx && File.Exists(download.FilePath))
+                        // Auto-install CRX if it is a downloaded extension – nur aus dem Chrome Web Store bzw. von Googles
+                        // Update-Server; .crx von anderen Seiten lassen sich über "Installieren" im Download-Flyout installieren
+                        if (download.IsCrx && File.Exists(download.FilePath) && DownloadService.IsTrustedCrxSource(download.SourceUrl))
                         {
                             _ = OfferCrxInstallAsync(core, download.FilePath);
                         }
@@ -201,6 +203,7 @@ namespace EchoBrowser
         /// <summary>Nachfrage anzeigen und eine .crx-Erweiterung installieren (nach Download oder per Klick im Flyout).</summary>
         private async Task InstallCrxWithPromptAsync(CoreWebView2Profile profile, string crxPath)
         {
+            if (!CanManageExtensions()) return;
             string extName = Path.GetFileNameWithoutExtension(crxPath);
             try
             {

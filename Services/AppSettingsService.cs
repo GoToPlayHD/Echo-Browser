@@ -24,25 +24,29 @@ namespace EchoBrowser.Services
 
         public void Load()
         {
+            // Standard-Verknüpfungen nur beim ersten Start (bzw. wenn die Datei sie nie enthielt) –
+            // hat der Nutzer alle gelöscht, bleibt die Liste leer
+            bool hasStoredShortcuts = false;
             try
             {
                 if (File.Exists(_filePath))
                 {
                     string json = File.ReadAllText(_filePath);
                     var settings = JsonSerializer.Deserialize<AppSettings>(json);
+                    hasStoredShortcuts = json.Contains("\"StartpageShortcuts\"", StringComparison.Ordinal);
                     if (settings != null)
                     {
                         Settings = settings;
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                AtomicFile.Quarantine(_filePath, ex);
                 Settings = new AppSettings();
             }
 
-            // Defaults if shortcuts empty
-            if (Settings.StartpageShortcuts == null || Settings.StartpageShortcuts.Count == 0)
+            if (Settings.StartpageShortcuts == null || (!hasStoredShortcuts && Settings.StartpageShortcuts.Count == 0))
             {
                 Settings.StartpageShortcuts = new List<StartpageShortcut>
                 {

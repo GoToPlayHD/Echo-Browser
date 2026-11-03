@@ -23,13 +23,15 @@ namespace EchoBrowser.Views.Popups
             InitializeComponent();
         }
 
-        /// <summary>Formular zurücksetzen und den Fokus in das Namensfeld setzen.</summary>
+        /// <summary>Erstes Eingabefeld – das Hauptfenster setzt den Fokus darauf (siehe FocusWpfInput).</summary>
+        public TextBox InitialFocusTarget => txtAddFavTitle;
+
+        /// <summary>Formular zurücksetzen.</summary>
         public void Prepare()
         {
             txtAddFavTitle.Text = "";
             txtAddFavUrl.Text = "https://";
             _iconKey = DefaultIconKey;
-            txtAddFavTitle.Focus();
         }
 
         private static string ColorForIcon(string iconKey) => iconKey switch
@@ -58,7 +60,7 @@ namespace EchoBrowser.Views.Popups
                 return;
             }
 
-            url = UrlHelper.EnsureScheme(url);
+            url = UrlHelper.NormalizeUserUrl(url);
             string title = txtAddFavTitle.Text.Trim();
             if (title.Length == 0)
             {

@@ -90,9 +90,44 @@ namespace EchoBrowser.Services
                 : "https://" + url;
         }
 
-        /// <summary>Anzeigename aus der Adresse, wenn kein Titel eingegeben wurde (z.B. "github.com").</summary>
+        /// <summary>
+        /// Adresse aus einem Lesezeichen-/Favoriten-Formular: lokale Pfade ("C:\Seite.html", "\\server\freigabe")
+        /// werden zu file:-Adressen, Adressen mit eigenem Schema (file:, echo:, about: …) bleiben unverändert,
+        /// alles andere bekommt "https://". Ein vorbelegtes "https://" vor einem eingefügten Pfad wird entfernt.
+        /// </summary>
+        public static string NormalizeUserUrl(string input)
+        {
+            string text = input.Trim();
+            foreach (string prefix in new[] { "https://", "http://" })
+            {
+                if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && IsLocalPath(text[prefix.Length..]))
+                {
+                    text = text[prefix.Length..];
+                }
+            }
+
+            if (IsLocalPath(text)) return new Uri(text).AbsoluteUri;
+
+            foreach (string scheme in DirectSchemes)
+            {
+                if (text.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return text;
+            }
+            return EnsureScheme(text);
+        }
+
+        /// <summary>Absoluter Windows-Pfad mit Laufwerk ("C:\…", "C:/…") oder UNC-Pfad ("\\server\…").</summary>
+        private static bool IsLocalPath(string text) =>
+            (text.Length >= 3 && char.IsAsciiLetter(text[0]) && text[1] == ':' && text[2] is '\\' or '/') ||
+            (text.StartsWith(@"\\", StringComparison.Ordinal) && text.Length > 2);
+
+        /// <summary>Anzeigename aus der Adresse, wenn kein Titel eingegeben wurde (z.B. "github.com", bei Dateien der Dateiname).</summary>
         public static string HostForDisplay(string url)
         {
+            if (Uri.TryCreate(url.Trim(), UriKind.Absolute, out var fileUri) && fileUri.IsFile)
+            {
+                string name = System.IO.Path.GetFileName(fileUri.LocalPath.TrimEnd('\\', '/'));
+                return name.Length > 0 ? name : fileUri.LocalPath;
+            }
             if (Uri.TryCreate(EnsureScheme(url), UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host))
             {
                 return uri.Host;

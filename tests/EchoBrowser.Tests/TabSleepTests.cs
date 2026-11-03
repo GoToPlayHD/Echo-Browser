@@ -48,6 +48,13 @@ public class TabSleepTests
         Assert.Equal(TabSleepAction.None, TabSleepPolicy.Decide(Idle(45, refused: true), Now, 30));
     }
 
+    [Fact]
+    public void RefusedTab_IsNotDiscardedEither()
+    {
+        // z.B. laufender Videoanruf: Verwerfen würde die Verbindung trennen
+        Assert.Equal(TabSleepAction.None, TabSleepPolicy.Decide(Idle(500, refused: true), Now, 30));
+    }
+
     [Theory]
     [InlineData(5, 120)]
     [InlineData(30, 120)]

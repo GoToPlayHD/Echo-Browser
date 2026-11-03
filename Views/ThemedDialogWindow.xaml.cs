@@ -53,7 +53,7 @@ namespace EchoBrowser.Views
                 txtHeadline = { Text = Tr.Format("Ext_InstallHeadline", extensionName) },
                 txtMessage = { Text = Tr.Get("Ext_InstallWarning") },
                 btnPrimary = { Content = Tr.Get("Ext_AddButton") },
-                btnSecondary = { Content = "Abbrechen", Visibility = Visibility.Visible }
+                btnSecondary = { Content = Tr.Get("Dialog_Cancel"), Visibility = Visibility.Visible }
             };
 
             // Icon: Puzzle / Extension
@@ -105,7 +105,7 @@ namespace EchoBrowser.Views
                 txtHeadline = { Text = Tr.Format("Ext_RemoveHeadline", extensionName) },
                 txtMessage = { Text = Tr.Get("Ext_RemoveWarning") },
                 btnPrimary = { Content = Tr.Get("Common_Remove") },
-                btnSecondary = { Content = "Abbrechen", Visibility = Visibility.Visible }
+                btnSecondary = { Content = Tr.Get("Dialog_Cancel"), Visibility = Visibility.Visible }
             };
 
             // Primary button danger style

@@ -23,9 +23,9 @@ namespace EchoBrowser
             {
                 ApplyThemeToWebContent();
                 ApplyWindowEffects();
-                foreach (var favorite in SidebarFavorites)
+                foreach (var bookmark in Bookmarks)
                 {
-                    favorite.RefreshThemeColors();
+                    bookmark.RefreshThemeColors();
                 }
             });
         }

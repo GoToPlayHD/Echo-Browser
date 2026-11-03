@@ -17,17 +17,20 @@ namespace EchoBrowser.Services
 
             // Erst übersetzen, dann Nutzerdaten (Einstellungen) einsetzen – so werden darin keine Platzhalter ersetzt
             string html = PageLocalizer.Apply(RawHtmlTemplate);
-            html = html.Replace("##SETTINGS_JSON##", settingsJson);
+            // Theme und Token zuerst einsetzen: danach eingefügte Nutzerdaten (Adressen, Titel) dürfen keine
+            // Platzhalter mehr enthalten, die noch ersetzt werden – sonst landet z.B. das Token in einer fremden URL
+            html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
+            html = InternalPageSecurity.InjectToken(html);
             html = html.Replace("##UPDATE_STATUS_JSON##", updateStatusJson);
             html = html.Replace("##WEBVIEW_VERSION##", webViewVersion);
             html = html.Replace("##APP_VERSION##", appVersion);
-            html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
             html = html.Replace("##START_BACKGROUND_STATUS##", System.Net.WebUtility.HtmlEncode(StartBackgroundStatus(settings)));
             bool isDefault = DefaultBrowserService.IsDefault();
             html = html.Replace("##DEFAULT_BROWSER_STATUS##", System.Net.WebUtility.HtmlEncode(
                 Tr.Get(isDefault ? "Settings_DefaultBrowserIs" : "Settings_DefaultBrowserIsNot")));
             html = html.Replace("##DEFAULT_BROWSER_BUTTON_STYLE##", isDefault ? "display: none;" : "");
-            html = InternalPageSecurity.InjectToken(html);
+            // Einstellungen (mit Nutzertexten) zuletzt, damit darin keine Platzhalter mehr ersetzt werden
+            html = html.Replace("##SETTINGS_JSON##", settingsJson);
 
             return html;
         }
@@ -1372,6 +1375,16 @@ namespace EchoBrowser.Services
                                 <span class=""toggle-slider""></span>
                             </label>
                         </div>
+                        <div class=""card-row"">
+                            <div class=""row-info"">
+                                <div class=""row-title"">{{t:Settings_ExtensionsInIncognito}}</div>
+                                <div class=""row-desc"">{{t:Settings_ExtensionsInIncognitoDesc}}</div>
+                            </div>
+                            <label class=""toggle-switch"">
+                                <input type=""checkbox"" id=""chkExtensionsInIncognito"">
+                                <span class=""toggle-slider""></span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class=""settings-card"">
@@ -1696,6 +1709,7 @@ namespace EchoBrowser.Services
             document.getElementById('chkBlockPopups').checked = s.BlockPopups !== false;
             document.getElementById('chkEnableJavaScript').checked = s.EnableJavaScript !== false;
             document.getElementById('chkSendDoNotTrack').checked = s.SendDoNotTrack !== false;
+            document.getElementById('chkExtensionsInIncognito').checked = s.AllowExtensionsInIncognito === true;
             document.getElementById('chkSavePasswords').checked = s.SavePasswords !== false;
             document.getElementById('chkAutofillForms').checked = s.AutofillForms !== false;
 
@@ -1926,6 +1940,15 @@ namespace EchoBrowser.Services
             showToast(fmt({{js:Settings_ToastFilterUpdated}}, count));
         };
 
+        window.onAdBlockFilterUpdateFailed = function(message) {
+            const btn = document.getElementById('btnUpdateAdBlockFilter');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = {{js:Shield_UpdateFilters}};
+            }
+            showToast(fmt({{js:Shield_UpdateFailed}}, message || ''));
+        };
+
         // Shield Level Cards
         document.querySelectorAll('#shieldGrid .shield-card').forEach(el => {
             el.addEventListener('click', () => {
@@ -1946,6 +1969,11 @@ namespace EchoBrowser.Services
         document.getElementById('chkEnableJavaScript').addEventListener('change', (e) => {
             sendMessage({ type: 'updateSetting', key: 'EnableJavaScript', value: e.target.checked });
             showToast({{js:Settings_ToastJavaScript}});
+        });
+
+        document.getElementById('chkExtensionsInIncognito').addEventListener('change', (e) => {
+            sendMessage({ type: 'updateSetting', key: 'AllowExtensionsInIncognito', value: e.target.checked });
+            showToast({{js:Settings_ToastExtensionsInIncognito}});
         });
 
         document.getElementById('chkSendDoNotTrack').addEventListener('change', (e) => {

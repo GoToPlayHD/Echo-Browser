@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using EchoBrowser.Services;
 
 namespace EchoBrowser.Models
 {
@@ -20,10 +21,10 @@ namespace EchoBrowser.Models
             {
                 var now = DateTime.Now;
                 if (VisitedAt.Date == now.Date)
-                    return "Heute";
+                    return Tr.Get("History_Today");
                 if (VisitedAt.Date == now.AddDays(-1).Date)
-                    return "Gestern";
-                return VisitedAt.ToString("dd.MM.yyyy");
+                    return Tr.Get("History_Yesterday");
+                return VisitedAt.ToString("d", new System.Globalization.CultureInfo(LocalizationService.Instance.CurrentLanguage));
             }
         }
 

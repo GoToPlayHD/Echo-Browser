@@ -98,6 +98,12 @@ namespace EchoBrowser
             var profile = ctx.Core.Profile;
             if (profile == null) return;
 
+            if (!CanManageExtensions())
+            {
+                await ctx.CallPageAsync("onEchoExtensionInstallResult", false, Tr.Get("Ext_ManageInNormalWindow"));
+                return;
+            }
+
             try
             {
                 if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, extId))
@@ -248,6 +254,10 @@ namespace EchoBrowser
                     UpdateShieldBadge();
                     if (popupShield.IsOpen) UpdateShieldUi();
                     break;
+                case "AllowExtensionsInIncognito":
+                    // Gilt für neu geöffnete Inkognito-Fenster
+                    settings.AllowExtensionsInIncognito = value.GetBoolean();
+                    break;
                 case "SendDoNotTrack":
                     settings.SendDoNotTrack = value.GetBoolean();
                     _ = SyncPrivacySignalsForAllTabsAsync();
@@ -376,7 +386,17 @@ namespace EchoBrowser
 
         private async Task OnUpdateAdBlockFilterMessage(WebMessageContext ctx)
         {
-            await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(AppSettingsService.Instance.Settings.AdBlockerFilterUrl, force: true);
+            try
+            {
+                await AdBlockerService.Instance.DownloadAndCacheBlocklistAsync(AppSettingsService.Instance.Settings.AdBlockerFilterUrl, force: true);
+            }
+            catch (Exception ex)
+            {
+                // Sonst bliebe der Knopf auf der Einstellungsseite dauerhaft deaktiviert
+                Log.Warn("Filterliste konnte nicht aktualisiert werden", ex);
+                await ctx.CallPageAsync("onAdBlockFilterUpdateFailed", ex.Message);
+                return;
+            }
             await ctx.CallPageAsync("onAdBlockFilterUpdated", AdBlockerService.Instance.BlockedDomainsCount);
         }
 

@@ -44,6 +44,11 @@ namespace EchoBrowser.Models
         public bool BlockPopups { get; set; } = true;
         public bool EnableJavaScript { get; set; } = true;
         public bool SendDoNotTrack { get; set; } = true;
+        /// <summary>
+        /// Erweiterungen in Inkognito-Fenstern: Diese nutzen dann statt InPrivate ein eigenes, temporäres Profil
+        /// (WebView2 sperrt Erweiterungen im InPrivate-Profil), das beim Schließen des letzten Inkognito-Fensters gelöscht wird.
+        /// </summary>
+        public bool AllowExtensionsInIncognito { get; set; } = false;
         public bool ClearDataOnExit { get; set; } = false;
         public bool SavePasswords { get; set; } = true;
         public bool AutofillForms { get; set; } = true;

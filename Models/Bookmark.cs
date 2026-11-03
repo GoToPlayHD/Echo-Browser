@@ -88,6 +88,57 @@ namespace EchoBrowser.Models
 
         public DateTime DateAdded { get; set; } = DateTime.Now;
 
+        private string? _iconKey;
+        private string? _iconColor;
+
+        /// <summary>
+        /// Eigenes Symbol in der Seitenleiste ("youtube", "github" …). null = Website-Symbol (Favicon) wie in der
+        /// Lesezeichenleiste. Seitenleiste und Lesezeichenleiste zeigen dieselben Lesezeichen.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? IconKey
+        {
+            get => _iconKey;
+            set
+            {
+                if (_iconKey != value)
+                {
+                    _iconKey = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasCustomIcon));
+                    OnPropertyChanged(nameof(IconPathData));
+                }
+            }
+        }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? IconColor
+        {
+            get => _iconColor;
+            set
+            {
+                if (_iconColor != value)
+                {
+                    _iconColor = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayIconColor));
+                }
+            }
+        }
+
+        [JsonIgnore]
+        public bool HasCustomIcon => !string.IsNullOrEmpty(_iconKey);
+
+        [JsonIgnore]
+        public string IconPathData => SidebarFavorite.GetSvgPathForIconKey(_iconKey ?? "globe");
+
+        /// <summary>Symbolfarbe, die auf dem aktuellen Hintergrund lesbar ist.</summary>
+        [JsonIgnore]
+        public string DisplayIconColor => EchoBrowser.Services.ThemeManager.Instance.ReadableOnBackground(_iconColor ?? "#C4C7CC");
+
+        /// <summary>Nach einem Theme-Wechsel neu berechnen lassen.</summary>
+        public void RefreshThemeColors() => OnPropertyChanged(nameof(DisplayIconColor));
+
         [JsonIgnore]
         public string DisplayInitial => string.IsNullOrWhiteSpace(Title) 
             ? "?" 

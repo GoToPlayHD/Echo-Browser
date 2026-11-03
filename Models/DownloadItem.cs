@@ -27,6 +27,10 @@ namespace EchoBrowser.Models
         [JsonIgnore]
         public CoreWebView2DownloadOperation? Operation { get; set; }
 
+        /// <summary>Aus einem Inkognito-Fenster: wird nie in downloads.json gespeichert.</summary>
+        [JsonIgnore]
+        public bool IsIncognito { get; init; }
+
         [JsonIgnore]
         public bool IsCrx => FileName.EndsWith(".crx", StringComparison.OrdinalIgnoreCase);
 

@@ -18,11 +18,13 @@ namespace EchoBrowser.Views.Popups
             InitializeComponent();
         }
 
-        /// <summary>Formular zurücksetzen und den Fokus in das Namensfeld setzen.</summary>
+        /// <summary>Erstes Eingabefeld – das Hauptfenster setzt den Fokus darauf (siehe FocusWpfInput).</summary>
+        public TextBox InitialFocusTarget => txtAddGroupName;
+
+        /// <summary>Formular zurücksetzen.</summary>
         public void Prepare()
         {
             txtAddGroupName.Text = "";
-            txtAddGroupName.Focus();
         }
 
         private void BtnSaveAddGroup_Click(object sender, RoutedEventArgs e)

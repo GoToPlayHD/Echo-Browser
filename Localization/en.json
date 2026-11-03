@@ -1,4 +1,11 @@
 {
+  "Ext_DisabledInIncognito": "Extensions are turned off in incognito windows. You can allow them under Settings → Privacy → \"Extensions in incognito mode\" (applies to new incognito windows).",
+  "Ext_ManageInNormalWindow": "Extensions can only be installed, removed or turned on and off in a normal window.",
+  "Settings_ExtensionsInIncognito": "Extensions in incognito mode",
+  "Settings_ExtensionsInIncognitoDesc": "Installed extensions also run in new incognito windows. These then use a temporary profile that is deleted when they are closed. Extensions can see what you do there.",
+  "Settings_ToastExtensionsInIncognito": "Applies to new incognito windows",
+  "App_AlreadyRunningMessage": "Echo-Browser is already running but is not responding right now. Please wait a moment and try again – or end the hanging Echo process in Task Manager.",
+  "App_AlreadyRunningTitle": "Echo-Browser is already running",
   "Bookmark_AddMenu": "Add bookmark...",
   "Bookmark_AddTitle": "Add bookmark",
   "Bookmark_AddToGroupMenu": "Add bookmark to this group...",
@@ -112,6 +119,10 @@
   "History_Empty": "No entries in history.",
   "History_IncognitoNotice": "🕶️ You are in incognito mode: visited pages are not recorded.",
   "History_RemoveEntry": "Remove from history",
+
+  "History_Today": "Today",
+
+  "History_Yesterday": "Yesterday",
   "Menu_BookmarksBar": "Bookmarks bar",
   "Menu_CustomizeTheme": "Customize theme...",
   "Menu_DevTools": "Developer tools (F12)",

@@ -51,7 +51,8 @@ namespace EchoBrowser.Views
             string extensionName,
             string popupUrl,
             string? optionsPage = null,
-            string? iconPath = null)
+            string? iconPath = null,
+            CoreWebView2ControllerOptions? controllerOptions = null)
         {
             ExtensionId = extensionId;
             ExtensionName = extensionName;
@@ -83,7 +84,8 @@ namespace EchoBrowser.Views
 
             try
             {
-                await webViewPopup.EnsureCoreWebView2Async(env);
+                // Dasselbe Profil wie das Fenster (Inkognito: temporäres Profil mit Erweiterungen)
+                await webViewPopup.EnsureCoreWebView2Async(env, controllerOptions);
                 webViewPopup.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 webViewPopup.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
                 webViewPopup.CoreWebView2.Settings.AreDevToolsEnabled = true;

@@ -41,7 +41,8 @@ namespace EchoBrowser.Services
             if (tab.IsVisible || tab.IsDiscarded || !tab.HasWebView || tab.IsAudible || tab.IsLoading) return TabSleepAction.None;
 
             TimeSpan idle = now - tab.LastActiveAt;
-            if (idle >= DiscardAfter(sleepMinutes)) return TabSleepAction.Discard;
+            // Hat die Seite das Einfrieren abgelehnt (z.B. laufende Kamera/Anruf), wird sie auch nicht verworfen
+            if (idle >= DiscardAfter(sleepMinutes) && !tab.SleepRefused) return TabSleepAction.Discard;
             if (idle >= TimeSpan.FromMinutes(sleepMinutes) && !tab.IsSleeping && !tab.SleepRefused) return TabSleepAction.Sleep;
             return TabSleepAction.None;
         }

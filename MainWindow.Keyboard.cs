@@ -86,6 +86,15 @@ namespace EchoBrowser
             });
         }
 
+        /// <summary>
+        /// Formular-Popups aktivieren sich nicht selbst: Liegt der Win32-Fokus noch in der Webseite, kommen Tastatur-
+        /// eingaben trotz Klick ins Textfeld nicht an. Ein Klick ins Popup holt den Fokus deshalb ins Hauptfenster.
+        /// </summary>
+        private void KeepKeyboardInPopup(System.Windows.Controls.Primitives.Popup popup)
+        {
+            popup.PreviewMouseDown += (s, e) => SetFocus(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+        }
+
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr SetFocus(IntPtr hWnd);
 

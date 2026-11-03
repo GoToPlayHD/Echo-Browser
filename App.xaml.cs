@@ -33,9 +33,18 @@ public partial class App : Application
         // 2. Nur eine Echo-Instanz pro Benutzer: weitere Starts reichen ihre Adressen weiter
         var startupUrls = CommandLineParser.GetUrls(args);
         using var instance = SingleInstance.Acquire();
-        if (!instance.IsPrimary && SingleInstance.TrySendToPrimary(startupUrls))
+        if (!instance.IsPrimary)
         {
-            return;
+            if (SingleInstance.SendToPrimaryWithRetry(startupUrls)) return;
+
+            // Nie zwei Echo-Prozesse mit denselben Daten: Sie würden sich Lesezeichen, Verlauf und Sitzung
+            // gegenseitig überschreiben. Nur wenn die andere Instanz inzwischen beendet ist, geht es weiter.
+            if (!instance.TryBecomePrimary())
+            {
+                MessageBox.Show(Tr.Get("App_AlreadyRunningMessage"), Tr.Get("App_AlreadyRunningTitle"),
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
         }
 
         if (args.Any(a => string.Equals(a, "--restored-after-update", StringComparison.OrdinalIgnoreCase)))

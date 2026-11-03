@@ -10,13 +10,22 @@ namespace EchoBrowser.Services
         {
             string url = originalUrl ?? "";
             string html = PageLocalizer.Apply(RawHtmlTemplate);
-            html = html.Replace("##URL_TEXT##", WebUtility.HtmlEncode(url));
-            // Als JSON-String einsetzen, damit die Adresse im Skript nichts ausbrechen kann
-            html = html.Replace("##URL_JSON##", System.Text.Json.JsonSerializer.Serialize(url));
+            // Theme und Token zuerst einsetzen: danach eingefügte Nutzerdaten (Adressen, Titel) dürfen keine
+            // Platzhalter mehr enthalten, die noch ersetzt werden – sonst landet z.B. das Token in einer fremden URL
             html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
             html = InternalPageSecurity.InjectToken(html);
+            // Als JSON-String einsetzen, damit die Adresse im Skript nichts ausbrechen kann. Webseiten können
+            // echo://crashed/?url=… selbst aufrufen – "Neu laden" darf deshalb nur Web- und interne Adressen öffnen.
+            string reloadJson = System.Text.Json.JsonSerializer.Serialize(IsReloadable(url) ? url : "");
+            string urlText = WebUtility.HtmlEncode(url);
+            html = System.Text.RegularExpressions.Regex.Replace(html, "##(URL_TEXT|URL_JSON)##",
+                m => m.Groups[1].Value == "URL_TEXT" ? urlText : reloadJson);
             return html;
         }
+
+        internal static bool IsReloadable(string url) =>
+            Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == InternalPages.Scheme);
 
         private const string RawHtmlTemplate = @"<!DOCTYPE html>
 <html lang=""{{lang}}"">

@@ -33,9 +33,24 @@ public class UrlHelperTests
     [InlineData("https://github.com/GoToPlayHD/Echo-Browser", "github.com")]
     [InlineData("www.wikipedia.org", "www.wikipedia.org")]
     [InlineData("http://localhost:8080/test", "localhost")]
+    [InlineData("file:///C:/Docs/Seite.html", "Seite.html")]
     public void HostForDisplay(string input, string expected)
     {
         Assert.Equal(expected, UrlHelper.HostForDisplay(input));
+    }
+
+    [Theory]
+    [InlineData("github.com", "https://github.com")]
+    [InlineData("http://example.com", "http://example.com")]
+    [InlineData(@"C:\Docs\Seite.html", "file:///C:/Docs/Seite.html")]
+    [InlineData("C:/Docs/Seite.html", "file:///C:/Docs/Seite.html")]
+    [InlineData(@"https://C:\Docs\Seite.html", "file:///C:/Docs/Seite.html")] // vorbelegtes "https://" + eingefügter Pfad
+    [InlineData(@"\\server\freigabe\a.pdf", "file://server/freigabe/a.pdf")]
+    [InlineData("file:///C:/Docs/Seite.html", "file:///C:/Docs/Seite.html")]
+    [InlineData("echo://settings", "echo://settings")]
+    public void NormalizeUserUrl_KeepsLocalFilesAndSchemes(string input, string expected)
+    {
+        Assert.Equal(expected, UrlHelper.NormalizeUserUrl(input));
     }
 }
 

@@ -68,6 +68,15 @@ namespace EchoBrowser.Services
             Save();
         }
 
+        /// <summary>Stammt ein .crx-Download von Google (Web Store oder Update-Server)? Nur dann wird sofort zur Installation gefragt.</summary>
+        public static bool IsTrustedCrxSource(string? url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
+            string host = uri.Host;
+            return host is "chromewebstore.google.com" or "chrome.google.com" or "clients2.google.com" or "clients2.googleusercontent.com" ||
+                   host.EndsWith(".gvt1.com", StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>Gesamtfortschritt der laufenden Downloads (0–1) oder null, wenn keiner läuft. -1 = Größe unbekannt.</summary>
         public double? OverallProgress()
         {
@@ -113,7 +122,7 @@ namespace EchoBrowser.Services
         {
             try
             {
-                AtomicFile.WriteAllText(_filePath, JsonSerializer.Serialize(Items.ToList()));
+                AtomicFile.WriteAllText(_filePath, JsonSerializer.Serialize(Items.Where(i => !i.IsIncognito).ToList()));
             }
             catch (Exception ex)
             {

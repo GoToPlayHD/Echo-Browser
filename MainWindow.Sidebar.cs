@@ -39,25 +39,33 @@ namespace EchoBrowser
 
         private void SidebarFavorite_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.Tag is SidebarFavorite fav)
+            if (sender is FrameworkElement fe && fe.Tag is Bookmark bookmark)
             {
-                NavigateToInput(fav.Url);
+                NavigateToInput(bookmark.Url);
+            }
+        }
+
+        private void SidebarGroup_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is Bookmark { IsGroup: true } group)
+            {
+                ShowGroupPopup(group, fe, System.Windows.Controls.Primitives.PlacementMode.Right);
             }
         }
 
         private void MenuSidebarOpenNewTab_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem mi && mi.Tag is SidebarFavorite fav)
+            if (sender is MenuItem mi && mi.Tag is Bookmark bookmark)
             {
-                AddNewTab(fav.Url);
+                AddNewTab(bookmark.Url);
             }
         }
 
         private void MenuSidebarDelete_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem mi && mi.Tag is SidebarFavorite fav)
+            if (sender is MenuItem mi && mi.Tag is Bookmark bookmark)
             {
-                _sidebarService.RemoveFavorite(fav);
+                _bookmarkService.RemoveBookmark(bookmark);
             }
         }
 
@@ -65,7 +73,9 @@ namespace EchoBrowser
         {
             addFavoritePanel.FavoriteCreated += (title, url, iconKey, color) =>
             {
-                _sidebarService.AddFavorite(title, url, iconKey, color);
+                // Gemeinsame Liste: erscheint auch in der Lesezeichenleiste. Ohne gewähltes Symbol das Website-Symbol.
+                bool customIcon = !string.IsNullOrEmpty(iconKey) && iconKey != "globe";
+                _bookmarkService.AddBookmark(title, url, iconKey: customIcon ? iconKey : null, iconColor: customIcon ? color : null);
                 popupAddFavorite.IsOpen = false;
             };
             addFavoritePanel.Cancelled += () => popupAddFavorite.IsOpen = false;
@@ -75,6 +85,7 @@ namespace EchoBrowser
         {
             popupAddFavorite.IsOpen = true;
             addFavoritePanel.Prepare();
+            FocusWpfInput(addFavoritePanel.InitialFocusTarget);
         }
 
         #endregion

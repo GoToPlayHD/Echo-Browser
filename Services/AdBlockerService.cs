@@ -47,9 +47,9 @@ namespace EchoBrowser.Services
             _cacheFilePath = AppPaths.File("blocklist.txt");
         }
 
-        public async Task InitializeAsync()
+        public Task InitializeAsync()
         {
-            if (IsInitialized) return;
+            if (IsInitialized) return Task.CompletedTask;
 
             // 1. Load bundled fallback domains immediately
             LoadBundledDefaults();
@@ -100,6 +100,19 @@ namespace EchoBrowser.Services
                     }
                 });
             }
+            return Task.CompletedTask;
+        }
+
+        /// <summary>Gleiche Adresse ohne Fragment ("#…") – damit wird die Hauptseiten-Anfrage einer Navigation erkannt.</summary>
+        public static bool IsSameDocumentUrl(string? requestUrl, string? navigationUrl)
+        {
+            if (requestUrl == null || navigationUrl == null) return false;
+            static string WithoutFragment(string url)
+            {
+                int hash = url.IndexOf('#');
+                return hash >= 0 ? url[..hash] : url;
+            }
+            return string.Equals(WithoutFragment(requestUrl), WithoutFragment(navigationUrl), StringComparison.OrdinalIgnoreCase);
         }
 
         public bool IsBlocked(string? host)
@@ -326,25 +339,8 @@ namespace EchoBrowser.Services
 
     // 2. Client-Side Script & Fetch Protection
     try {
-        const blockedPatterns = [
-            'amazonaws.com', 'googlesyndication.com', 'doubleclick.net', 'adservice.google.com',
-            'googleadservices.com', 'adcolony.com', 'media.net', 'google-analytics.com', 'googleanalytics.com',
-            'hotjar.com', 'hotjar.io', 'mouseflow.com', 'freshmarketer.com', 'luckyorange.com',
-            'luckyorange.net', 'stats.wp.com', 'bugsnag.com', 'sentry-cdn.com', 'getsentry.com',
-            'facebook.com', 'facebook.net', 'ads-twitter.com', 'ads-api.twitter.com', 'ads.linkedin.com',
-            'pointdrive.linkedin.com', 'pinterest.com', 'reddit.com', 'redditmedia.com', 'ads.youtube.com',
-            'tiktok.com', 'byteoversea.com', 'ads.yahoo.com', 'analytics.yahoo.com', 'geo.yahoo.com',
-            'udcm.yahoo.com', 'yahooinc.com', 'yandex.net', 'yandex.ru', 'unityads.unity3d.com',
-            'realme.com', 'realmemobile.com', 'xiaomi.com', 'miui.com', 'oppomobile.com',
-            'hicloud.com', 'oneplus.cn', 'samsungads.com', 'samsung.com', 'samsunghealthcn.com',
-            'apple.com', 'mzstatic.com', 'scorecardresearch.com', 'quantserve.com', 'quantcount.com',
-            'amazon-adsystem.com', 'rubiconproject.com', 'fastclick.net', 'outbrain.com',
-            'taboola.com', 'openx.net', 'adnxs.com', 'pubmatic.com', 'criteo.com',
-            'criteo.net', 'applovin.com', 'chartbeat.com', 'chartbeat.net', 'segment.io',
-            'mixpanel.com', 'clarity.ms', 'adroll.com', 'smartadserver.com', 'casalemedia.com',
-            'sovrn.com', 'inmobi.com', 'moatads.com', 'trafficjunky.com', 'bidswitch.net',
-            'adjust.com', 'appsflyer.com', 'statcounter.com', 'revcontent.com', 'carbonads.net'
-        ];
+        // Dieselbe Liste wie der Netzwerkfilter (konkrete Tracker-Subdomains statt ganzer Websites)
+        const blockedPatterns = ##BLOCKED_PATTERNS##;
 
         function isUrlBlocked(urlStr) {
             if (window.__echoShieldDisabled === true) return false;
@@ -370,7 +366,9 @@ namespace EchoBrowser.Services
         if (typeof window.fetch === 'function') {
             const origFetch = window.fetch;
             window.fetch = function(resource, init) {
-                let url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+                // Strings, URL-Objekte und Request-Objekte
+                let url = '';
+                try { url = (typeof Request !== 'undefined' && resource instanceof Request) ? resource.url : String(resource); } catch(e) {}
                 if (isUrlBlocked(url)) {
                     return Promise.reject(new TypeError('Failed to fetch (Blocked by Echo Shield)'));
                 }
@@ -382,19 +380,25 @@ namespace EchoBrowser.Services
         if (typeof window.XMLHttpRequest === 'function') {
             const origOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url) {
-                if (isUrlBlocked(url)) {
-                    this._isEchoBlocked = true;
-                }
+                let target = '';
+                try { target = String(url); } catch(e) {}
+                this._isEchoBlocked = isUrlBlocked(target);
                 return origOpen.apply(this, arguments);
             };
             const origSend = XMLHttpRequest.prototype.send;
             XMLHttpRequest.prototype.send = function() {
                 if (this._isEchoBlocked) {
+                    // Wie ein Netzwerkfehler im Browser: readyState 4, status 0, dann readystatechange → error → loadend.
+                    // dispatchEvent ruft auch onreadystatechange/onerror/onloadend auf (nur einmal).
+                    const xhr = this;
                     setTimeout(() => {
-                        if (typeof this.onerror === 'function') {
-                            this.onerror(new ProgressEvent('error'));
-                        }
-                        this.dispatchEvent(new ProgressEvent('error'));
+                        try {
+                            Object.defineProperty(xhr, 'readyState', { value: 4, configurable: true });
+                            Object.defineProperty(xhr, 'status', { value: 0, configurable: true });
+                        } catch(e) {}
+                        xhr.dispatchEvent(new Event('readystatechange'));
+                        xhr.dispatchEvent(new ProgressEvent('error'));
+                        xhr.dispatchEvent(new ProgressEvent('loadend'));
                     }, 0);
                     return;
                 }
@@ -402,8 +406,11 @@ namespace EchoBrowser.Services
             };
         }
     } catch(e) {}
-})();";
+})();".Replace("##BLOCKED_PATTERNS##", BlockedPatternsJson.Value);
         }
+
+        private static readonly Lazy<string> BlockedPatternsJson =
+            new(() => System.Text.Json.JsonSerializer.Serialize(GetBundledDomains().Select(d => d.ToLowerInvariant()).Distinct()));
 
         private static IEnumerable<string> GetBundledDomains()
         {

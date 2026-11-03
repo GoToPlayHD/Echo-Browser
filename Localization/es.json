@@ -1,4 +1,11 @@
 {
+  "Ext_DisabledInIncognito": "Las extensiones están desactivadas en las ventanas de incógnito. Puedes permitirlas en Ajustes → Privacidad → «Extensiones en modo incógnito» (se aplica a nuevas ventanas de incógnito).",
+  "Ext_ManageInNormalWindow": "Las extensiones solo se pueden instalar, quitar, activar o desactivar en una ventana normal.",
+  "Settings_ExtensionsInIncognito": "Extensiones en modo incógnito",
+  "Settings_ExtensionsInIncognitoDesc": "Las extensiones instaladas también funcionan en nuevas ventanas de incógnito. Estas usan entonces un perfil temporal que se elimina al cerrarlas. Las extensiones pueden ver lo que haces allí.",
+  "Settings_ToastExtensionsInIncognito": "Se aplica a nuevas ventanas de incógnito",
+  "App_AlreadyRunningMessage": "Echo-Browser ya se está ejecutando, pero no responde en este momento. Espera un momento y vuelve a intentarlo, o finaliza el proceso de Echo bloqueado en el Administrador de tareas.",
+  "App_AlreadyRunningTitle": "Echo-Browser ya se está ejecutando",
   "Bookmark_AddMenu": "Añadir marcador...",
   "Bookmark_AddTitle": "Añadir marcador",
   "Bookmark_AddToGroupMenu": "Añadir marcador a este grupo...",
@@ -112,6 +119,10 @@
   "History_Empty": "No hay entradas en el historial.",
   "History_IncognitoNotice": "🕶️ Estás en modo incógnito: las páginas visitadas no se registran.",
   "History_RemoveEntry": "Eliminar del historial",
+
+  "History_Today": "Hoy",
+
+  "History_Yesterday": "Ayer",
   "Menu_BookmarksBar": "Barra de marcadores",
   "Menu_CustomizeTheme": "Personalizar tema...",
   "Menu_DevTools": "Herramientas para desarrolladores (F12)",

@@ -22,7 +22,7 @@ namespace EchoBrowser.Services
         private readonly Mutex _mutex;
         private readonly CancellationTokenSource _cts = new();
 
-        public bool IsPrimary { get; }
+        public bool IsPrimary { get; private set; }
 
         private SingleInstance(Mutex mutex, bool isPrimary)
         {
@@ -34,6 +34,37 @@ namespace EchoBrowser.Services
         {
             var mutex = new Mutex(initiallyOwned: true, @"Local\" + Name, out bool createdNew);
             return new SingleInstance(mutex, createdNew);
+        }
+
+        /// <summary>
+        /// Die laufende Instanz war nicht erreichbar: Hat sie sich inzwischen beendet, übernimmt dieser Prozess.
+        /// (Ein verlassener Mutex – abgestürzte Instanz – gilt ebenfalls als übernommen.)
+        /// </summary>
+        public bool TryBecomePrimary()
+        {
+            if (IsPrimary) return true;
+            try
+            {
+                IsPrimary = _mutex.WaitOne(0);
+            }
+            catch (AbandonedMutexException)
+            {
+                IsPrimary = true;
+            }
+            return IsPrimary;
+        }
+
+        /// <summary>
+        /// Adressen an die laufende Instanz schicken – mit mehreren Versuchen, weil sie gerade noch starten kann
+        /// (sie hört erst nach dem Aufbau der Anwendung auf die Pipe).
+        /// </summary>
+        public static bool SendToPrimaryWithRetry(IReadOnlyList<string> urls, int attempts = 3)
+        {
+            for (int i = 0; i < attempts; i++)
+            {
+                if (TrySendToPrimary(urls)) return true;
+            }
+            return false;
         }
 
         /// <summary>Adressen an die laufende Instanz schicken. Eine leere Liste bedeutet "neues Fenster öffnen".</summary>

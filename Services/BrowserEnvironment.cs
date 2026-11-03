@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -29,14 +30,53 @@ namespace EchoBrowser.Services
             }
         }
 
-        /// <summary>Optionen pro WebView: für Inkognito ein InPrivate-Profil (Daten nur im Speicher).</summary>
-        public static CoreWebView2ControllerOptions? CreateControllerOptions(CoreWebView2Environment env, bool isIncognito)
+        /// <summary>Präfix der temporären Inkognito-Profile (Ordner "WV2Profile_incognito-…" unter EBWebView).</summary>
+        private const string IncognitoProfilePrefix = "Incognito-";
+
+        /// <summary>Temporäres Profil für Inkognito-Fenster mit Erweiterungen – eins pro Programmstart, von allen solchen Fenstern geteilt.</summary>
+        public static readonly string IncognitoProfileName = IncognitoProfilePrefix + Guid.NewGuid().ToString("N")[..12];
+
+        /// <summary>
+        /// Optionen pro WebView: für Inkognito ein InPrivate-Profil (Daten nur im Speicher). Mit Erweiterungen ein
+        /// eigenes temporäres Profil, denn im InPrivate-Profil sperrt WebView2 alle Erweiterungen (es gibt keine
+        /// "Im Inkognito-Modus zulassen"-Schnittstelle). Es wird beim Schließen des letzten solchen Fensters gelöscht.
+        /// </summary>
+        public static CoreWebView2ControllerOptions? CreateControllerOptions(CoreWebView2Environment env, bool isIncognito, bool withExtensions = false)
         {
             if (!isIncognito) return null;
 
             var options = env.CreateCoreWebView2ControllerOptions();
-            options.IsInPrivateModeEnabled = true;
+            if (withExtensions)
+            {
+                options.ProfileName = IncognitoProfileName;
+            }
+            else
+            {
+                options.IsInPrivateModeEnabled = true;
+            }
             return options;
+        }
+
+        /// <summary>
+        /// Reste temporärer Inkognito-Profile löschen (z.B. nach einem Absturz). Nur vor dem Start des
+        /// Browser-Prozesses aufrufen – danach sind die Ordner gesperrt.
+        /// </summary>
+        internal static void DeleteLeftoverIncognitoProfiles(string webViewDataFolder)
+        {
+            try
+            {
+                string root = Path.Combine(webViewDataFolder, "EBWebView");
+                if (!Directory.Exists(root)) return;
+                foreach (var dir in Directory.GetDirectories(root, "WV2Profile_" + IncognitoProfilePrefix.ToLowerInvariant() + "*"))
+                {
+                    try { Directory.Delete(dir, recursive: true); }
+                    catch (Exception ex) { Log.Warn($"Altes Inkognito-Profil konnte nicht gelöscht werden: {Path.GetFileName(dir)}", ex); }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Alte Inkognito-Profile konnten nicht aufgeräumt werden", ex);
+            }
         }
 
         private static async Task<CoreWebView2Environment> CreateAsync()
@@ -44,6 +84,7 @@ namespace EchoBrowser.Services
             try
             {
                 Directory.CreateDirectory(AppPaths.WebViewDataFolder);
+                DeleteLeftoverIncognitoProfiles(AppPaths.WebViewDataFolder);
 
                 var echoScheme = new CoreWebView2CustomSchemeRegistration(InternalPages.Scheme)
                 {

@@ -1,4 +1,11 @@
 {
+  "Ext_DisabledInIncognito": "Les extensions sont désactivées dans les fenêtres de navigation privée. Vous pouvez les autoriser dans Paramètres → Confidentialité → « Extensions en navigation privée » (s’applique aux nouvelles fenêtres privées).",
+  "Ext_ManageInNormalWindow": "Les extensions ne peuvent être installées, supprimées, activées ou désactivées que dans une fenêtre normale.",
+  "Settings_ExtensionsInIncognito": "Extensions en navigation privée",
+  "Settings_ExtensionsInIncognitoDesc": "Les extensions installées fonctionnent aussi dans les nouvelles fenêtres privées. Celles-ci utilisent alors un profil temporaire supprimé à la fermeture. Les extensions peuvent voir ce que vous y faites.",
+  "Settings_ToastExtensionsInIncognito": "S’applique aux nouvelles fenêtres privées",
+  "App_AlreadyRunningMessage": "Echo-Browser est déjà ouvert mais ne répond pas pour le moment. Patientez un instant et réessayez – ou terminez le processus Echo bloqué dans le Gestionnaire des tâches.",
+  "App_AlreadyRunningTitle": "Echo-Browser est déjà ouvert",
   "Bookmark_AddMenu": "Ajouter un favori...",
   "Bookmark_AddTitle": "Ajouter un favori",
   "Bookmark_AddToGroupMenu": "Ajouter un favori à ce groupe...",
@@ -112,6 +119,10 @@
   "History_Empty": "Aucune entrée dans l'historique.",
   "History_IncognitoNotice": "🕶️ Vous êtes en mode navigation privée : les pages visitées ne sont pas enregistrées.",
   "History_RemoveEntry": "Supprimer de l'historique",
+
+  "History_Today": "Aujourd'hui",
+
+  "History_Yesterday": "Hier",
   "Menu_BookmarksBar": "Barre de favoris",
   "Menu_CustomizeTheme": "Personnaliser le thème...",
   "Menu_DevTools": "Outils de développement (F12)",

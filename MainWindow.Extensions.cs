@@ -224,12 +224,27 @@ namespace EchoBrowser
         {
             if (_webViewEnvironment == null) return;
 
+            // Im InPrivate-Profil sperrt WebView2 Erweiterungen – das Popup liefe sonst im normalen Profil
+            if (_isIncognito && !_incognitoWithExtensions)
+            {
+                ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Get("Ext_DisabledInIncognito"));
+                return;
+            }
+
             if (_activeExtensionPopup != null)
             {
                 bool isSame = _activeExtensionPopup.ExtensionId.Equals(ext.Id, StringComparison.OrdinalIgnoreCase);
                 try { _activeExtensionPopup.Close(); } catch { }
                 _activeExtensionPopup = null;
                 if (isSame) return;
+            }
+
+            // Klick auf den Knopf eines offenen Popups: das Popup hat sich beim Klick schon selbst geschlossen
+            // (Deactivated) – dann nur schließen, nicht sofort wieder öffnen
+            if (string.Equals(_lastClosedExtensionPopupId, ext.Id, StringComparison.OrdinalIgnoreCase) &&
+                DateTime.UtcNow - _lastClosedExtensionPopupAt < TimeSpan.FromMilliseconds(400))
+            {
+                return;
             }
 
             string? popupPage = ExtensionService.Instance.GetExtensionPopupPage(ext.Id, ext.Name);
@@ -261,11 +276,20 @@ namespace EchoBrowser
                 AddNewTab($"chrome-extension://{id}/{options}");
             };
 
+            win.Closed += (_, _) =>
+            {
+                if (_activeExtensionPopup != win) return;
+                _activeExtensionPopup = null;
+                _lastClosedExtensionPopupId = ext.Id;
+                _lastClosedExtensionPopupAt = DateTime.UtcNow;
+            };
+
             win.PositionUnderneath(anchor);
             win.Show();
             _activeExtensionPopup = win;
 
-            await win.InitializeAndNavigateAsync(_webViewEnvironment, ext.Id, ext.Name, popupUrl, optPageFallback, iconPath);
+            await win.InitializeAndNavigateAsync(_webViewEnvironment, ext.Id, ext.Name, popupUrl, optPageFallback, iconPath,
+                BrowserEnvironment.CreateControllerOptions(_webViewEnvironment, _isIncognito, _incognitoWithExtensions));
         }
 
         private void InitializeExtensionsPanel()
@@ -289,6 +313,7 @@ namespace EchoBrowser
 
         private async Task InstallExtensionFromFileAsync()
         {
+            if (!CanManageExtensions()) return;
             var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
             if (profile == null)
             {
@@ -321,8 +346,20 @@ namespace EchoBrowser
             }
         }
 
+        /// <summary>
+        /// Installieren, Entfernen und Ein-/Ausschalten nur in normalen Fenstern: Im Inkognito-Fenster würde es nur
+        /// das temporäre bzw. InPrivate-Profil betreffen – und Entfernen löschte die Dateien auch für normale Fenster.
+        /// </summary>
+        private bool CanManageExtensions()
+        {
+            if (!_isIncognito) return true;
+            ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_Title"), Tr.Get("Ext_ManageInNormalWindow"));
+            return false;
+        }
+
         private async Task ConfirmAndRemoveExtensionAsync(CoreWebView2BrowserExtension ext)
         {
+            if (!CanManageExtensions()) return;
             if (!ThemedDialogWindow.ShowExtensionRemovePrompt(this, ext.Name)) return;
 
             try
@@ -337,6 +374,7 @@ namespace EchoBrowser
 
         private async Task SetExtensionEnabledAsync(CoreWebView2BrowserExtension ext, bool enable)
         {
+            if (!CanManageExtensions()) return;
             try
             {
                 await ext.EnableAsync(enable);

@@ -25,7 +25,6 @@ namespace EchoBrowser
     {
         // Gemeinsame Daten aller Fenster
         private readonly BookmarkService _bookmarkService = BookmarkService.Instance;
-        private readonly SidebarService _sidebarService = SidebarService.Instance;
         private readonly HistoryService _historyService = HistoryService.Instance;
         private CoreWebView2Environment? _webViewEnvironment;
         private BrowserTab? _activeTab;
@@ -33,6 +32,10 @@ namespace EchoBrowser
         private bool _isSyncingSearchEngine;
         private bool _shieldBadgeUpdatePending;
         private ExtensionPopupWindow? _activeExtensionPopup;
+        /// <summary>Inkognito-Fenster mit Erweiterungen (temporäres Profil statt InPrivate) – beim Öffnen des Fensters festgelegt.</summary>
+        private bool _incognitoWithExtensions;
+        private string? _lastClosedExtensionPopupId;
+        private DateTime _lastClosedExtensionPopupAt;
 
         // Drag & Drop State for Tabs and Bookmarks
         private Point _tabDragStartPoint;
@@ -45,7 +48,6 @@ namespace EchoBrowser
 
         public ObservableCollection<BrowserTab> Tabs { get; } = new();
         public ObservableCollection<Bookmark> Bookmarks => _bookmarkService.Bookmarks;
-        public ObservableCollection<SidebarFavorite> SidebarFavorites => _sidebarService.Favorites;
 
         public BrowserTab? ActiveTab
         {
@@ -83,6 +85,7 @@ namespace EchoBrowser
         public MainWindow(bool isIncognito)
         {
             _isIncognito = isIncognito;
+            _incognitoWithExtensions = isIncognito && AppSettingsService.Instance.Settings.AllowExtensionsInIncognito;
             // Sprache vor InitializeComponent setzen, damit die XAML-Texte direkt richtig erscheinen
             LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
             InitializeComponent();
@@ -92,6 +95,9 @@ namespace EchoBrowser
             themePanel.SelectionMade += () => popupTheme.IsOpen = false;
             InitializeAddFavoritePanel();
             InitializeBookmarkFormPanels();
+            KeepKeyboardInPopup(popupAddBookmark);
+            KeepKeyboardInPopup(popupAddFavorite);
+            KeepKeyboardInPopup(popupAddGroup);
             InitializeShieldPanel();
             InitializeExtensionsPanel();
             InitializeFindBar();
@@ -244,6 +250,8 @@ namespace EchoBrowser
 
             // 3. Velopack Update-Infrastruktur initialisieren & Hintergrund-Timer starten
             UpdateService.Instance.StatusChanged += OnUpdateStatusChanged;
+            // Lesezeichen können in einem anderen Fenster oder über die Seitenleiste geändert werden – Stern aktuell halten
+            _bookmarkService.Changed += CheckBookmarkStatus;
             UpdateService.Instance.StartAutoCheckTimer();
             UpdateUiForUpdateStatus(UpdateService.Instance.Status, UpdateService.Instance.StatusMessage, UpdateService.Instance.DownloadProgress, UpdateService.Instance.AvailableVersion);
         }
@@ -637,6 +645,7 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
             base.OnClosed(e);
             LocalizationService.Instance.LanguageChanged -= ApplyLocalizationToUi;
             UpdateService.Instance.StatusChanged -= OnUpdateStatusChanged;
+            _bookmarkService.Changed -= CheckBookmarkStatus;
 
             // Ausstehende (verzögerte) Verlaufsänderungen sofort schreiben
             if (!_isIncognito)

@@ -19,10 +19,18 @@ namespace EchoBrowser.Services
 
         public ObservableCollection<Bookmark> Bookmarks { get; } = new();
 
+        /// <summary>
+        /// Nach jeder Änderung (auch in Gruppen): Lesezeichenleiste, Seitenleiste und Stern aller Fenster
+        /// zeigen dieselben Daten und aktualisieren sich darüber.
+        /// </summary>
+        public event Action? Changed;
+
         private BookmarkService()
         {
             _filePath = AppPaths.File("bookmarks.json");
             LoadBookmarks();
+            // Frühere Favoriten der Seitenleiste einmalig übernehmen (seitdem eine gemeinsame Liste)
+            SidebarService.MigrateInto(this);
         }
 
         public void LoadBookmarks()
@@ -44,9 +52,10 @@ namespace EchoBrowser.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback on read error
+                AtomicFile.Quarantine(_filePath, ex);
+                fileExisted = false;
             }
 
             // Only add initial defaults if the file was never created before
@@ -68,10 +77,11 @@ namespace EchoBrowser.Services
                 string json = JsonSerializer.Serialize(Bookmarks, options);
                 AtomicFile.WriteAllText(_filePath, json);
             }
-            catch
+            catch (Exception ex)
             {
-                // Suppress file write issues
+                Log.Warn("bookmarks.json konnte nicht gespeichert werden", ex);
             }
+            Changed?.Invoke();
         }
 
         public bool IsBookmarked(string? url)
@@ -125,9 +135,9 @@ namespace EchoBrowser.Services
             return true;
         }
 
-        public Bookmark AddBookmark(string title, string url, Bookmark? targetGroup = null)
+        public Bookmark AddBookmark(string title, string url, Bookmark? targetGroup = null, string? iconKey = null, string? iconColor = null)
         {
-            var bm = new Bookmark(title, url);
+            var bm = new Bookmark(title, url) { IconKey = iconKey, IconColor = iconColor };
             if (targetGroup != null && targetGroup.IsGroup)
             {
                 targetGroup.Children.Add(bm);
@@ -163,6 +173,46 @@ namespace EchoBrowser.Services
             Bookmarks.Add(group);
             SaveBookmarks();
             return group.Children.Count;
+        }
+
+        /// <summary>
+        /// Favoriten der früheren, eigenen Seitenleisten-Liste übernehmen: vorhandene Adressen bekommen nur das
+        /// Symbol, neue werden hinten angehängt. Gibt die Anzahl neu angelegter Lesezeichen zurück.
+        /// </summary>
+        public int MergeSidebarFavorites(IEnumerable<SidebarFavorite> favorites)
+        {
+            int added = MergeSidebarFavorites(Bookmarks, favorites);
+            SaveBookmarks();
+            return added;
+        }
+
+        internal static int MergeSidebarFavorites(ObservableCollection<Bookmark> bookmarks, IEnumerable<SidebarFavorite> favorites)
+        {
+            var all = bookmarks.SelectMany(b => b.IsGroup ? b.Children.AsEnumerable() : new[] { b }).ToList();
+            int added = 0;
+            foreach (var fav in favorites)
+            {
+                if (string.IsNullOrWhiteSpace(fav.Url)) continue;
+                string key = UrlHelper.NormalizeForComparison(fav.Url);
+                string? iconKey = string.IsNullOrEmpty(fav.IconKey) || fav.IconKey == "globe" ? null : fav.IconKey;
+
+                var existing = all.FirstOrDefault(b => UrlHelper.NormalizeForComparison(b.Url) == key);
+                if (existing != null)
+                {
+                    if (existing.IconKey == null && iconKey != null)
+                    {
+                        existing.IconKey = iconKey;
+                        existing.IconColor = fav.IconColor;
+                    }
+                    continue;
+                }
+
+                var bm = new Bookmark(fav.Title, fav.Url) { IconKey = iconKey, IconColor = iconKey != null ? fav.IconColor : null };
+                bookmarks.Add(bm);
+                all.Add(bm);
+                added++;
+            }
+            return added;
         }
 
         public Bookmark AddGroup(string groupName, string color = "#8A8F99")

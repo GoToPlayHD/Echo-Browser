@@ -397,22 +397,32 @@ namespace EchoBrowser
         {
             popupAddGroup.IsOpen = true;
             addGroupPanel.Prepare();
+            FocusWpfInput(addGroupPanel.InitialFocusTarget);
         }
 
         private void OpenAddBookmarkDialog(Bookmark? preselectedGroup)
         {
-            bool hasPage = ActiveTab != null && ActiveTab.Url != StartPageService.StartPageUrl;
+            bool hasPage = ActiveTab != null && !IsStartPage(ActiveTab.Url);
             popupAddBookmark.IsOpen = true;
             addBookmarkPanel.Prepare(
                 hasPage ? ActiveTab!.Title : "",
                 hasPage ? ActiveTab!.Url : "",
                 Bookmarks.Where(b => b.IsGroup),
                 preselectedGroup);
+            FocusWpfInput(addBookmarkPanel.InitialFocusTarget);
         }
 
         private void GroupChip_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && ((fe.Tag as Bookmark) ?? (fe.DataContext as Bookmark)) is Bookmark group && group.IsGroup)
+            {
+                ShowGroupPopup(group, fe, System.Windows.Controls.Primitives.PlacementMode.Bottom);
+            }
+        }
+
+        /// <summary>Gruppen-Flyout – unter einem Gruppen-Chip der Lesezeichenleiste oder rechts neben der Seitenleiste.</summary>
+        private void ShowGroupPopup(Bookmark group, FrameworkElement anchor, System.Windows.Controls.Primitives.PlacementMode placement)
+        {
             {
                 _activeGroupForPopup = group;
                 txtBookmarkGroupName.Text = group.Title;
@@ -420,7 +430,8 @@ namespace EchoBrowser
                 txtGroupEmptyState.Visibility = group.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
                 itemsGroupBookmarks.ItemsSource = group.Children;
 
-                popupBookmarkGroup.PlacementTarget = fe;
+                popupBookmarkGroup.Placement = placement;
+                popupBookmarkGroup.PlacementTarget = anchor;
                 popupBookmarkGroup.IsOpen = true;
             }
         }

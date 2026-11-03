@@ -20,7 +20,7 @@ namespace EchoBrowser
             popupMenu.IsOpen = false;
             historyPanel.Prepare();
             popupHistory.IsOpen = true;
-            historyPanel.FocusSearch();
+            FocusWpfInput(historyPanel.SearchBox);
         }
 
         /// <summary>Verlaufsliste aktualisieren, z.B. nachdem der Verlauf über die Einstellungen gelöscht wurde.</summary>

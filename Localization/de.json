@@ -1,4 +1,11 @@
 {
+  "Ext_DisabledInIncognito": "Erweiterungen sind in Inkognito-Fenstern ausgeschaltet. Du kannst sie unter Einstellungen → Datenschutz → „Erweiterungen im Inkognito-Modus“ erlauben (gilt für neue Inkognito-Fenster).",
+  "Ext_ManageInNormalWindow": "Erweiterungen kannst du nur in einem normalen Fenster installieren, entfernen oder ein- und ausschalten.",
+  "Settings_ExtensionsInIncognito": "Erweiterungen im Inkognito-Modus",
+  "Settings_ExtensionsInIncognitoDesc": "Installierte Erweiterungen laufen auch in neuen Inkognito-Fenstern. Diese nutzen dann ein temporäres Profil, das beim Schließen gelöscht wird. Erweiterungen können sehen, was du dort tust.",
+  "Settings_ToastExtensionsInIncognito": "Gilt für neue Inkognito-Fenster",
+  "App_AlreadyRunningMessage": "Echo-Browser läuft bereits, reagiert aber gerade nicht. Bitte warte einen Moment und versuche es erneut – oder beende den hängenden Echo-Prozess im Task-Manager.",
+  "App_AlreadyRunningTitle": "Echo-Browser läuft bereits",
   "Bookmark_AddMenu": "Lesezeichen hinzufügen...",
   "Bookmark_AddTitle": "Lesezeichen hinzufügen",
   "Bookmark_AddToGroupMenu": "Lesezeichen zu dieser Gruppe hinzufügen...",
@@ -112,6 +119,10 @@
   "History_Empty": "Keine Einträge im Verlauf.",
   "History_IncognitoNotice": "🕶️ Du bist im Inkognito-Modus: Besuchte Seiten werden nicht aufgezeichnet.",
   "History_RemoveEntry": "Aus Verlauf entfernen",
+
+  "History_Today": "Heute",
+
+  "History_Yesterday": "Gestern",
   "Menu_BookmarksBar": "Lesezeichenleiste",
   "Menu_CustomizeTheme": "Theme anpassen...",
   "Menu_DevTools": "Entwicklertools (F12)",

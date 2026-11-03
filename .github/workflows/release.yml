@@ -7,12 +7,20 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version string (e.g. 1.2.0)'
+        description: 'Version (z.B. 1.2.0) – muss zu <Version> in EchoBrowser.csproj passen'
         required: true
-        default: '1.2.0'
 
 permissions:
   contents: write
+
+# Nie zwei Releases gleichzeitig bauen (Delta-Pakete hängen vom vorherigen Release ab)
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # vpk muss zur Velopack-Version in EchoBrowser.csproj passen
+  VPK_VERSION: 1.2.161
 
 jobs:
   release:
@@ -30,7 +38,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Install Velopack CLI (vpk)
-        run: dotnet tool install -g vpk
+        run: dotnet tool install -g vpk --version ${{ env.VPK_VERSION }}
 
       - name: Determine Version
         id: get_version
@@ -38,38 +46,56 @@ jobs:
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $ver = "${{ github.event.inputs.version }}".TrimStart('v')
-            $tag = "v$ver"
           } else {
             $ver = "${{ github.ref_name }}".TrimStart('v')
-            $tag = "${{ github.ref_name }}"
           }
-          Write-Host "Releasing version: $ver with tag: $tag"
+          $tag = "v$ver"
+
+          # SemVer 2: 1.2.0 oder 1.3.0-beta.1
+          if ($ver -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            Write-Error "Ungültige Version '$ver' – erwartet z.B. 1.2.0 oder 1.3.0-beta.1"
+            exit 1
+          }
+
+          # Die Version im Projekt muss zum Tag passen (ohne Vorabkennung), sonst zeigt die App eine falsche Version
+          [xml]$proj = Get-Content EchoBrowser.csproj
+          $projVer = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          $baseVer = $ver.Split('-')[0]
+          if ($projVer -ne $baseVer) {
+            Write-Error "Tag $tag passt nicht zu <Version>$projVer</Version> in EchoBrowser.csproj"
+            exit 1
+          }
+
+          $isPre = if ($ver.Contains('-')) { 'true' } else { 'false' }
+          Write-Host "Releasing version: $ver with tag: $tag (prerelease: $isPre)"
           echo "version=$ver" >> $env:GITHUB_OUTPUT
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "prerelease=$isPre" >> $env:GITHUB_OUTPUT
 
       - name: Run Tests
         run: dotnet test tests/EchoBrowser.Tests -c Release
 
       - name: Publish App
         run: |
-          dotnet publish EchoBrowser.csproj -c Release -r win-x64 --self-contained false -o ./publish /p:Version=${{ steps.get_version.outputs.version }}
+          dotnet publish EchoBrowser.csproj -c Release -r win-x64 --self-contained false -o ./publish -p:Version=${{ steps.get_version.outputs.version }}
 
       - name: Download Previous Releases (for Delta Patches)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path ./releases
-          try {
-            vpk download github --repoUrl "https://github.com/GoToPlayHD/Echo-Browser" --token "${{ secrets.GITHUB_TOKEN }}" --outputDir ./releases
-          } catch {
-            Write-Host "No previous release found or download skipped: $_"
-          }
+          New-Item -ItemType Directory -Force -Path ./releases | Out-Null
+          # Beim allerersten Release gibt es nichts zu laden – das ist kein Fehler
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --outputDir ./releases
+          if ($LASTEXITCODE -ne 0) { Write-Host "Kein vorheriges Release gefunden – es wird nur ein Vollpaket erstellt." }
+          exit 0
 
       - name: Build Velopack Release Package
         shell: pwsh
         run: |
-          vpk pack --packId EchoBrowser --packVersion ${{ steps.get_version.outputs.version }} --packDir ./publish --mainExe EchoBrowser.exe --outputDir ./releases --icon app.ico
+          # --framework: Setup installiert die .NET 8 Desktop Runtime, falls sie fehlt
+          vpk pack --packId EchoBrowser --packVersion ${{ steps.get_version.outputs.version }} --packDir ./publish --mainExe EchoBrowser.exe --outputDir ./releases --icon app.ico --framework net8.0-x64-desktop
 
       - name: Upload Velopack Assets to GitHub Release
         shell: pwsh
         run: |
-          vpk upload github --repoUrl "https://github.com/GoToPlayHD/Echo-Browser" --token "${{ secrets.GITHUB_TOKEN }}" --publish --outputDir ./releases --tag ${{ steps.get_version.outputs.tag }}
+          $pre = if ("${{ steps.get_version.outputs.prerelease }}" -eq "true") { "--pre" } else { "" }
+          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --publish --outputDir ./releases --tag ${{ steps.get_version.outputs.tag }} --releaseName "Echo-Browser ${{ steps.get_version.outputs.version }}" $pre
