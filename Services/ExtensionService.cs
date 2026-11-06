@@ -44,6 +44,7 @@ namespace EchoBrowser.Services
 
             // Remove any underscore directories (e.g. _metadata) forbidden by Chromium unpacked extensions loader
             SanitizeUnpackedExtension(manifestFolder);
+            ExtensionCompat.Apply(manifestFolder);
 
             var ext = await profile.AddBrowserExtensionAsync(manifestFolder);
             RememberExtensionFolder(ext, manifestFolder);
@@ -69,6 +70,7 @@ namespace EchoBrowser.Services
                 CopyDirectory(manifestFolder, copy);
                 manifestFolder = copy;
                 SanitizeUnpackedExtension(manifestFolder);
+                ExtensionCompat.Apply(manifestFolder);
             }
 
             var ext = await profile.AddBrowserExtensionAsync(manifestFolder);
@@ -82,19 +84,25 @@ namespace EchoBrowser.Services
             if (!IsValidExtensionId(extensionId))
                 throw new ArgumentException(Tr.Get("Ext_ErrorInvalidId"), nameof(extensionId));
 
-            string downloadUrl = $"https://clients2.google.com/service/update2/crx?response=redirect&prodversion=128.0&acceptformat=crx2,crx3&x=id%3D{extensionId}%26uc";
+            // Google liefert nur Erweiterungen aus, deren minimum_chrome_version zur gemeldeten Version passt
+            // (1Password verlangt z.B. Chrome 140) – deshalb die tatsächliche Chromium-Version von WebView2 melden
+            string browserVersion = GetBrowserVersion();
+            string downloadUrl = BuildWebStoreDownloadUrl(extensionId, browserVersion);
             string tempCrxPath = Path.Combine(_extensionsDirectory, $"download_{extensionId}_{Guid.NewGuid():N}.crx");
 
             using (var handler = new HttpClientHandler { AllowAutoRedirect = true })
             using (var client = new HttpClient(handler))
             {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
-                client.Timeout = TimeSpan.FromSeconds(60);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd($"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{browserVersion} Safari/537.36");
+                client.Timeout = TimeSpan.FromSeconds(120);
 
                 var response = await client.GetAsync(downloadUrl);
                 response.EnsureSuccessStatusCode();
 
                 byte[] data = await response.Content.ReadAsByteArrayAsync();
+                // Leere Antwort: Google hat keine passende Version (Erweiterung braucht ein neueres Chromium oder wurde entfernt)
+                if (data.Length == 0)
+                    throw new InvalidOperationException(Tr.Format("Ext_ErrorNoCompatibleVersion", browserVersion));
                 await File.WriteAllBytesAsync(tempCrxPath, data);
             }
 
@@ -469,20 +477,117 @@ namespace EchoBrowser.Services
         private readonly Dictionary<string, Task> _profileSetups = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Alle in Echo installierten Erweiterungen auch in ein weiteres Profil laden (temporäres Inkognito-Profil).
-        /// Läuft pro Profil nur einmal, auch wenn mehrere Tabs gleichzeitig starten.
+        /// Kompatibilitätsschicht in alle von Echo entpackten Erweiterungen einbauen bzw. aktualisieren – vor dem Start
+        /// des Browser-Prozesses, denn WebView2 liest entpackte Erweiterungen beim Start neu von der Platte.
         /// </summary>
-        public Task EnsureInstalledInProfileAsync(CoreWebView2Profile profile)
+        public void ApplyCompatToInstalledExtensions()
+        {
+            List<string> folders;
+            lock (_indexLock)
+            {
+                folders = FolderIndex.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+
+            string root = Path.GetFullPath(_extensionsDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            foreach (string folder in folders)
+            {
+                // Selbst geladene Ordner des Nutzers bleiben unverändert
+                if (Directory.Exists(folder) && Path.GetFullPath(folder).StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                {
+                    ExtensionCompat.Apply(folder);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Erweiterungen eines Profils bereitstellen – pro Profil nur einmal, auch wenn mehrere Tabs gleichzeitig starten:
+        /// Ein temporäres Inkognito-Profil bekommt alle in Echo installierten Erweiterungen, das normale Profil die,
+        /// die WebView2 nicht mehr kennt (siehe <see cref="RestoreMissingExtensionsAsync"/>).
+        /// </summary>
+        public Task EnsureProfileExtensionsAsync(CoreWebView2Profile profile, bool isTemporaryProfile)
         {
             lock (_profileSetups)
             {
-                if (!_profileSetups.TryGetValue(profile.ProfileName, out var setup))
+                string key = (isTemporaryProfile ? "temp:" : "") + profile.ProfileName;
+                if (!_profileSetups.TryGetValue(key, out var setup))
                 {
-                    setup = InstallAllIntoProfileAsync(profile);
-                    _profileSetups[profile.ProfileName] = setup;
+                    setup = isTemporaryProfile ? InstallAllIntoProfileAsync(profile) : RestoreMissingExtensionsAsync(profile);
+                    _profileSetups[key] = setup;
                 }
                 return setup;
             }
+        }
+
+        /// <summary>
+        /// WebView2 merkt sich entpackte Erweiterungen mit ihrem absoluten Pfad und vergisst sie, wenn der Ordner
+        /// umzieht (z.B. beim Wechsel des Datenordners nach EchoBrowserData). Solche Erweiterungen werden aus ihrem
+        /// Ordner neu geladen; ihre neue ID ersetzt die alte im Index und in den angehefteten Erweiterungen.
+        /// </summary>
+        private async Task RestoreMissingExtensionsAsync(CoreWebView2Profile profile)
+        {
+            try
+            {
+                List<KeyValuePair<string, string>> entries;
+                lock (_indexLock)
+                {
+                    entries = FolderIndex.ToList();
+                }
+
+                var present = (await profile.GetBrowserExtensionsAsync()).Select(e => e.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var renamed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var reloadedFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var (id, folder) in entries)
+                {
+                    if (present.Contains(id) || !Directory.Exists(folder) || !reloadedFolders.Add(folder)) continue;
+                    try
+                    {
+                        var ext = await profile.AddBrowserExtensionAsync(folder);
+                        present.Add(ext.Id);
+                        if (!ext.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) renamed[id] = ext.Id;
+                        Log.Info($"Erweiterung neu geladen: {ext.Name} ({folder})");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn($"Erweiterung konnte nicht neu geladen werden: {folder}", ex);
+                    }
+                }
+
+                if (renamed.Count == 0) return;
+
+                lock (_indexLock)
+                {
+                    foreach (var (oldId, newId) in renamed)
+                    {
+                        if (FolderIndex.Remove(oldId, out var folder)) FolderIndex[newId] = folder;
+                    }
+                    SaveFolderIndex();
+                }
+
+                if (RenamePinnedIds(AppSettingsService.Instance.Settings.PinnedExtensionIds, renamed))
+                {
+                    AppSettingsService.Instance.Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Erweiterungen konnten nicht überprüft werden", ex);
+            }
+        }
+
+        /// <summary>Alte IDs angehefteter Erweiterungen durch neue ersetzen (Reihenfolge bleibt).</summary>
+        internal static bool RenamePinnedIds(List<string> pinned, IReadOnlyDictionary<string, string> renamed)
+        {
+            bool changed = false;
+            for (int i = 0; i < pinned.Count; i++)
+            {
+                if (renamed.TryGetValue(pinned[i], out var newId))
+                {
+                    pinned[i] = newId;
+                    changed = true;
+                }
+            }
+            return changed;
         }
 
         private async Task InstallAllIntoProfileAsync(CoreWebView2Profile profile)
@@ -508,6 +613,25 @@ namespace EchoBrowser.Services
                 }
             }
         }
+
+        /// <summary>Chromium-Version der installierten WebView2 Runtime, z.B. "156.0.4314.58".</summary>
+        private static string GetBrowserVersion()
+        {
+            try
+            {
+                string version = CoreWebView2Environment.GetAvailableBrowserVersionString();
+                if (Version.TryParse(version.Split(' ')[0], out var parsed)) return parsed.ToString();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("WebView2-Version konnte nicht ermittelt werden", ex);
+            }
+            return "140.0.0.0";
+        }
+
+        internal static string BuildWebStoreDownloadUrl(string extensionId, string browserVersion) =>
+            $"https://clients2.google.com/service/update2/crx?response=redirect&prodversion={Uri.EscapeDataString(browserVersion)}" +
+            $"&acceptformat=crx2,crx3&x=id%3D{extensionId}%26uc";
 
         /// <summary>Chrome-Erweiterungs-IDs bestehen aus genau 32 Buchstaben a–p.</summary>
         public static bool IsValidExtensionId(string? extensionId) =>
@@ -555,7 +679,31 @@ namespace EchoBrowser.Services
             }
         }
 
-        private static int FindZipSignatureOffset(byte[] bytes)
+        /// <summary>
+        /// Beginn des ZIP-Archivs in einer CRX-Datei. CRX2/CRX3 haben einen Kopf mit Länge ("Cr24", Version, Länge(n));
+        /// er wird übersprungen statt nach "PK" gesucht – die Signaturen im Kopf können diese Bytes zufällig enthalten.
+        /// </summary>
+        internal static int FindZipSignatureOffset(byte[] bytes)
+        {
+            if (bytes.Length >= 16 && bytes[0] == (byte)'C' && bytes[1] == (byte)'r' && bytes[2] == (byte)'2' && bytes[3] == (byte)'4')
+            {
+                uint version = BitConverter.ToUInt32(bytes, 4);
+                long offset = version switch
+                {
+                    3 => 12L + BitConverter.ToUInt32(bytes, 8),
+                    2 => 16L + BitConverter.ToUInt32(bytes, 8) + BitConverter.ToUInt32(bytes, 12),
+                    _ => -1
+                };
+                if (offset > 0 && offset + 4 <= bytes.Length &&
+                    bytes[offset] == 0x50 && bytes[offset + 1] == 0x4B && bytes[offset + 2] == 0x03 && bytes[offset + 3] == 0x04)
+                {
+                    return (int)offset;
+                }
+            }
+            return ScanForZipSignature(bytes);
+        }
+
+        private static int ScanForZipSignature(byte[] bytes)
         {
             // Standard ZIP local file header signature: PK\x03\x04
             byte[] signature = { 0x50, 0x4B, 0x03, 0x04 };

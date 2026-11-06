@@ -73,6 +73,10 @@ namespace EchoBrowser.Models
 
         // 8. Extensions
         public List<string> PinnedExtensionIds { get; set; } = new();
+        /// <summary>Lesezeichenleiste gesperrt: Lesezeichen und Gruppen lassen sich nicht verschieben.</summary>
+        public bool IsBookmarksBarLocked { get; set; } = false;
+        /// <summary>Erweiterungen, deren Popup angeheftet ist (bleibt offen, wenn man woanders hinklickt).</summary>
+        public List<string> KeepOpenExtensionPopupIds { get; set; } = new();
 
         // 9. Localization
         public string Language { get; set; } = "de"; // "de", "en", "fr", "es"

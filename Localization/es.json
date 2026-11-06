@@ -1,4 +1,8 @@
 {
+  "Bookmark_LockBar": "Bloquear la barra de marcadores (sin mover)",
+  "Ext_ErrorNoCompatibleVersion": "No hay ninguna versión de esta extensión compatible con tu versión de WebView2 ({0}). Actualiza Microsoft Edge WebView2 Runtime.",
+  "ExtPopup_KeepOpen": "Fijar: mantener la ventana abierta",
+  "ExtPopup_KeepOpenActive": "Fijada: haz clic para soltar",
   "Ext_DisabledInIncognito": "Las extensiones están desactivadas en las ventanas de incógnito. Puedes permitirlas en Ajustes → Privacidad → «Extensiones en modo incógnito» (se aplica a nuevas ventanas de incógnito).",
   "Ext_ManageInNormalWindow": "Las extensiones solo se pueden instalar, quitar, activar o desactivar en una ventana normal.",
   "Settings_ExtensionsInIncognito": "Extensiones en modo incógnito",

@@ -85,6 +85,7 @@ namespace EchoBrowser.Services
             {
                 Directory.CreateDirectory(AppPaths.WebViewDataFolder);
                 DeleteLeftoverIncognitoProfiles(AppPaths.WebViewDataFolder);
+                ExtensionService.Instance.ApplyCompatToInstalledExtensions();
 
                 var echoScheme = new CoreWebView2CustomSchemeRegistration(InternalPages.Scheme)
                 {

@@ -797,6 +797,7 @@
                 AllowDrop="True"
                 DragOver="BookmarksBar_DragOver"
                 Drop="BookmarksBar_Drop"
+                ContextMenuOpening="BookmarksBar_ContextMenuOpening"
                 Visibility="Visible">
             <Border.ContextMenu>
                 <ContextMenu Background="{DynamicResource SurfaceBrush}" 
@@ -805,6 +806,7 @@
                     <MenuItem Header="{loc:Loc Bookmark_AddMenu}" Click="MenuAddBookmark_Click"/>
                     <MenuItem Header="{loc:Loc Bookmark_NewGroupMenu}" Click="MenuAddGroup_Click"/>
                     <Separator Background="{DynamicResource BorderSubtleBrush}"/>
+                    <MenuItem x:Name="menuLockBookmarksBar" Header="{loc:Loc Bookmark_LockBar}" IsCheckable="True" Click="MenuLockBookmarksBar_Click"/>
                     <MenuItem Header="{loc:Loc Bookmark_HideBar}" Click="MenuToggleBookmarksBar_Click"/>
                 </ContextMenu>
             </Border.ContextMenu>
@@ -831,6 +833,7 @@
                                     <Button x:Name="btnNormalBookmark"
                                             Style="{DynamicResource BookmarkChipStyle}"
                                             Click="BookmarkChip_Click"
+                                            MouseUp="Bookmark_MiddleClick"
                                             Tag="{Binding Url}"
                                             ToolTip="{Binding Url}"
                                             AllowDrop="True"
@@ -861,6 +864,9 @@
                                             Tag="{Binding}"
                                             ToolTip="{loc:Loc Bookmark_GroupChipTooltip}"
                                             AllowDrop="True"
+                                            PreviewMouseLeftButtonDown="BookmarkChip_PreviewMouseLeftButtonDown"
+                                            PreviewMouseMove="BookmarkChip_PreviewMouseMove"
+                                            PreviewMouseLeftButtonUp="BookmarkChip_PreviewMouseLeftButtonUp"
                                             DragOver="GroupChip_DragOver"
                                             DragLeave="GroupChip_DragLeave"
                                             Drop="GroupChip_Drop"
@@ -1226,6 +1232,7 @@
                                         <Button x:Name="btnSidebarBookmark"
                                                 Style="{DynamicResource SidebarFavoriteButtonStyle}"
                                                 Click="SidebarFavorite_Click"
+                                                MouseUp="Bookmark_MiddleClick"
                                                 Tag="{Binding}"
                                                 ToolTip="{Binding Title}">
                                             <Button.ContextMenu>

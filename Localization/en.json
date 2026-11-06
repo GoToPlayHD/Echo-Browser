@@ -1,4 +1,8 @@
 {
+  "Bookmark_LockBar": "Lock bookmarks bar (no moving)",
+  "Ext_ErrorNoCompatibleVersion": "There is no version of this extension that works with your WebView2 version ({0}). Please update the Microsoft Edge WebView2 Runtime.",
+  "ExtPopup_KeepOpen": "Pin: keep popup open",
+  "ExtPopup_KeepOpenActive": "Pinned – click to unpin",
   "Ext_DisabledInIncognito": "Extensions are turned off in incognito windows. You can allow them under Settings → Privacy → \"Extensions in incognito mode\" (applies to new incognito windows).",
   "Ext_ManageInNormalWindow": "Extensions can only be installed, removed or turned on and off in a normal window.",
   "Settings_ExtensionsInIncognito": "Extensions in incognito mode",

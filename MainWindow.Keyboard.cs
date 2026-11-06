@@ -79,7 +79,7 @@ namespace EchoBrowser
         {
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () =>
             {
-                SetFocus(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+                SetFocus(InputWindowHandle(input));
                 input.Focus();
                 Keyboard.Focus(input);
                 input.SelectAll();
@@ -92,8 +92,20 @@ namespace EchoBrowser
         /// </summary>
         private void KeepKeyboardInPopup(System.Windows.Controls.Primitives.Popup popup)
         {
-            popup.PreviewMouseDown += (s, e) => SetFocus(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            popup.PreviewMouseDown += (s, e) =>
+            {
+                if (popup.Child != null) SetFocus(InputWindowHandle(popup.Child));
+            };
         }
+
+        /// <summary>
+        /// Win32-Fenster, das die Tastatur für dieses Element bekommen muss: bei Popups deren eigenes Fenster.
+        /// Das Hauptfenster würde den Fokus an das zuletzt fokussierte Element weitergeben – die WebView.
+        /// </summary>
+        private IntPtr InputWindowHandle(System.Windows.Media.Visual element) =>
+            System.Windows.PresentationSource.FromVisual(element) is System.Windows.Interop.HwndSource source
+                ? source.Handle
+                : new System.Windows.Interop.WindowInteropHelper(this).Handle;
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr SetFocus(IntPtr hWnd);

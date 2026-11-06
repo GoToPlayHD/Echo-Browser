@@ -55,14 +55,24 @@ namespace EchoBrowser
         {
             try
             {
-                pnlPinnedExtensions.Children.Clear();
-                var profile = ActiveTab?.WebView?.CoreWebView2?.Profile;
-                if (profile == null) return;
+                int version = ++_pinnedToolbarVersion;
+                var profile = (ActiveTab?.WebView?.CoreWebView2 ?? Tabs.Select(t => t.WebView?.CoreWebView2).FirstOrDefault(c => c != null))?.Profile;
+                if (profile == null)
+                {
+                    pnlPinnedExtensions.Children.Clear();
+                    return;
+                }
 
                 var pinnedIds = AppSettingsService.Instance.Settings.PinnedExtensionIds;
+                var extensions = pinnedIds == null || pinnedIds.Count == 0
+                    ? Array.Empty<CoreWebView2BrowserExtension>()
+                    : await ExtensionService.Instance.GetInstalledExtensionsAsync(profile);
+
+                // Erst nach dem Warten leeren: Ein späterer Aufruf hat die Leiste inzwischen schon aufgebaut
+                if (version != _pinnedToolbarVersion) return;
+                pnlPinnedExtensions.Children.Clear();
                 if (pinnedIds == null || pinnedIds.Count == 0) return;
 
-                var extensions = await ExtensionService.Instance.GetInstalledExtensionsAsync(profile);
                 foreach (var extId in pinnedIds.ToList())
                 {
                     var ext = extensions.FirstOrDefault(e => e.Id.Equals(extId, StringComparison.OrdinalIgnoreCase));
@@ -248,21 +258,6 @@ namespace EchoBrowser
             }
 
             string? popupPage = ExtensionService.Instance.GetExtensionPopupPage(ext.Id, ext.Name);
-            if (string.IsNullOrWhiteSpace(popupPage))
-            {
-                string? optPage = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
-                if (!string.IsNullOrWhiteSpace(optPage))
-                {
-                    AddNewTab($"chrome-extension://{ext.Id}/{optPage}");
-                }
-                else
-                {
-                    ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoPopupDefined", ext.Name));
-                }
-                return;
-            }
-
-            string popupUrl = $"chrome-extension://{ext.Id}/{popupPage}";
             string? optPageFallback = ExtensionService.Instance.GetExtensionOptionsPage(ext.Id, ext.Name);
             string? iconPath = ExtensionService.Instance.GetExtensionIconPath(ext.Id, ext.Name);
 
@@ -276,6 +271,15 @@ namespace EchoBrowser
                 AddNewTab($"chrome-extension://{id}/{options}");
             };
 
+            var keepOpenIds = AppSettingsService.Instance.Settings.KeepOpenExtensionPopupIds;
+            win.SetKeptOpen(keepOpenIds.Contains(ext.Id, StringComparer.OrdinalIgnoreCase));
+            win.KeepOpenChanged += (id, keepOpen) =>
+            {
+                keepOpenIds.RemoveAll(x => x.Equals(id, StringComparison.OrdinalIgnoreCase));
+                if (keepOpen) keepOpenIds.Add(id);
+                AppSettingsService.Instance.Save();
+            };
+
             win.Closed += (_, _) =>
             {
                 if (_activeExtensionPopup != win) return;
@@ -284,12 +288,34 @@ namespace EchoBrowser
                 _lastClosedExtensionPopupAt = DateTime.UtcNow;
             };
 
+            // Unsichtbar anzeigen (die WebView braucht ein Fenster), sichtbar erst, wenn es wirklich ein Popup gibt
+            win.Opacity = 0;
             win.PositionUnderneath(anchor);
             win.Show();
             _activeExtensionPopup = win;
 
-            await win.InitializeAndNavigateAsync(_webViewEnvironment, ext.Id, ext.Name, popupUrl, optPageFallback, iconPath,
+            var result = await win.InitializeAndNavigateAsync(_webViewEnvironment, ext.Id, ext.Name, popupPage, optPageFallback, iconPath,
                 BrowserEnvironment.CreateControllerOptions(_webViewEnvironment, _isIncognito, _incognitoWithExtensions));
+
+            if (result == ExtensionPopupWindow.ActionResult.PopupShown)
+            {
+                win.Opacity = 1;
+                return;
+            }
+
+            // Kein Popup: Die Erweiterung hat den Klick bekommen (öffnet z.B. selbst einen Tab) – oder es gibt nichts zu tun
+            try { win.Close(); } catch { }
+            if (result == ExtensionPopupWindow.ActionResult.NoAction)
+            {
+                if (!string.IsNullOrWhiteSpace(optPageFallback))
+                {
+                    AddNewTab($"chrome-extension://{ext.Id}/{optPageFallback}");
+                }
+                else
+                {
+                    ThemedDialogWindow.ShowMessage(this, ext.Name, Tr.Format("Ext_NoPopupDefined", ext.Name));
+                }
+            }
         }
 
         private void InitializeExtensionsPanel()

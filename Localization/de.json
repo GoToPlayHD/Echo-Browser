@@ -1,4 +1,8 @@
 {
+  "Bookmark_LockBar": "Lesezeichenleiste sperren (nicht verschiebbar)",
+  "Ext_ErrorNoCompatibleVersion": "Für diese Erweiterung gibt es keine Version, die mit deiner WebView2-Version ({0}) funktioniert. Bitte aktualisiere die Microsoft Edge WebView2 Runtime.",
+  "ExtPopup_KeepOpen": "Anheften: Popup bleibt offen",
+  "ExtPopup_KeepOpenActive": "Angeheftet – klicken zum Lösen",
   "Ext_DisabledInIncognito": "Erweiterungen sind in Inkognito-Fenstern ausgeschaltet. Du kannst sie unter Einstellungen → Datenschutz → „Erweiterungen im Inkognito-Modus“ erlauben (gilt für neue Inkognito-Fenster).",
   "Ext_ManageInNormalWindow": "Erweiterungen kannst du nur in einem normalen Fenster installieren, entfernen oder ein- und ausschalten.",
   "Settings_ExtensionsInIncognito": "Erweiterungen im Inkognito-Modus",

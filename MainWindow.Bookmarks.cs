@@ -86,8 +86,22 @@ namespace EchoBrowser
         }
 
         // Bookmark Drag-and-Drop Reordering with Live Feedback
+        /// <summary>Gesperrte Leiste: Lesezeichen und Gruppen bleiben, wo sie sind (Rechtsklick auf die Leiste).</summary>
+        private static bool IsBookmarksBarLocked => AppSettingsService.Instance.Settings.IsBookmarksBarLocked;
+
+        // Häkchen aktuell halten – die Sperre gilt für alle Fenster
+        private void BookmarksBar_ContextMenuOpening(object sender, ContextMenuEventArgs e) =>
+            menuLockBookmarksBar.IsChecked = IsBookmarksBarLocked;
+
+        private void MenuLockBookmarksBar_Click(object sender, RoutedEventArgs e)
+        {
+            AppSettingsService.Instance.Settings.IsBookmarksBarLocked = menuLockBookmarksBar.IsChecked;
+            AppSettingsService.Instance.Save();
+        }
+
         private void BookmarkChip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (IsBookmarksBarLocked) return;
             if (sender is FrameworkElement fe && fe.DataContext is Bookmark bm)
             {
                 _bmDragStartPoint = e.GetPosition(null);
@@ -110,6 +124,8 @@ namespace EchoBrowser
                         var data = new DataObject("EchoBookmark", _draggedBookmark);
                         DragDrop.DoDragDrop(fe, data, DragDropEffects.Move);
                         _draggedBookmark = null;
+                        // Live-Umsortierung sichern – auch wenn außerhalb der Leiste losgelassen wurde
+                        _bookmarkService.SaveBookmarks();
                     }
                 }
             }
@@ -127,19 +143,19 @@ namespace EchoBrowser
                 e.Effects = DragDropEffects.Move;
                 e.Handled = true;
 
-                // Live reorder only between non-group bookmarks that are already top-level
+                // Live reorder between top-level items (bookmarks and groups) – dropping onto a group chip nests instead
                 if (e.Data.GetData("EchoBookmark") is Bookmark sourceBm &&
                     sender is FrameworkElement fe && fe.DataContext is Bookmark targetBm)
                 {
-                    if (sourceBm != targetBm && !targetBm.IsGroup && !sourceBm.IsGroup &&
+                    if (sourceBm != targetBm && !targetBm.IsGroup &&
                         Bookmarks.Contains(sourceBm) && Bookmarks.Contains(targetBm))
                     {
                         int oldIndex = Bookmarks.IndexOf(sourceBm);
                         int newIndex = Bookmarks.IndexOf(targetBm);
                         if (oldIndex >= 0 && newIndex >= 0)
                         {
+                            // Gespeichert wird beim Loslassen (Drop) – nicht bei jedem Zwischenschritt
                             Bookmarks.Move(oldIndex, newIndex);
-                            _bookmarkService.SaveBookmarks();
                         }
                     }
                 }
@@ -193,8 +209,9 @@ namespace EchoBrowser
                         if (oldIndex >= 0 && targetIndex >= 0 && oldIndex != targetIndex)
                         {
                             Bookmarks.Move(oldIndex, targetIndex);
-                            _bookmarkService.SaveBookmarks();
                         }
+                        // Auch die Live-Umsortierung aus DragOver sichern
+                        _bookmarkService.SaveBookmarks();
                     }
                 }
             }
@@ -293,7 +310,19 @@ namespace EchoBrowser
         {
             if (e.Data.GetDataPresent("EchoBookmark"))
             {
-                if (e.Data.GetData("EchoBookmark") is Bookmark sourceBm && !sourceBm.IsGroup)
+                if (e.Data.GetData("EchoBookmark") is Bookmark draggedGroup && draggedGroup.IsGroup)
+                {
+                    // Eine Gruppe auf eine andere: nur umsortieren (Gruppen lassen sich nicht verschachteln)
+                    e.Effects = DragDropEffects.Move;
+                    e.Handled = true;
+                    if (sender is FrameworkElement target && target.DataContext is Bookmark targetGroup && targetGroup != draggedGroup)
+                    {
+                        int oldIndex = Bookmarks.IndexOf(draggedGroup);
+                        int newIndex = Bookmarks.IndexOf(targetGroup);
+                        if (oldIndex >= 0 && newIndex >= 0) Bookmarks.Move(oldIndex, newIndex);
+                    }
+                }
+                else if (e.Data.GetData("EchoBookmark") is Bookmark sourceBm && !sourceBm.IsGroup)
                 {
                     e.Effects = DragDropEffects.Move;
                     e.Handled = true;
@@ -326,6 +355,14 @@ namespace EchoBrowser
 
         private void GroupChip_Drop(object sender, DragEventArgs e)
         {
+            if (e.Data.GetData("EchoBookmark") is Bookmark { IsGroup: true })
+            {
+                // Gruppe umsortiert (siehe GroupChip_DragOver)
+                e.Handled = true;
+                _bookmarkService.SaveBookmarks();
+                return;
+            }
+
             if (sender is FrameworkElement fe && fe.DataContext is Bookmark targetGroup && targetGroup.IsGroup)
             {
                 var border = FindVisualChild<Border>(fe, b => b.Name == "groupChipBorder") ?? FindVisualChild<Border>(fe);
@@ -470,6 +507,7 @@ namespace EchoBrowser
 
         private void GroupBookmarkItem_PreviewMouseMove(object sender, MouseEventArgs e)
         {
+            if (IsBookmarksBarLocked) return;
             if (e.LeftButton == MouseButtonState.Pressed && _draggedBookmark != null)
             {
                 Point currentPos = e.GetPosition(null);
@@ -516,6 +554,17 @@ namespace EchoBrowser
                 }
             }
             _draggedBookmark = null;
+        }
+
+        /// <summary>Mittelklick auf ein Lesezeichen (Leiste oder Seitenleiste): in neuem Tab öffnen – wie im Gruppen-Flyout.</summary>
+        private void Bookmark_MiddleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle && sender is FrameworkElement { DataContext: Bookmark { IsGroup: false } bm } &&
+                !string.IsNullOrWhiteSpace(bm.Url))
+            {
+                e.Handled = true;
+                AddNewTab(bm.Url);
+            }
         }
 
         private void GroupBookmarkItem_MouseDown(object sender, MouseButtonEventArgs e)

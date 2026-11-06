@@ -34,6 +34,10 @@ namespace EchoBrowser
         private ExtensionPopupWindow? _activeExtensionPopup;
         /// <summary>Inkognito-Fenster mit Erweiterungen (temporäres Profil statt InPrivate) – beim Öffnen des Fensters festgelegt.</summary>
         private bool _incognitoWithExtensions;
+        /// <summary>Angeheftete Erweiterungen werden gezeigt, sobald das Profil des ersten Tabs bereit ist.</summary>
+        private bool _pinnedExtensionsShown;
+        /// <summary>Zähler gegen doppelte Knöpfe, wenn die Leiste mehrmals kurz hintereinander neu aufgebaut wird.</summary>
+        private int _pinnedToolbarVersion;
         private string? _lastClosedExtensionPopupId;
         private DateTime _lastClosedExtensionPopupAt;
 
@@ -241,12 +245,6 @@ namespace EchoBrowser
 
             // Startseite, Sitzung oder übergebene Adressen öffnen -> MainWindow.Session.cs
             OpenInitialTabs();
-
-            _ = Dispatcher.InvokeAsync(async () =>
-            {
-                await Task.Delay(600);
-                UpdatePinnedExtensionsToolbar();
-            });
 
             // 3. Velopack Update-Infrastruktur initialisieren & Hintergrund-Timer starten
             UpdateService.Instance.StatusChanged += OnUpdateStatusChanged;

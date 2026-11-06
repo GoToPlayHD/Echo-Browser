@@ -114,10 +114,17 @@ namespace EchoBrowser
                 await webView.EnsureCoreWebView2Async(env, BrowserEnvironment.CreateControllerOptions(env, _isIncognito, _incognitoWithExtensions));
 
                 var core = webView.CoreWebView2;
-                if (core != null && _incognitoWithExtensions)
+                if (core != null && (!_isIncognito || _incognitoWithExtensions))
                 {
-                    // Das temporäre Inkognito-Profil startet leer: die installierten Erweiterungen hineinladen
-                    await ExtensionService.Instance.EnsureInstalledInProfileAsync(core.Profile);
+                    // Temporäres Inkognito-Profil: startet leer, die installierten Erweiterungen hineinladen.
+                    // Normales Profil: nach einem Umzug des Datenordners vergessene Erweiterungen neu laden.
+                    await ExtensionService.Instance.EnsureProfileExtensionsAsync(core.Profile, isTemporaryProfile: _isIncognito);
+                    if (!_pinnedExtensionsShown)
+                    {
+                        // Erst jetzt kennt das Profil seine Erweiterungen – vorher bliebe die Leiste leer
+                        _pinnedExtensionsShown = true;
+                        UpdatePinnedExtensionsToolbar();
+                    }
                 }
                 if (core != null)
                 {
