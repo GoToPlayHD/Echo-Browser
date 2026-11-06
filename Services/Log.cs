@@ -6,7 +6,7 @@ using System.Linq;
 namespace EchoBrowser.Services
 {
     /// <summary>
-    /// Einfaches Protokoll: eine Datei pro Tag unter %LOCALAPPDATA%\EchoBrowser\logs, die letzten 7 Tage bleiben erhalten.
+    /// Einfaches Protokoll: eine Datei pro Tag unter %LOCALAPPDATA%\EchoBrowserData\logs, die letzten 7 Tage bleiben erhalten.
     /// Schreibt zusätzlich in die Debug-Ausgabe. Fehler beim Schreiben werden ignoriert – Logging darf nie selbst abstürzen.
     /// </summary>
     public static class Log

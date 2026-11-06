@@ -47,6 +47,10 @@ public partial class App : Application
             }
         }
 
+        // Daten früherer Versionen lagen im Installationsordner, den Velopack bei Updates aufräumt – einmalig umziehen.
+        // Erst hier: Nur die eine laufende Instanz darf die Dateien verschieben, und noch hat kein Dienst sie geöffnet.
+        AppPaths.MigrateLegacyDataFolder();
+
         if (args.Any(a => string.Equals(a, "--restored-after-update", StringComparison.OrdinalIgnoreCase)))
         {
             SessionService.Instance.IsRestoredAfterUpdate = true;

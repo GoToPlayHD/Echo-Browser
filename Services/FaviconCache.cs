@@ -9,7 +9,7 @@ namespace EchoBrowser.Services
 {
     /// <summary>
     /// Website-Symbole für Lesezeichen, Verlauf und Tabs. Ein Symbol pro Host, im Speicher und als PNG unter
-    /// %LOCALAPPDATA%\EchoBrowser\Favicons. Muss auf dem UI-Thread benutzt werden.
+    /// %LOCALAPPDATA%\EchoBrowserData\Favicons. Muss auf dem UI-Thread benutzt werden.
     /// </summary>
     public sealed class FaviconCache
     {

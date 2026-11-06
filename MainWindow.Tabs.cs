@@ -502,6 +502,14 @@ namespace EchoBrowser
             int index = Tabs.IndexOf(tab);
             if (index < 0) return;
 
+            // Wie in Chrome/Edge: Mit dem letzten Tab schließt sich das Fenster (Sitzung wie beim Schließen per X).
+            // Verzögert, weil der Aufruf auch aus einem WebView2-Ereignis des Tabs kommen kann (window.close()).
+            if (Tabs.Count == 1)
+            {
+                Dispatcher.BeginInvoke(Close);
+                return;
+            }
+
             OnTabClosingForSplit(tab);
 
             // Für Strg+Umschalt+T merken
@@ -520,19 +528,11 @@ namespace EchoBrowser
             tab.Dispose();
             Tabs.Remove(tab);
 
-            // If we closed the active tab, select an adjacent one
+            // If we closed the active tab, select an adjacent one (der letzte Tab schließt oben das Fenster)
             if (ActiveTab == tab)
             {
-                if (Tabs.Count > 0)
-                {
-                    int newIndex = Math.Clamp(index, 0, Tabs.Count - 1);
-                    SelectTab(Tabs[newIndex]);
-                }
-                else
-                {
-                    // No tabs left: Open custom startpage
-                    AddNewTab(StartPageService.StartPageUrl);
-                }
+                int newIndex = Math.Clamp(index, 0, Tabs.Count - 1);
+                SelectTab(Tabs[newIndex]);
             }
         }
 

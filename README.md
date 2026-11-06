@@ -145,7 +145,8 @@ $env:ECHO_USER_DATA_DIR = "$env:TEMP\echo-dev"; dotnet run
 ```
 
 Benutzerdaten (Einstellungen, Lesezeichen, Verlauf, Erweiterungen, Browserprofil) liegen unter
-`%LOCALAPPDATA%\EchoBrowser`.
+`%LOCALAPPDATA%\EchoBrowserData` – getrennt vom Programmordner `%LOCALAPPDATA%\EchoBrowser`, den der Updater bei
+jedem Update neu aufbaut. Daten älterer Versionen werden beim ersten Start automatisch dorthin verschoben.
 Dort liegt auch das Protokoll (`logs\echo-<datum>.log`, die letzten 7 Tage) – bei Problemen bitte mitschicken.
 
 Echo läuft pro Benutzer nur einmal: `EchoBrowser.exe https://example.com` öffnet die Adresse als Tab im laufenden Fenster.

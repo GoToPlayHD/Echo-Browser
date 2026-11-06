@@ -5,7 +5,7 @@ using EchoBrowser.Services;
 namespace EchoBrowser.Tests;
 
 /// <summary>
-/// Tests laufen nie gegen die echten Daten unter %LOCALAPPDATA%\EchoBrowser: Vor dem ersten Zugriff auf
+/// Tests laufen nie gegen die echten Daten unter %LOCALAPPDATA%\EchoBrowserData: Vor dem ersten Zugriff auf
 /// <see cref="AppPaths"/> zeigt ECHO_USER_DATA_DIR auf einen eigenen, leeren Ordner (Dienste wie
 /// BookmarkService.Instance lesen und schreiben sonst die Lesezeichen des Nutzers).
 /// </summary>

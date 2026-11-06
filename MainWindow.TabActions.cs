@@ -147,7 +147,7 @@ namespace EchoBrowser
             AddPinAndGroupMenuItems(menu, tab);
             menu.Items.Add(new Separator());
             AddSplitMenuItems(menu, tab);
-            menu.Items.Add(MenuEntry(Tr.Get("Tab_MoveToNewWindow"), () => MoveTabToNewWindow(tab)));
+            menu.Items.Add(MenuEntry(Tr.Get("Tab_MoveToNewWindow"), () => MoveTabToNewWindow(tab), enabled: Tabs.Count > 1));
             menu.Items.Add(new Separator());
             menu.Items.Add(MenuEntry(Tr.Get("Tab_Close"), () => CloseTab(tab), "Ctrl+W"));
             menu.Items.Add(MenuEntry(Tr.Get("Tab_CloseOthers"), () => CloseOtherTabs(tab), enabled: Tabs.Count > 1));
@@ -220,6 +220,9 @@ namespace EchoBrowser
         /// <summary>Tab in einem neuen Fenster (gleicher Modus: normal bzw. Inkognito) weiterführen.</summary>
         private void MoveTabToNewWindow(BrowserTab tab)
         {
+            // Der einzige Tab ist schon allein im Fenster (und CloseTab würde jetzt das Fenster schließen)
+            if (Tabs.Count <= 1) return;
+
             var window = new MainWindow(_isIncognito) { StartupUrls = new[] { tab.Url } };
             window.Show();
             CloseTab(tab, rememberForReopen: false);

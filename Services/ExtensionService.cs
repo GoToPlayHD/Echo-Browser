@@ -213,7 +213,7 @@ namespace EchoBrowser.Services
 
         /// <summary>
         /// Nach dem Entfernen einer Erweiterung: Zuordnung vergessen und die von Echo entpackte Kopie löschen.
-        /// Ordner außerhalb von %LOCALAPPDATA%\EchoBrowser\Extensions (manuell geladene) werden nie gelöscht.
+        /// Ordner außerhalb von %LOCALAPPDATA%\EchoBrowserData\Extensions (manuell geladene) werden nie gelöscht.
         /// </summary>
         public void ForgetExtension(string extensionId)
         {
