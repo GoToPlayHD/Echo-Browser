@@ -88,6 +88,8 @@ namespace EchoBrowser.Services
                 {
                     Directory.CreateDirectory(AppPaths.WebViewDataFolder);
                     DeleteLeftoverIncognitoProfiles(AppPaths.WebViewDataFolder);
+                    // Erlaubte Erweiterungs-Updates einspielen, solange der Browser die Dateien noch nicht sperrt
+                    ExtensionService.Instance.ApplyPendingUpdates();
                     ExtensionService.Instance.ApplyCompatToInstalledExtensions();
                 });
 

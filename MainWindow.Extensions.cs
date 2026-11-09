@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using EchoBrowser.Models;
 using EchoBrowser.Services;
 using EchoBrowser.Views;
@@ -42,6 +43,7 @@ namespace EchoBrowser
                 }
 
                 extensionsPanel.ShowExtensions(await ExtensionService.Instance.GetInstalledExtensionsAsync(profile));
+                extensionsPanel.ShowUpdateStatus(ExtensionService.Instance.UpdateStatus);
 
                 UpdatePinnedExtensionsToolbar();
             }
@@ -335,6 +337,48 @@ namespace EchoBrowser
                 popupExtensions.IsOpen = false;
                 AddNewTab("https://chromewebstore.google.com/");
             };
+            extensionsPanel.CheckUpdatesRequested += async () =>
+            {
+                if (CanManageExtensions()) await CheckExtensionUpdatesAsync(interactive: true);
+            };
+        }
+
+        // Für alle Fenster gemeinsam: Erweiterungs-Updates kurz nach dem Start, danach alle 24 Stunden
+        private static DispatcherTimer? _extensionUpdateTimer;
+
+        private void StartExtensionUpdateChecks()
+        {
+            if (_isIncognito || _extensionUpdateTimer != null) return;
+
+            _extensionUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+            _extensionUpdateTimer.Tick += async (s, e) =>
+            {
+                _extensionUpdateTimer.Interval = TimeSpan.FromHours(24);
+                var window = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault(w => !w.IsIncognito && w.IsLoaded);
+                if (window != null)
+                {
+                    // Automatisch nie mit Dialog: Updates mit neuen Rechten warten auf »Nach Updates suchen«
+                    await window.CheckExtensionUpdatesAsync(interactive: false);
+                }
+            };
+            _extensionUpdateTimer.Start();
+        }
+
+        /// <summary>
+        /// Neue Versionen suchen und für den nächsten Start vormerken (Services/ExtensionService.Updates.cs).
+        /// Interaktiv fragt bei neuen Berechtigungen nach, sonst zählen solche Updates nur als »wartet auf Zustimmung«.
+        /// </summary>
+        private async Task CheckExtensionUpdatesAsync(bool interactive)
+        {
+            var profile = (ActiveTab?.WebView?.CoreWebView2 ?? Tabs.Select(t => t.WebView?.CoreWebView2).FirstOrDefault(c => c != null))?.Profile;
+            if (profile == null) return;
+
+            var service = ExtensionService.Instance;
+            var check = service.CheckForUpdatesAsync(profile,
+                interactive ? update => ThemedDialogWindow.ShowExtensionUpdatePrompt(this, update) : null);
+            extensionsPanel.ShowUpdateStatus(service.UpdateStatus);
+            await check;
+            extensionsPanel.ShowUpdateStatus(service.UpdateStatus);
         }
 
         private async Task InstallExtensionFromFileAsync()

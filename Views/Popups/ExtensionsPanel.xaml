@@ -115,6 +115,23 @@
 
             <Separator Background="{DynamicResource BorderBrush}" Margin="0,8,0,10"/>
 
+            <!-- Erweiterungs-Updates: Stand und manuelle Prüfung (MainWindow.Extensions.cs) -->
+            <DockPanel LastChildFill="True" Margin="0,0,0,10">
+                <Button x:Name="btnCheckExtensionUpdates"
+                        DockPanel.Dock="Right"
+                        Style="{DynamicResource FlyoutSmallButtonStyle}"
+                        Content="{loc:Loc Ext_UpdateCheckButton}"
+                        VerticalAlignment="Center"
+                        Margin="8,0,0,0"
+                        Click="BtnCheckExtensionUpdates_Click"/>
+                <TextBlock x:Name="txtExtensionUpdates"
+                           Text="{loc:Loc Ext_UpdateAuto}"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextMutedBrush}"/>
+            </DockPanel>
+
             <!-- Web Store Link -->
             <Button Style="{DynamicResource FlyoutActionButtonStyle}" 
                     HorizontalAlignment="Stretch" 

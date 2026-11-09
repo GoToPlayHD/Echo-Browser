@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using EchoBrowser.Services;
 using Microsoft.Web.WebView2.Core;
 
 namespace EchoBrowser.Views.Popups
@@ -23,6 +24,7 @@ namespace EchoBrowser.Views.Popups
         public event Action<CoreWebView2BrowserExtension>? RemoveRequested;
         public event Action? InstallFromFileRequested;
         public event Action? OpenWebStoreRequested;
+        public event Action? CheckUpdatesRequested;
 
         public ExtensionsPanel()
         {
@@ -36,6 +38,27 @@ namespace EchoBrowser.Views.Popups
             txtEmptyExtensions.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
             icExtensionsList.ItemsSource = isEmpty ? null : extensions;
         }
+
+        /// <summary>Stand der Erweiterungs-Updates unter der Liste.</summary>
+        public void ShowUpdateStatus(ExtensionUpdateStatus status)
+        {
+            btnCheckExtensionUpdates.IsEnabled = !status.IsChecking;
+
+            var lines = new List<string>();
+            if (status.IsChecking) lines.Add(Tr.Get("Ext_UpdateChecking"));
+            else if (status.Error != null) lines.Add(Tr.Format("Ext_UpdateFailed", status.Error));
+            if (status.PendingCount > 0) lines.Add(Tr.Format("Ext_UpdatePending", status.PendingCount));
+            if (status.AwaitingConsentCount > 0) lines.Add(Tr.Format("Ext_UpdateNeedsConsent", status.AwaitingConsentCount));
+            if (lines.Count == 0)
+            {
+                lines.Add(status.LastCheckUtc is { } checkedAt
+                    ? Tr.Format("Ext_UpdateUpToDate", checkedAt.ToLocalTime().ToString("t"))
+                    : Tr.Get("Ext_UpdateAuto"));
+            }
+            txtExtensionUpdates.Text = string.Join("\n", lines);
+        }
+
+        private void BtnCheckExtensionUpdates_Click(object sender, RoutedEventArgs e) => CheckUpdatesRequested?.Invoke();
 
         private static CoreWebView2BrowserExtension? ExtensionOf(object sender) =>
             (sender as FrameworkElement)?.Tag as CoreWebView2BrowserExtension;

@@ -15,14 +15,16 @@ namespace EchoBrowser.Services
     /// <summary>Entpackte, noch nicht installierte Erweiterung (siehe <see cref="ExtensionService.PrepareFromCrx"/>).</summary>
     /// <param name="RootFolder">Von Echo angelegter Ordner unter Extensions\ (wird bei Abbruch gelöscht).</param>
     /// <param name="ManifestFolder">Ordner mit der manifest.json, darin oder eine Ebene tiefer.</param>
+    /// <param name="StoreId">Chrome-Web-Store-ID aus dem CRX3-Kopf (für Updates), null bei CRX2.</param>
     public sealed record PreparedExtension(
         string RootFolder,
         string ManifestFolder,
         string Name,
         string? Version,
-        ExtensionPermissionSummary Permissions);
+        ExtensionPermissionSummary Permissions,
+        string? StoreId = null);
 
-    public class ExtensionService
+    public partial class ExtensionService
     {
         private static ExtensionService? _instance;
         public static ExtensionService Instance => _instance ??= new ExtensionService();
@@ -39,16 +41,17 @@ namespace EchoBrowser.Services
         /// .crx entpacken und das Manifest lesen, aber noch nicht installieren: Der Nutzer soll vorher sehen,
         /// worauf die Erweiterung zugreifen darf. Danach <see cref="InstallPreparedAsync"/> oder <see cref="DiscardPrepared"/>.
         /// </summary>
-        public PreparedExtension PrepareFromCrx(string crxPath)
+        /// <param name="parentDirectory">Wohin entpacken; Standard Extensions\, für Updates der Zwischenordner.</param>
+        public PreparedExtension PrepareFromCrx(string crxPath, string? parentDirectory = null)
         {
             if (!File.Exists(crxPath))
                 throw new FileNotFoundException(Tr.Get("Ext_ErrorCrxNotFound"), crxPath);
 
             string extName = Path.GetFileNameWithoutExtension(crxPath);
-            string targetFolder = Path.Combine(_extensionsDirectory, $"{extName}_{Guid.NewGuid():N}");
+            string targetFolder = Path.Combine(parentDirectory ?? _extensionsDirectory, $"{extName}_{Guid.NewGuid():N}");
             try
             {
-                ExtractCrx(crxPath, targetFolder);
+                string? storeId = ExtractCrx(crxPath, targetFolder);
 
                 string manifestFolder = FindManifestDirectory(targetFolder)
                     ?? throw new InvalidOperationException(Tr.Get("Ext_ErrorManifestMissingUnpacked"));
@@ -64,7 +67,8 @@ namespace EchoBrowser.Services
                     manifestFolder,
                     ResolveDisplayName(manifestFolder, root) ?? extName,
                     root.TryGetProperty("version", out var version) && version.ValueKind == JsonValueKind.String ? version.GetString() : null,
-                    ExtensionPermissions.Describe(root));
+                    ExtensionPermissions.Describe(root),
+                    storeId);
 
                 // Ändert nur den Service Worker, nicht die Berechtigungen
                 ExtensionCompat.Apply(manifestFolder);
@@ -84,6 +88,7 @@ namespace EchoBrowser.Services
             {
                 var ext = await profile.AddBrowserExtensionAsync(prepared.ManifestFolder);
                 RememberExtensionFolder(ext, prepared.ManifestFolder);
+                if (prepared.StoreId != null) RememberStoreId(prepared.ManifestFolder, prepared.StoreId);
                 return ext;
             }
             catch
@@ -96,14 +101,13 @@ namespace EchoBrowser.Services
         /// <summary>Installation abgelehnt oder fehlgeschlagen: entpackte Dateien wieder löschen.</summary>
         public void DiscardPrepared(PreparedExtension prepared) => DeleteExtractedFolder(prepared.RootFolder);
 
-        /// <summary>Löscht nur Ordner, die Echo selbst unter Extensions\ angelegt hat.</summary>
+        /// <summary>Löscht nur Ordner, die Echo selbst angelegt hat (Extensions\ und der Zwischenordner für Updates).</summary>
         private void DeleteExtractedFolder(string folder)
         {
             try
             {
-                string root = Path.GetFullPath(_extensionsDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
                 string full = Path.GetFullPath(folder);
-                if (full.StartsWith(root, StringComparison.OrdinalIgnoreCase) && Directory.Exists(full))
+                if ((IsInside(_extensionsDirectory, full) || IsInside(UpdateStagingDirectory, full)) && Directory.Exists(full))
                 {
                     Directory.Delete(full, recursive: true);
                 }
@@ -173,28 +177,21 @@ namespace EchoBrowser.Services
             // Google liefert nur Erweiterungen aus, deren minimum_chrome_version zur gemeldeten Version passt
             // (1Password verlangt z.B. Chrome 140) – deshalb die tatsächliche Chromium-Version von WebView2 melden
             string browserVersion = GetBrowserVersion();
-            string downloadUrl = BuildWebStoreDownloadUrl(extensionId, browserVersion);
+            // Der Name "download_<id>_…" bleibt: ältere Installationen werden daran als Web-Store-Erweiterung erkannt
             string tempCrxPath = Path.Combine(_extensionsDirectory, $"download_{extensionId}_{Guid.NewGuid():N}.crx");
-
-            using (var handler = new HttpClientHandler { AllowAutoRedirect = true })
-            using (var client = new HttpClient(handler))
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd($"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{browserVersion} Safari/537.36");
-                client.Timeout = TimeSpan.FromSeconds(120);
-
-                var response = await client.GetAsync(downloadUrl);
-                response.EnsureSuccessStatusCode();
-
-                byte[] data = await response.Content.ReadAsByteArrayAsync();
-                // Leere Antwort: Google hat keine passende Version (Erweiterung braucht ein neueres Chromium oder wurde entfernt)
-                if (data.Length == 0)
-                    throw new InvalidOperationException(Tr.Format("Ext_ErrorNoCompatibleVersion", browserVersion));
-                await File.WriteAllBytesAsync(tempCrxPath, data);
-            }
 
             try
             {
-                return PrepareFromCrx(tempCrxPath);
+                await DownloadCrxAsync(BuildWebStoreDownloadUrl(extensionId, browserVersion), tempCrxPath, browserVersion, expectedSha256: null);
+                var prepared = PrepareFromCrx(tempCrxPath);
+
+                // Das Paket muss die angeforderte Erweiterung sein (die ID steht im CRX3-Kopf)
+                if (prepared.StoreId != null && prepared.StoreId != extensionId)
+                {
+                    DiscardPrepared(prepared);
+                    throw new InvalidDataException(Tr.Get("Ext_ErrorIdMismatch"));
+                }
+                return prepared with { StoreId = extensionId };
             }
             finally
             {
@@ -320,6 +317,7 @@ namespace EchoBrowser.Services
                 FolderIndex.Remove(extensionId);
                 SaveFolderIndex();
             }
+            ForgetUpdateData(folder);
 
             try
             {
@@ -543,7 +541,8 @@ namespace EchoBrowser.Services
 
         #endregion
 
-        private static void ExtractCrx(string crxPath, string destinationDirectory)
+        /// <summary>Entpacken; gibt die Store-ID aus dem CRX3-Kopf zurück (null bei CRX2 oder reinem ZIP).</summary>
+        private static string? ExtractCrx(string crxPath, string destinationDirectory)
         {
             Directory.CreateDirectory(destinationDirectory);
 
@@ -560,6 +559,7 @@ namespace EchoBrowser.Services
             archive.ExtractToDirectory(destinationDirectory, overwriteFiles: true);
 
             SanitizeUnpackedExtension(destinationDirectory);
+            return ExtensionUpdates.ReadCrxId(fileBytes);
         }
 
         private readonly Dictionary<string, Task> _profileSetups = new(StringComparer.OrdinalIgnoreCase);
