@@ -706,7 +706,7 @@
         }
 
         // Initialize Engine
-        engineSelect.value = "##CURRENT_ENGINE##";
+        engineSelect.value = ##CURRENT_ENGINE##; // JSON-Literal mit Anführungszeichen, siehe StartPageService
 
         input.addEventListener('input', () => {
             clearBtn.style.display = input.value.length > 0 ? 'block' : 'none';

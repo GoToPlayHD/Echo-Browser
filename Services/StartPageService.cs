@@ -13,7 +13,8 @@ namespace EchoBrowser.Services
         public static string GetStartPageHtml(bool isIncognito = false)
         {
             var settings = AppSettingsService.Instance.Settings;
-            string currentEngine = settings.SearchEngine ?? "duckduckgo";
+            // Landet in einem <script>: nur bekannte Schlüssel, und als JSON-Literal (maskiert " < > &)
+            string currentEngineJson = JsonSerializer.Serialize(SettingValues.NormalizeSearchEngine(settings.SearchEngine));
             bool showFavorites = !isIncognito && settings.IsStartpageFavoritesVisible;
             string shortcutsJson = JsonSerializer.Serialize(settings.StartpageShortcuts ?? new());
 
@@ -36,7 +37,7 @@ namespace EchoBrowser.Services
             html = html.Replace("##THEME_CSS##", ThemeManager.Instance.GetCssVariables());
             html = InternalPageSecurity.InjectToken(html);
             html = html.Replace("##TITLE##", System.Net.WebUtility.HtmlEncode(Tr.Get(isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab")));
-            html = html.Replace("##CURRENT_ENGINE##", currentEngine);
+            html = html.Replace("##CURRENT_ENGINE##", currentEngineJson);
             html = html.Replace("##SHOW_FAVORITES##", showFavorites ? "true" : "false");
             html = html.Replace("##SHORTCUTS_SECTION_CLASS##", showFavorites ? "" : "hidden");
             html = html.Replace("##TOGGLE_TEXT##", System.Net.WebUtility.HtmlEncode(Tr.Get(showFavorites ? "Start_HideShortcuts" : "Start_ShowShortcuts")));

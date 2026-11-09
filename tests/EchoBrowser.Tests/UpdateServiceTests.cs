@@ -26,7 +26,6 @@ namespace EchoBrowser.Tests
         {
             var settings = new AppSettings();
             Assert.True(settings.AutoCheckForUpdates);
-            Assert.Equal("https://github.com/GoToPlayHD/Echo-Browser", settings.UpdateUrl);
             Assert.False(settings.CheckPrereleaseUpdates);
         }
 
@@ -34,7 +33,20 @@ namespace EchoBrowser.Tests
         public void UpdateService_DefaultUpdateUrl_IsGitHubRepo()
         {
             Assert.Equal("https://github.com/GoToPlayHD/Echo-Browser", UpdateService.DefaultUpdateUrl);
-            Assert.Equal("https://github.com/GoToPlayHD/Echo-Browser", UpdateService.Instance.UpdateUrl);
+        }
+
+        [Fact]
+        public void UpdateSource_IsNotASetting()
+        {
+            // Eine einstellbare Quelle hieße Code-Ausführung beim nächsten Update
+            Assert.Null(typeof(AppSettings).GetProperty("UpdateUrl"));
+
+            // Ältere settings.json mit "UpdateUrl" laden weiter, der Wert wird ignoriert
+            var legacy = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(
+                "{\"UpdateUrl\":\"http://evil.example/releases\",\"AutoCheckForUpdates\":false}");
+            Assert.NotNull(legacy);
+            Assert.False(legacy!.AutoCheckForUpdates);
+            Assert.DoesNotContain("evil.example", System.Text.Json.JsonSerializer.Serialize(legacy));
         }
 
         [Fact]

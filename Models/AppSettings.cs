@@ -89,8 +89,9 @@ namespace EchoBrowser.Models
         public HashSet<string> PopupAllowedDomains { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         // 11. Updates (Velopack)
+        // Die Update-Quelle ist fest (UpdateService.DefaultUpdateUrl). Ein "UpdateUrl" aus älteren
+        // settings.json wird beim Laden ignoriert und beim nächsten Speichern entfernt.
         public bool AutoCheckForUpdates { get; set; } = true;
-        public string UpdateUrl { get; set; } = "https://github.com/GoToPlayHD/Echo-Browser";
         public bool CheckPrereleaseUpdates { get; set; } = false;
 
         public static string GetDefaultDownloadPath()

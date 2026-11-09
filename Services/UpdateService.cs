@@ -70,11 +70,11 @@ namespace EchoBrowser.Services
         private CancellationTokenSource? _downloadCts;
         private UpdateInfo? _pendingUpdate;
 
+        /// <summary>
+        /// Einzige Update-Quelle (GitHub Releases). Bewusst nicht einstellbar: Wer die Quelle ändern kann
+        /// (settings.json, Einstellungsseite), bekäme beim nächsten Update Code-Ausführung.
+        /// </summary>
         public const string DefaultUpdateUrl = "https://github.com/GoToPlayHD/Echo-Browser";
-
-        public string UpdateUrl => !string.IsNullOrWhiteSpace(AppSettingsService.Instance.Settings.UpdateUrl)
-            ? AppSettingsService.Instance.Settings.UpdateUrl
-            : DefaultUpdateUrl;
 
         public UpdateStatus Status { get; private set; } = UpdateStatus.Idle;
         public string StatusMessage { get; private set; } = string.Empty;
@@ -151,21 +151,12 @@ namespace EchoBrowser.Services
         }
 
         /// <summary>
-        /// Erstellt die passende Update-Quelle (Standard: GitHub Releases von https://github.com/GoToPlayHD/Echo-Browser oder benutzerdefinierte Update-URL).
+        /// Update-Quelle: immer die GitHub Releases von <see cref="DefaultUpdateUrl"/>.
+        /// Einstellbar ist nur, ob Vorabversionen mitgenommen werden.
         /// </summary>
-        private static IUpdateSource CreateUpdateSource()
-        {
-            var settings = AppSettingsService.Instance.Settings;
-            string url = !string.IsNullOrWhiteSpace(settings.UpdateUrl) ? settings.UpdateUrl : DefaultUpdateUrl;
-
-            // GitHub-Repositories werden über die GitHub Releases API abgefragt, andere URLs als SimpleWebSource
-            if (url.Contains("github.com", StringComparison.OrdinalIgnoreCase))
-            {
-                return new GithubSource(url, accessToken: null, prerelease: settings.CheckPrereleaseUpdates);
-            }
-
-            return new SimpleWebSource(url);
-        }
+        private static IUpdateSource CreateUpdateSource() =>
+            new GithubSource(DefaultUpdateUrl, accessToken: null,
+                prerelease: AppSettingsService.Instance.Settings.CheckPrereleaseUpdates);
 
         /// <summary>
         /// Startet den Timer für die periodische Hintergrundprüfung.
