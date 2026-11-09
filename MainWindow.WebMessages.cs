@@ -140,32 +140,41 @@ namespace EchoBrowser
             }
             else
             {
-                Log.Warn($"Unbekannte Einstellung von der Einstellungsseite: '{key}'");
+                Log.Warn($"Unbekannte Einstellung oder ungültiger Wert von der Einstellungsseite: '{key}'");
             }
         }
 
         /// <summary>
         /// Wert der Einstellungsseite übernehmen. Was ein Fenster daraus macht, steht in OnSettingChanged;
         /// hier bleiben nur Wirkungen, die es pro App genau einmal gibt (Sprache, Updates, Fensterstil aller Fenster).
+        /// Textwerte mit fester Auswahl müssen in <see cref="SettingValues"/> stehen, sonst bleibt die Einstellung unverändert.
         /// </summary>
-        private static bool SetSettingFromPage(string key, JsonElement value)
+        /// <returns>false bei unbekanntem Schlüssel oder nicht erlaubtem Wert.</returns>
+        internal static bool SetSettingFromPage(string key, JsonElement value)
         {
             var settings = AppSettingsService.Instance.Settings;
             switch (key)
             {
                 // Allgemein
-                case "StartupBehavior": settings.StartupBehavior = value.GetString() ?? "startpage"; break;
+                case "StartupBehavior":
+                    if (SettingValues.Match(SettingValues.StartupBehaviors, value.GetString()) is not { } startup) return false;
+                    settings.StartupBehavior = startup;
+                    break;
                 case "CustomStartupUrl": settings.CustomStartupUrl = value.GetString() ?? ""; break;
                 case "ShowHomeButton": settings.ShowHomeButton = value.GetBoolean(); break;
                 case "IsStartpageFavoritesVisible": settings.IsStartpageFavoritesVisible = value.GetBoolean(); break;
                 case "Language":
-                    settings.Language = value.GetString() ?? "de";
+                    if (SettingValues.Match(LocalizationService.Instance.AvailableLanguages, value.GetString()) is not { } language) return false;
+                    settings.Language = language;
                     // LanguageChanged aktualisiert alle Fenster und die internen Seiten
                     LocalizationService.Instance.SetLanguage(settings.Language);
                     break;
 
                 // Suche
-                case "SearchEngine": settings.SearchEngine = (value.GetString() ?? "duckduckgo").ToLowerInvariant().Trim(); break;
+                case "SearchEngine":
+                    if (SettingValues.Match(SettingValues.SearchEngines, value.GetString()) is not { } engine) return false;
+                    settings.SearchEngine = engine;
+                    break;
                 case "EnableSearchSuggestions": settings.EnableSearchSuggestions = value.GetBoolean(); break;
 
                 // Erscheinungsbild
@@ -190,7 +199,10 @@ namespace EchoBrowser
                 case "ShowDownloadsButton": settings.ShowDownloadsButton = value.GetBoolean(); break;
 
                 // Datenschutz
-                case "TrackingPreventionLevel": settings.TrackingPreventionLevel = value.GetString() ?? "balanced"; break;
+                case "TrackingPreventionLevel":
+                    if (SettingValues.Match(SettingValues.TrackingPreventionLevels, value.GetString()) is not { } level) return false;
+                    settings.TrackingPreventionLevel = level;
+                    break;
                 case "BlockPopups": settings.BlockPopups = value.GetBoolean(); break;
                 case "EnableJavaScript": settings.EnableJavaScript = value.GetBoolean(); break;
                 case "IsAdBlockerEnabled": settings.IsAdBlockerEnabled = value.GetBoolean(); break;
@@ -217,7 +229,7 @@ namespace EchoBrowser
                     else UpdateService.Instance.StopAutoCheckTimer();
                     break;
                 case "CheckPrereleaseUpdates": settings.CheckPrereleaseUpdates = value.GetBoolean(); break;
-                case "UpdateUrl": settings.UpdateUrl = value.GetString() ?? UpdateService.DefaultUpdateUrl; break;
+                // Keine "UpdateUrl": Die Update-Quelle ist fest (UpdateService.DefaultUpdateUrl)
 
                 default:
                     return false;

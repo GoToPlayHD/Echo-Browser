@@ -116,8 +116,13 @@ namespace EchoBrowser.Services
 
         public void SetSearchEngine(string engineKey)
         {
-            if (string.IsNullOrWhiteSpace(engineKey)) return;
-            Settings.SearchEngine = engineKey.ToLowerInvariant().Trim();
+            string? engine = SettingValues.Match(SettingValues.SearchEngines, engineKey);
+            if (engine == null)
+            {
+                Log.Warn($"Unbekannte Suchmaschine '{engineKey}' ignoriert");
+                return;
+            }
+            Settings.SearchEngine = engine;
             Changed(nameof(AppSettings.SearchEngine));
         }
 
