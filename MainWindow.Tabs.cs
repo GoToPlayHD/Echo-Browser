@@ -43,6 +43,8 @@ namespace EchoBrowser
             var settings = AppSettingsService.Instance.Settings;
             var tab = new BrowserTab
             {
+                // Vor Url setzen: Url bewertet die Sicherheit der Adresse sofort
+                CertificateErrors = CertificateErrorTracker.ForProfile(_isIncognito),
                 Title = !string.IsNullOrWhiteSpace(title)
                     ? title
                     : Tr.Get(initialUrl == SettingsPageService.SettingsPageUrl ? "Tab_Settings" : "Tab_NewTab"),
@@ -164,6 +166,9 @@ namespace EchoBrowser
 
                     // Kamera, Mikrofon, Standort … -> MainWindow.Permissions.cs
                     AttachPermissionEvents(tab, core);
+
+                    // Zertifikatsfehler: kein »Sicher« nach »Trotzdem fortfahren« -> MainWindow.Shield.cs
+                    AttachCertificateErrorEvents(tab, core);
 
                     AttachPageStateEvents(tab, webView, core);
 

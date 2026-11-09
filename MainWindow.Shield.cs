@@ -70,6 +70,41 @@ namespace EchoBrowser
             shieldPanel.ClearSiteDataRequested += async () => await ClearActiveSiteDataAsync();
         }
 
+        /// <summary>
+        /// Zertifikatsfehler merken. Die Warnseite zeigt weiter Chromium (Action bleibt Default); geht der Nutzer
+        /// trotzdem weiter, zeigen Adressleiste und Shield für diesen Host bis Sitzungsende »Nicht sicher«.
+        /// </summary>
+        private void AttachCertificateErrorEvents(BrowserTab tab, CoreWebView2 core)
+        {
+            core.ServerCertificateErrorDetected += (s, args) =>
+            {
+                if (!CertificateErrorTracker.ForProfile(_isIncognito).Record(args.RequestUri, args.ErrorStatus)) return;
+                if (!_isIncognito && Uri.TryCreate(args.RequestUri, UriKind.Absolute, out var uri))
+                {
+                    Log.Info($"Zertifikatsfehler {args.ErrorStatus} für {uri.Host}");
+                }
+
+                // Andere Tabs desselben Profils können schon auf diesem Host sein
+                foreach (var window in Application.Current.Windows.OfType<MainWindow>().Where(w => w._isIncognito == _isIncognito))
+                {
+                    window.RefreshSecurityState();
+                }
+            };
+        }
+
+        private void RefreshSecurityState()
+        {
+            foreach (var tab in Tabs)
+            {
+                tab.UpdateSecurityStatus();
+            }
+            if (ActiveTab != null)
+            {
+                UpdateSecurityChip(ActiveTab);
+                UpdateShieldUi();
+            }
+        }
+
         private void UpdateShieldUi()
         {
             if (ActiveTab == null) return;
@@ -94,7 +129,8 @@ namespace EchoBrowser
                 SiteOn: ActiveTab.TrackingProtectionEnabled,
                 JavaScriptOn: ActiveTab.JavaScriptEnabled,
                 PopupsBlocked: ActiveTab.PopupsBlocked,
-                BlockedCount: ActiveTab.BlockedTrackersCount));
+                BlockedCount: ActiveTab.BlockedTrackersCount,
+                CertificateError: ActiveTab.CertificateError));
 
             if (popupShield.IsOpen)
             {

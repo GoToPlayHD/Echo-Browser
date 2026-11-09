@@ -46,12 +46,12 @@ namespace EchoBrowser
             if (tab != ActiveTab) return;
             if (_isEditingAddress && txtUrl.IsKeyboardFocusWithin)
             {
-                UpdateSecurityChip(tab.Url);
+                UpdateSecurityChip(tab);
                 return;
             }
 
             SetAddressText(IsStartPage(tab.Url) ? "" : tab.Url);
-            UpdateSecurityChip(tab.Url);
+            UpdateSecurityChip(tab);
             UpdateAddressDisplay();
         }
 
@@ -68,11 +68,23 @@ namespace EchoBrowser
             }
         }
 
-        /// <summary>"Nicht sicher" links in der Adressleiste für unverschlüsselte Seiten (http).</summary>
-        private void UpdateSecurityChip(string? url)
+        /// <summary>
+        /// "Nicht sicher" links in der Adressleiste: gelb für unverschlüsselte Seiten (http),
+        /// rot für https mit Zertifikatsfehler (nach »Trotzdem fortfahren«).
+        /// </summary>
+        private void UpdateSecurityChip(BrowserTab tab)
         {
-            bool insecure = url != null && url.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            var certificateError = tab.CertificateError;
+            bool insecure = certificateError != null || tab.Url.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
             chipNotSecure.Visibility = insecure ? Visibility.Visible : Visibility.Collapsed;
+            if (!insecure) return;
+
+            string brush = certificateError != null ? "StatusDangerBrush" : "StatusWarningBrush";
+            pathNotSecure.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, brush);
+            txtNotSecure.SetResourceReference(TextBlock.ForegroundProperty, brush);
+            chipNotSecure.ToolTip = certificateError is { } error
+                ? Tr.Get(CertificateErrorTracker.ReasonKey(error)) + "\n" + Tr.Get("Security_CertificateErrorTooltip")
+                : Tr.Get("Security_NotSecureTooltip");
         }
 
         /// <summary>

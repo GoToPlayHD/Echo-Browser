@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using EchoBrowser.Services;
+using Microsoft.Web.WebView2.Core;
 
 namespace EchoBrowser.Views.Popups
 {
@@ -15,7 +16,8 @@ namespace EchoBrowser.Views.Popups
         bool SiteOn,
         bool JavaScriptOn,
         bool PopupsBlocked,
-        int BlockedCount);
+        int BlockedCount,
+        CoreWebView2WebErrorStatus? CertificateError = null);
 
     /// <summary>Die Schalter im Shield-Popup nach einer Änderung durch den Nutzer.</summary>
     public sealed record ShieldOptions(bool GlobalOn, bool SiteOn, bool JavaScriptOn, bool PopupsBlocked);
@@ -47,8 +49,16 @@ namespace EchoBrowser.Views.Popups
             {
                 txtShieldHost.Text = string.IsNullOrWhiteSpace(state.Host) ? "Echo" : state.Host;
 
-                txtShieldStatus.Text = Tr.Get(state.IsSecure ? "Security_Secure" : "Security_NotEncrypted");
-                txtShieldStatus.Foreground = ThemeBrush(state.IsSecure ? "StatusSuccessBrush" : "StatusWarningBrush");
+                if (state.CertificateError is { } certificateError)
+                {
+                    txtShieldStatus.Text = Tr.Format("Security_CertificateError", Tr.Get(CertificateErrorTracker.ReasonKey(certificateError)));
+                    txtShieldStatus.Foreground = ThemeBrush("StatusDangerBrush");
+                }
+                else
+                {
+                    txtShieldStatus.Text = Tr.Get(state.IsSecure ? "Security_Secure" : "Security_NotEncrypted");
+                    txtShieldStatus.Foreground = ThemeBrush(state.IsSecure ? "StatusSuccessBrush" : "StatusWarningBrush");
+                }
 
                 chkGlobalShield.IsChecked = state.GlobalOn;
                 chkTrackingProtection.IsChecked = state.SiteOn;

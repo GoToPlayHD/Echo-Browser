@@ -18,6 +18,7 @@ namespace EchoBrowser.Models
         private bool _canGoForward;
         private bool _isSecure;
         private string _securityStatus = Tr.Get("Security_Unchecked");
+        private CoreWebView2WebErrorStatus? _certificateError;
         private bool _trackingProtectionEnabled = true;
         private bool _javaScriptEnabled = true;
         private bool _popupsBlocked = true;
@@ -144,6 +145,23 @@ namespace EchoBrowser.Models
                 if (_securityStatus != value)
                 {
                     _securityStatus = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>Zertifikatsfehler des Profils, in dem der Tab läuft (normal oder Inkognito).</summary>
+        public CertificateErrorTracker? CertificateErrors { get; set; }
+
+        /// <summary>Zertifikatsfehler der aktuellen https-Seite (z. B. nach »Trotzdem fortfahren«), sonst null.</summary>
+        public CoreWebView2WebErrorStatus? CertificateError
+        {
+            get => _certificateError;
+            private set
+            {
+                if (_certificateError != value)
+                {
+                    _certificateError = value;
                     OnPropertyChanged();
                 }
             }
@@ -441,8 +459,14 @@ namespace EchoBrowser.Models
             MemoryBytes = null;
         }
 
+        /// <summary>
+        /// »Sicher« nur für https ohne gemeldeten Zertifikatsfehler. Nach einer neuen Meldung
+        /// (MainWindow, ServerCertificateErrorDetected) erneut aufrufen – die Adresse ändert sich dabei nicht.
+        /// </summary>
         public void UpdateSecurityStatus()
         {
+            CertificateError = CertificateErrors?.Find(_url);
+
             if (string.IsNullOrWhiteSpace(_url) || _url.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
             {
                 IsSecure = false;
@@ -450,7 +474,12 @@ namespace EchoBrowser.Models
                 return;
             }
 
-            if (_url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            if (_certificateError is { } certificateError)
+            {
+                IsSecure = false;
+                SecurityStatus = Tr.Format("Security_CertificateError", Tr.Get(CertificateErrorTracker.ReasonKey(certificateError)));
+            }
+            else if (_url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 IsSecure = true;
                 SecurityStatus = Tr.Get("Security_Secure");

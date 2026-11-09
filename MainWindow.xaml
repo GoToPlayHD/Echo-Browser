@@ -694,7 +694,7 @@
                                 </Border>
                             </StackPanel>
                         </Button>
-                        <!-- Unverschlüsselte Verbindung (http) -->
+                        <!-- Unverschlüsselte Verbindung (http) oder Zertifikatsfehler; Farbe und Tooltip: UpdateSecurityChip -->
                         <Border x:Name="chipNotSecure"
                                 Visibility="Collapsed"
                                 Margin="0,0,4,0"
@@ -704,9 +704,9 @@
                                 Background="{DynamicResource SurfaceHoverBrush}"
                                 ToolTip="{loc:Loc Security_NotSecureTooltip}">
                             <StackPanel Orientation="Horizontal">
-                                <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+                                <Path x:Name="pathNotSecure" Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
                                       Fill="{DynamicResource StatusWarningBrush}" Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center"/>
-                                <TextBlock Text="{loc:Loc Security_NotSecure}" FontSize="11.5" Margin="5,0,0,0"
+                                <TextBlock x:Name="txtNotSecure" Text="{loc:Loc Security_NotSecure}" FontSize="11.5" Margin="5,0,0,0"
                                            Foreground="{DynamicResource StatusWarningBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
