@@ -58,6 +58,37 @@ namespace EchoBrowser.Services
             return image;
         }
 
+        /// <summary>
+        /// Wie <see cref="Get"/>, liest die Datei aber im Hintergrund (beim Wiederherstellen vieler Tabs und bei jedem
+        /// Seitenwechsel). Bereits geladene Symbole kommen sofort zurück.
+        /// </summary>
+        public async Task<ImageSource?> GetAsync(string? url)
+        {
+            string? key = HostKey(url);
+            if (key == null) return null;
+            if (_memory.TryGetValue(key, out var cached)) return cached;
+
+            string file = FileFor(key);
+            byte[]? png = await Task.Run(() =>
+            {
+                try
+                {
+                    return File.Exists(file) ? File.ReadAllBytes(file) : null;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Favicon {key} konnte nicht gelesen werden", ex);
+                    return null;
+                }
+            });
+
+            // Inzwischen von Store gesetzt? Dann gilt das neuere Symbol
+            if (_memory.TryGetValue(key, out cached)) return cached;
+            var image = Decode(png);
+            _memory[key] = image;
+            return image;
+        }
+
         /// <summary>Gespeichertes PNG einer Website ("github.com" oder eine Adresse) oder null.</summary>
         public byte[]? ReadPng(string hostOrUrl)
         {

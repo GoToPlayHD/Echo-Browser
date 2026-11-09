@@ -38,33 +38,33 @@ namespace EchoBrowser
             tab.WebView.CoreWebView2.Reload();
         }
 
-        public void NavigateToSettingsPage(BrowserTab? tab)
+        /// <summary>
+        /// Einstellungen öffnen, optional an einem Bereich (echo://settings#section-…): vorhandenen Einstellungs-Tab
+        /// nutzen, sonst eine leere Startseite, sonst einen neuen Tab.
+        /// </summary>
+        public void OpenSettingsTab(string? section = null)
         {
-            if (tab?.WebView?.CoreWebView2 == null) return;
-            tab.Title = Tr.Get("Tab_Settings");
-            tab.WebView.CoreWebView2.Navigate(SettingsPageService.SettingsPageUrl);
-        }
+            string url = section == null ? SettingsPageService.SettingsPageUrl : $"{SettingsPageService.SettingsPageUrl}#{section}";
 
-        public void OpenSettingsTab()
-        {
-            // If already open, switch to that tab
-            foreach (var tab in Tabs)
+            var open = Tabs.FirstOrDefault(t => InternalPages.Is(t.Url, InternalPages.Settings));
+            if (open != null)
             {
-                if (InternalPages.Is(tab.Url, InternalPages.Settings))
+                SelectTab(open);
+                if (section != null && open.WebView?.CoreWebView2 != null)
                 {
-                    SelectTab(tab);
-                    return;
+                    open.ExpectBrowserNavigation = true;
+                    open.WebView.CoreWebView2.Navigate(url);
                 }
             }
-
-            // If current tab is clean start page, navigate within it
-            if (ActiveTab != null && (IsStartPage(ActiveTab.Url) || string.IsNullOrWhiteSpace(ActiveTab.Url)))
+            else if (ActiveTab?.WebView?.CoreWebView2 != null && (IsStartPage(ActiveTab.Url) || string.IsNullOrWhiteSpace(ActiveTab.Url)))
             {
-                NavigateToSettingsPage(ActiveTab);
+                ActiveTab.Title = Tr.Get("Tab_Settings");
+                ActiveTab.ExpectBrowserNavigation = true;
+                ActiveTab.WebView.CoreWebView2.Navigate(url);
             }
             else
             {
-                AddNewTab(SettingsPageService.SettingsPageUrl);
+                AddNewTab(url, title: Tr.Get("Tab_Settings"));
             }
         }
 
@@ -200,12 +200,7 @@ namespace EchoBrowser
 
         private void ApplyTrackingPrevention(string level)
         {
-            var preventionLevel = level.ToLowerInvariant() switch
-            {
-                "strict" => CoreWebView2TrackingPreventionLevel.Strict,
-                "none" => CoreWebView2TrackingPreventionLevel.None,
-                _ => CoreWebView2TrackingPreventionLevel.Balanced
-            };
+            var preventionLevel = ToTrackingPreventionLevel(level);
 
             foreach (var tab in Tabs)
             {
@@ -252,9 +247,19 @@ namespace EchoBrowser
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            // Downloads hängen an den WebViews dieses Fensters und würden mit ihm abbrechen
+            if (ActiveDownloadCount is int downloads and > 0 &&
+                !ThemedDialogWindow.ShowConfirm(this, Tr.Get("Dialog_CloseBrowserTitle"),
+                    Tr.Format("Dialog_DownloadsRunningMessage", downloads),
+                    Tr.Get("Dialog_CloseAnyway"), Tr.Get("Dialog_Cancel")))
+            {
+                e.Cancel = true;
+                return;
+            }
+
             if (!_isIncognito && Tabs.Count > 1 && AppSettingsService.Instance.Settings.WarnOnClosingMultipleTabs)
             {
-                string title = LocalizationService.Instance.GetString("Dialog_CloseBrowserTitle", "Echo-Browser beenden");
+                string title = LocalizationService.Instance.GetString("Dialog_CloseBrowserTitle", "Echo beenden");
                 string msg = string.Format(LocalizationService.Instance.GetString("Dialog_CloseMultipleTabsMessage", "Möchtest du wirklich alle {0} geöffneten Tabs schließen?"), Tabs.Count);
                 string confirm = LocalizationService.Instance.GetString("Dialog_CloseAllTabs", "Alle Tabs schließen");
                 string cancel = LocalizationService.Instance.GetString("Dialog_Cancel", "Abbrechen");

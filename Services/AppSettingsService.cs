@@ -16,6 +16,19 @@ namespace EchoBrowser.Services
 
         public event Action? SettingsChanged;
 
+        /// <summary>
+        /// Eine einzelne Einstellung hat sich geändert (Schlüssel = Eigenschaftsname in AppSettings).
+        /// Jedes Fenster wendet sie auf sich an – so gilt eine Änderung sofort in allen Fenstern.
+        /// </summary>
+        public event Action<string>? SettingChanged;
+
+        /// <summary>Einstellung geändert: speichern und alle Fenster benachrichtigen.</summary>
+        public void Changed(string key)
+        {
+            Save();
+            SettingChanged?.Invoke(key);
+        }
+
         private AppSettingsService()
         {
             _filePath = AppPaths.File("settings.json");
@@ -82,18 +95,22 @@ namespace EchoBrowser.Services
             Save();
         }
 
+        private static readonly JsonSerializerOptions SaveOptions = new() { WriteIndented = true };
+
+        /// <summary>
+        /// Speichern: Inhalt jetzt erzeugen (aufrufender Thread), schreiben im Hintergrund – Schieberegler der
+        /// Einstellungsseite rufen das sehr oft auf. Beim Beenden wartet App auf BackgroundFileWriter.Flush.
+        /// </summary>
         public void Save()
         {
             try
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(Settings, options);
-                AtomicFile.WriteAllText(_filePath, json);
+                BackgroundFileWriter.Enqueue(_filePath, JsonSerializer.Serialize(Settings, SaveOptions));
                 SettingsChanged?.Invoke();
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore file write errors
+                Log.Warn("Einstellungen konnten nicht gespeichert werden", ex);
             }
         }
 
@@ -101,7 +118,7 @@ namespace EchoBrowser.Services
         {
             if (string.IsNullOrWhiteSpace(engineKey)) return;
             Settings.SearchEngine = engineKey.ToLowerInvariant().Trim();
-            Save();
+            Changed(nameof(AppSettings.SearchEngine));
         }
 
         public string GetSearchUrl(string query)

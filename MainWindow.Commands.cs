@@ -64,7 +64,7 @@ namespace EchoBrowser
             ["toggleVerticalTabs"] = ToggleVerticalTabs,
             ["downloads"] = () => popupDownloads.IsOpen = !popupDownloads.IsOpen,
             ["history"] = () => ToggleHistoryPopup(new RoutedEventArgs()),
-            ["settings"] = OpenSettingsTab,
+            ["settings"] = () => OpenSettingsTab(),
             ["clearData"] = () => OpenSettingsSection("section-privacy"),
             ["toggleShield"] = ToggleShieldGlobally,
             ["performance"] = async () => await OpenPerformancePanelAsync(),
@@ -264,25 +264,7 @@ namespace EchoBrowser
         }
 
         /// <summary>Einstellungsseite an einem Bereich öffnen (echo://settings#section-…).</summary>
-        private void OpenSettingsSection(string section)
-        {
-            string url = $"{SettingsPageService.SettingsPageUrl}#{section}";
-            var open = Tabs.FirstOrDefault(t => InternalPages.Is(t.Url, InternalPages.Settings));
-            if (open != null)
-            {
-                SelectTab(open);
-                open.WebView?.CoreWebView2?.Navigate(url);
-            }
-            else if (ActiveTab?.WebView?.CoreWebView2 != null && (IsStartPage(ActiveTab.Url) || string.IsNullOrWhiteSpace(ActiveTab.Url)))
-            {
-                ActiveTab.Title = Tr.Get("Tab_Settings");
-                ActiveTab.WebView.CoreWebView2.Navigate(url);
-            }
-            else
-            {
-                AddNewTab(url, title: Tr.Get("Tab_Settings"));
-            }
-        }
+        private void OpenSettingsSection(string section) => OpenSettingsTab(section);
 
         /// <summary>Echo Shield für alle Websites ein- bzw. ausschalten (wie der globale Schalter im Shield-Panel).</summary>
         private void ToggleShieldGlobally()

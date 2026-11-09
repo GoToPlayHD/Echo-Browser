@@ -45,7 +45,7 @@ namespace EchoBrowser.Views.Popups
             _isUpdating = true;
             try
             {
-                txtShieldHost.Text = string.IsNullOrWhiteSpace(state.Host) ? "Echo-Browser" : state.Host;
+                txtShieldHost.Text = string.IsNullOrWhiteSpace(state.Host) ? "Echo" : state.Host;
 
                 txtShieldStatus.Text = Tr.Get(state.IsSecure ? "Security_Secure" : "Security_NotEncrypted");
                 txtShieldStatus.Foreground = ThemeBrush(state.IsSecure ? "StatusSuccessBrush" : "StatusWarningBrush");

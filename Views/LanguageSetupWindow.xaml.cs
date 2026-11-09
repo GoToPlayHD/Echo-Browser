@@ -87,22 +87,22 @@ namespace EchoBrowser.Views
                 case "en":
                     HighlightCard(cardEn, checkEn);
                     btnContinue.Content = "Continue →";
-                    txtSubtitle.Text = "Select your preferred language for Echo-Browser";
+                    txtSubtitle.Text = "Select your preferred language for Echo";
                     break;
                 case "fr":
                     HighlightCard(cardFr, checkFr);
                     btnContinue.Content = "Continuer →";
-                    txtSubtitle.Text = "Choisissez votre langue préférée pour Echo-Browser";
+                    txtSubtitle.Text = "Choisissez votre langue préférée pour Echo";
                     break;
                 case "es":
                     HighlightCard(cardEs, checkEs);
                     btnContinue.Content = "Continuar →";
-                    txtSubtitle.Text = "Elige tu idioma preferido para Echo-Browser";
+                    txtSubtitle.Text = "Elige tu idioma preferido para Echo";
                     break;
                 default:
                     HighlightCard(cardDe, checkDe);
                     btnContinue.Content = "Fortfahren →";
-                    txtSubtitle.Text = "Wähle deine bevorzugte Sprache für Echo-Browser";
+                    txtSubtitle.Text = "Wähle deine bevorzugte Sprache für Echo";
                     break;
             }
         }

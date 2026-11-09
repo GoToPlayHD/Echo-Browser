@@ -130,6 +130,8 @@ namespace EchoBrowser
 
         private void CloseGroup(TabGroup group)
         {
+            // Erst einen Tab außerhalb der Gruppe aktivieren (sonst weckt jeder geschlossene Tab den nächsten auf)
+            if (ActiveTab?.Group == group && Tabs.FirstOrDefault(t => t.Group != group) is { } outside) SelectTab(outside);
             foreach (var tab in Tabs.Where(t => t.Group == group).ToList()) CloseTab(tab);
         }
 

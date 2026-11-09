@@ -67,6 +67,8 @@ public partial class App : Application
         SessionService.Instance.MarkRunning();
         app.Exit += (s, e) =>
         {
+            // Sitzung und Einstellungen werden im Hintergrund geschrieben – vor dem Beenden abwarten
+            BackgroundFileWriter.Flush();
             SessionService.Instance.MarkCleanExit();
             UpdateService.Instance.ApplyPendingUpdateOnExit();
         };

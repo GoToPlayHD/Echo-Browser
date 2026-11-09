@@ -20,6 +20,13 @@ namespace EchoBrowser.Services
         internal const string CompatFileName = "echo-compat.js";
         internal const string WrapperFileName = "echo-service-worker.js";
 
+        /// <summary>
+        /// Merker: WebView2 hat den Service Worker mit dem Wrapper registriert. Fehlt er, muss die Erweiterung einmal
+        /// aus- und wieder eingeschaltet werden – WebView2 übernimmt einen geänderten Service Worker einer bereits
+        /// installierten Erweiterung beim Start nicht, und ohne Hintergrund laden Popups wie 1Password oder LastPass nie.
+        /// </summary>
+        internal const string RegisteredMarkerFileName = "echo-service-worker.registered";
+
         /// <summary>Kompatibilitätsschicht (läuft im Service Worker vor dem Code der Erweiterung).</summary>
         internal const string CompatScript = @"// Von Echo-Browser eingefügt: WebView2 liefert bei chrome.tabs.create/update kein Tab-Objekt zurück.
 // Diese Schicht sucht den betroffenen Tab und gibt ihn wie Chrome zurück (Callback und Promise).
@@ -96,7 +103,11 @@ namespace EchoBrowser.Services
                 }
 
                 bool isModule = background["type"]?.GetValue<string>() == "module";
-                File.WriteAllText(Path.Combine(extensionFolder, CompatFileName), CompatScript);
+                string compatPath = Path.Combine(extensionFolder, CompatFileName);
+                if (!File.Exists(compatPath) || File.ReadAllText(compatPath) != CompatScript)
+                {
+                    File.WriteAllText(compatPath, CompatScript);
+                }
 
                 // Schon umgestellt: nur die Schicht aktualisieren (der Verweis auf das Original steht im Wrapper)
                 if (worker == WrapperFileName) return true;
@@ -108,6 +119,7 @@ namespace EchoBrowser.Services
                 File.WriteAllText(Path.Combine(extensionFolder, WrapperFileName), wrapper);
 
                 background["service_worker"] = WrapperFileName;
+                File.Delete(Path.Combine(extensionFolder, RegisteredMarkerFileName));
                 File.WriteAllText(manifestPath, manifest.ToJsonString(new JsonSerializerOptions
                 {
                     WriteIndented = true,
@@ -119,6 +131,27 @@ namespace EchoBrowser.Services
             {
                 Log.Warn($"Kompatibilitätsschicht konnte nicht eingebaut werden: {extensionFolder}", ex);
                 return false;
+            }
+        }
+
+        /// <summary>True, wenn der Service Worker der Erweiterung seit dem Einbau des Wrappers nicht neu registriert wurde.</summary>
+        public static bool NeedsServiceWorkerRefresh(string extensionFolder) =>
+            File.Exists(Path.Combine(extensionFolder, WrapperFileName)) &&
+            !File.Exists(Path.Combine(extensionFolder, RegisteredMarkerFileName));
+
+        /// <summary>Merken, dass WebView2 den Service Worker mit dem Wrapper registriert hat.</summary>
+        public static void MarkServiceWorkerRegistered(string extensionFolder)
+        {
+            try
+            {
+                if (File.Exists(Path.Combine(extensionFolder, WrapperFileName)))
+                {
+                    File.WriteAllText(Path.Combine(extensionFolder, RegisteredMarkerFileName), "");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Merker für den Service Worker konnte nicht geschrieben werden: {extensionFolder}", ex);
             }
         }
     }

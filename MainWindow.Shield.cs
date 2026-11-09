@@ -107,6 +107,25 @@ namespace EchoBrowser
         /// Bringt Cosmetic-Script und Netzwerkfilter eines Tabs in Einklang mit dem Shield-Status
         /// (global aktiv UND für die aktuelle Website nicht deaktiviert).
         /// </summary>
+        /// <summary>
+        /// Anfragearten, die Werbung und Tracker tatsächlich nutzen. Jede gefilterte Anfrage läuft über den UI-Thread –
+        /// Stylesheets, Schriften, Manifeste und Untertitel bleiben deshalb außen vor (Werbenetze laden darüber nichts,
+        /// was Shield blocken müsste). Document = eingebettete Frames; die Hauptseite selbst wird nie blockiert.
+        /// </summary>
+        private static readonly CoreWebView2WebResourceContext[] AdBlockContexts =
+        {
+            CoreWebView2WebResourceContext.Document,
+            CoreWebView2WebResourceContext.Script,
+            CoreWebView2WebResourceContext.Image,
+            CoreWebView2WebResourceContext.Media,
+            CoreWebView2WebResourceContext.XmlHttpRequest,
+            CoreWebView2WebResourceContext.Fetch,
+            CoreWebView2WebResourceContext.Ping,
+            CoreWebView2WebResourceContext.EventSource,
+            CoreWebView2WebResourceContext.Websocket,
+            CoreWebView2WebResourceContext.Other
+        };
+
         private async Task SyncShieldStateAsync(BrowserTab tab)
         {
             var core = tab.WebView?.CoreWebView2;
@@ -119,12 +138,12 @@ namespace EchoBrowser
             {
                 if (shouldBeActive && !tab.IsAdBlockFilterRegistered)
                 {
-                    core.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+                    foreach (var context in AdBlockContexts) core.AddWebResourceRequestedFilter("*", context);
                     tab.IsAdBlockFilterRegistered = true;
                 }
                 else if (!shouldBeActive && tab.IsAdBlockFilterRegistered)
                 {
-                    core.RemoveWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+                    foreach (var context in AdBlockContexts) core.RemoveWebResourceRequestedFilter("*", context);
                     tab.IsAdBlockFilterRegistered = false;
                 }
             }

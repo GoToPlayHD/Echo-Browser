@@ -36,6 +36,9 @@ namespace EchoBrowser
                 (Key.F4, Ctrl) => () => ExecuteCommand("closeTab"),
                 (Key.Tab, Ctrl) or (Key.PageDown, Ctrl) => () => SelectAdjacentTab(+1),
                 (Key.Tab, CtrlShift) or (Key.PageUp, Ctrl) => () => SelectAdjacentTab(-1),
+                (Key.PageDown, CtrlShift) => () => MoveActiveTab(+1),
+                (Key.PageUp, CtrlShift) => () => MoveActiveTab(-1),
+                (Key.W, CtrlShift) => Close,
                 (>= Key.D1 and <= Key.D9, Ctrl) => () => SelectTabByNumber(key - Key.D1 + 1),
                 (>= Key.NumPad1 and <= Key.NumPad9, Ctrl) => () => SelectTabByNumber(key - Key.NumPad1 + 1),
 

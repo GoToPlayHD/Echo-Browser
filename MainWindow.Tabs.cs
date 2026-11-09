@@ -50,9 +50,15 @@ namespace EchoBrowser
                 JavaScriptEnabled = settings.EnableJavaScript,
                 PopupsBlocked = settings.BlockPopups
             };
-            tab.Favicon = InternalPages.IsInternalUrl(initialUrl) || initialUrl == "about:blank"
-                ? AppIcon
-                : _isIncognito ? null : FaviconCache.Instance.Get(initialUrl);
+            if (InternalPages.IsInternalUrl(initialUrl) || initialUrl == "about:blank")
+            {
+                tab.Favicon = AppIcon;
+            }
+            else if (!_isIncognito)
+            {
+                // Gespeichertes Symbol im Hintergrund laden (wichtig beim Wiederherstellen vieler Tabs)
+                _ = LoadCachedFaviconAsync(tab, initialUrl);
+            }
 
             // Adresse oder Titel geändert -> Sitzung (verzögert) sichern
             tab.PropertyChanged += (s, e) =>
@@ -116,14 +122,17 @@ namespace EchoBrowser
                 var core = webView.CoreWebView2;
                 if (core != null && (!_isIncognito || _incognitoWithExtensions))
                 {
-                    // Temporäres Inkognito-Profil: startet leer, die installierten Erweiterungen hineinladen.
-                    // Normales Profil: nach einem Umzug des Datenordners vergessene Erweiterungen neu laden.
-                    await ExtensionService.Instance.EnsureProfileExtensionsAsync(core.Profile, isTemporaryProfile: _isIncognito);
+                    // Temporäres Inkognito-Profil: startet leer, die installierten Erweiterungen hineinladen – vor der
+                    // ersten Seite, sonst fehlen dort ihre Inhaltsskripte.
+                    // Normales Profil: kennt seine Erweiterungen schon; nach einem Umzug des Datenordners vergessene neu
+                    // laden und geänderte Hintergrund-Skripte neu starten – das läuft parallel zum Laden der Seite.
+                    var extensionSetup = ExtensionService.Instance.EnsureProfileExtensionsAsync(core.Profile, isTemporaryProfile: _isIncognito);
+                    if (_isIncognito) await extensionSetup;
                     if (!_pinnedExtensionsShown)
                     {
-                        // Erst jetzt kennt das Profil seine Erweiterungen – vorher bliebe die Leiste leer
+                        // Erst danach kennt das Profil alle Erweiterungen – vorher bliebe die Leiste leer
                         _pinnedExtensionsShown = true;
-                        UpdatePinnedExtensionsToolbar();
+                        _ = ShowPinnedExtensionsWhenReadyAsync(extensionSetup);
                     }
                 }
                 if (core != null)
@@ -141,7 +150,7 @@ namespace EchoBrowser
                     core.NewWindowRequested += (s, args) => HandleNewWindowRequested(tab, args);
 
                     // Downloads -> MainWindow.Downloads.cs
-                    core.DownloadStarting += (s, args) => HandleDownloadStarting(core, args);
+                    core.DownloadStarting += (s, args) => HandleDownloadStarting(tab, core, args);
 
                     // Abstürze des Renderers oder Browsers -> MainWindow.InternalPages.cs
                     core.ProcessFailed += (s, args) => HandleProcessFailed(tab, webView, args);
@@ -232,21 +241,12 @@ namespace EchoBrowser
                 SetZoom(webView, startZoom, remember: false);
             }
 
-            // "Do Not Track" & Global Privacy Control -> MainWindow.Privacy.cs
-            await AttachPrivacySignalsAsync(tab, core);
-
-            // Cosmetic element-hiding + Netzwerkfilter (nur wenn Shield aktiv)
-            await SyncShieldStateAsync(tab);
-
-            // Chrome Web Store Extension Helper Script
-            try
-            {
-                await core.AddScriptToExecuteOnDocumentCreatedAsync(ExtensionService.GetWebStoreHelperScript());
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("Web-Store-Hilfsskript konnte nicht registriert werden", ex);
-            }
+            // Die Skripte der Seite unabhängig voneinander gleichzeitig registrieren (spart Wartezeit vor dem ersten Laden):
+            // "Do Not Track" & Global Privacy Control (MainWindow.Privacy.cs), Shield (nur wenn aktiv), Web-Store-Helfer
+            await Task.WhenAll(
+                AttachPrivacySignalsAsync(tab, core),
+                SyncShieldStateAsync(tab),
+                RegisterWebStoreHelperAsync(core));
 
             // Allow extension downloads without prompt interruptions.
             // Nur für .crx – alle anderen Dateitypen (z.B. .exe/.msi) durchlaufen weiterhin die Chromium-Sicherheitsprüfung.
@@ -265,13 +265,7 @@ namespace EchoBrowser
 
             try
             {
-                string trackingLevel = settings.TrackingPreventionLevel ?? "balanced";
-                core.Profile.PreferredTrackingPreventionLevel = trackingLevel.ToLowerInvariant() switch
-                {
-                    "strict" => CoreWebView2TrackingPreventionLevel.Strict,
-                    "none" => CoreWebView2TrackingPreventionLevel.None,
-                    _ => CoreWebView2TrackingPreventionLevel.Balanced
-                };
+                core.Profile.PreferredTrackingPreventionLevel = ToTrackingPreventionLevel(settings.TrackingPreventionLevel);
             }
             catch (Exception ex)
             {
@@ -336,7 +330,9 @@ namespace EchoBrowser
                 if (InternalPages.IsInternalUrl(tab.Url)) return;
 
                 tab.Title = core.DocumentTitle;
-                RecordHistory(tab);
+                // Während des Ladens trägt NavigationCompleted den Besuch ein (und weiß, ob er gelungen ist);
+                // danach halten Titeländerungen den Eintrag aktuell (auch Seitenwechsel per pushState)
+                if (!tab.IsLoading) RecordHistory(tab, titleChangeOnly: true);
             };
 
             core.HistoryChanged += (s, args) =>
@@ -357,6 +353,8 @@ namespace EchoBrowser
                 var settings = AppSettingsService.Instance.Settings;
                 bool isInternal = InternalPages.IsInternalUrl(args.Uri);
                 tab.MainFrameNavigationUri = args.Uri;
+                tab.CurrentNavigationId = args.NavigationId;
+                tab.LoadFailed = false;
 
                 // Website-Ausnahmen für Shield und Popup-Blocker
                 if (Uri.TryCreate(args.Uri, UriKind.Absolute, out var navUri) && !string.IsNullOrEmpty(navUri.Host))
@@ -371,8 +369,19 @@ namespace EchoBrowser
                     webView.CoreWebView2.Settings.IsScriptEnabled = isInternal || tab.JavaScriptEnabled;
                 }
 
-                // Die Absturzseite behält die ursprüngliche Adresse (für Adressleiste, Sitzung und "Neu laden")
-                if (!InternalPages.Is(args.Uri, InternalPages.Crashed))
+                // Von Echo gestartet (oder erste Seite eines Tabs)? Nur dann das Ziel schon jetzt anzeigen
+                if (tab.ExpectBrowserNavigation)
+                {
+                    tab.ExpectBrowserNavigation = false;
+                    tab.BrowserNavigationId = args.NavigationId;
+                }
+                string committed = webView.CoreWebView2?.Source ?? "";
+                bool showTarget = args.NavigationId == tab.BrowserNavigationId ||
+                                  committed.Length == 0 || committed == "about:blank";
+
+                // Die Absturzseite behält die ursprüngliche Adresse (für Adressleiste, Sitzung und "Neu laden").
+                // Von der Seite gestartete Navigationen: Adresse erst nach dem Laden (SourceChanged)
+                if (showTarget && !InternalPages.Is(args.Uri, InternalPages.Crashed))
                 {
                     PrepareFaviconForNavigation(tab, args.Uri);
                     tab.Url = InternalPages.Normalize(args.Uri);
@@ -399,6 +408,9 @@ namespace EchoBrowser
 
             webView.NavigationCompleted += (s, args) =>
             {
+                // Abgelöste Navigation (schnell hintereinander geklickt): die neue lädt noch
+                if (args.NavigationId != tab.CurrentNavigationId) return;
+
                 tab.IsLoading = false;
 
                 // Wurde die Navigation nicht übernommen (Download, abgebrochen, 204), gilt weiter die alte Adresse
@@ -421,12 +433,24 @@ namespace EchoBrowser
                         _ = StartFindAsync(findBar.SearchText, findBar.MatchCase);
                     }
                 }
-                RecordHistory(tab);
+
+                // Nicht erreichbare Seiten (DNS, offline, abgebrochen) gehören nicht in den Verlauf,
+                // stattdessen zeigt Echo eine eigene Fehlerseite
+                tab.LoadFailed = !args.IsSuccess;
+                if (args.IsSuccess)
+                {
+                    RecordHistory(tab);
+                }
+                else
+                {
+                    _ = ShowNetErrorPageAsync(tab, webView, args.WebErrorStatus);
+                }
             };
 
             webView.SourceChanged += (s, args) =>
             {
-                string currentSrc = webView.Source?.ToString() ?? "";
+                // CoreWebView2.Source statt webView.Source: Uri.ToString() würde %20 & Co. entschlüsseln
+                string currentSrc = webView.CoreWebView2?.Source ?? "";
                 if (currentSrc.Length > 0 && !InternalPages.Is(currentSrc, InternalPages.Crashed))
                 {
                     tab.Url = InternalPages.Normalize(currentSrc);
@@ -441,15 +465,72 @@ namespace EchoBrowser
         }
 
         /// <summary>Verlaufseintrag anlegen – nicht im Inkognito-Modus und nicht für interne Seiten.</summary>
-        private void RecordHistory(BrowserTab tab)
+        private void RecordHistory(BrowserTab tab, bool titleChangeOnly = false)
         {
-            if (_isIncognito || string.IsNullOrWhiteSpace(tab.Url)) return;
-            if (InternalPages.IsInternalUrl(tab.Url) ||
-                tab.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return;
-            // Die Absturzseite zeigt die alte Adresse – kein Verlaufseintrag "Seite abgestürzt"
-            if (InternalPages.Is(tab.WebView?.CoreWebView2?.Source, InternalPages.Crashed)) return;
+            // Die tatsächlich geladene Seite – tab.Url zeigt während einer Navigation schon auf das neue Ziel,
+            // der Titel gehört dann aber noch zur alten Seite
+            string url = tab.WebView?.CoreWebView2?.Source ?? "";
+            if (_isIncognito || tab.LoadFailed || string.IsNullOrWhiteSpace(url)) return;
+            if (InternalPages.IsInternalUrl(url) ||
+                url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return;
+            // Absturzseite (zeigt die alte Adresse) – kein Verlaufseintrag "Seite abgestürzt"; interne Seiten: s.o.
 
-            _historyService.AddEntry(tab.Title, tab.Url);
+            _historyService.AddEntry(tab.Title, url, titleChangeOnly);
+        }
+
+        private static async Task RegisterWebStoreHelperAsync(CoreWebView2 core)
+        {
+            try
+            {
+                await core.AddScriptToExecuteOnDocumentCreatedAsync(ExtensionService.GetWebStoreHelperScript());
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Web-Store-Hilfsskript konnte nicht registriert werden", ex);
+            }
+        }
+
+        private async Task ShowPinnedExtensionsWhenReadyAsync(Task extensionSetup)
+        {
+            try
+            {
+                await extensionSetup;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Erweiterungen konnten nicht vorbereitet werden", ex);
+            }
+            UpdatePinnedExtensionsToolbar();
+        }
+
+        /// <summary>Eigene Fehlerseite statt Chromiums Standardseite (Services/NetErrorPageService.cs).</summary>
+        private async Task ShowNetErrorPageAsync(BrowserTab tab, WebView2 webView, CoreWebView2WebErrorStatus status)
+        {
+            var core = webView.CoreWebView2;
+            if (core == null) return;
+
+            string url = core.Source;
+            var kind = NetErrorPageService.Classify(status);
+
+            // Chromium lädt seine Fehlerseite kurz darauf selbst neu und meldet dann "ConnectionAborted":
+            // die ursprüngliche Fehlerart (z.B. Adresse nicht gefunden) behalten
+            if (status == CoreWebView2WebErrorStatus.ConnectionAborted && tab.LastNetError is { } last && last.Url == url)
+            {
+                kind = last.Kind;
+                status = last.Status;
+            }
+            if (kind == null) return;
+            tab.LastNetError = (url, kind.Value, status);
+
+            try
+            {
+                await core.ExecuteScriptAsync(NetErrorPageService.BuildInjectionScript(url, kind.Value, status));
+            }
+            catch (Exception ex)
+            {
+                // Tab inzwischen geschlossen oder weiter navigiert
+                Log.Warn($"Fehlerseite für {url} konnte nicht angezeigt werden", ex);
+            }
         }
 
         /// <summary>Erste Navigation: Startseite, Einstellungen oder die angeforderte URL.</summary>
@@ -525,14 +606,20 @@ namespace EchoBrowser
                 _closedTabs.Push(tab.Url, tab.Title, index);
             }
 
-            // Remove WebView control from container
-            if (tab.WebView != null)
+            if (tab.ActiveDownloads > 0 && tab.WebView != null)
             {
-                WebViewContainer.Children.Remove(tab.WebView);
+                // Laufende Downloads hängen an der WebView: unsichtbar weiterleben lassen, bis sie fertig sind
+                tab.WebView.Visibility = Visibility.Collapsed;
+                _tabsKeptForDownloads.Add(tab);
             }
-
-            // Dispose tab and webview resources explicitly
-            tab.Dispose();
+            else
+            {
+                if (tab.WebView != null)
+                {
+                    WebViewContainer.Children.Remove(tab.WebView);
+                }
+                tab.Dispose();
+            }
             Tabs.Remove(tab);
 
             // If we closed the active tab, select an adjacent one (der letzte Tab schließt oben das Fenster)
@@ -543,16 +630,24 @@ namespace EchoBrowser
             }
         }
 
-        private void OnActiveTabChanged()
+        private void OnActiveTabChanged(BrowserTab? previous = null)
         {
             if (ActiveTab == null) return;
 
-            // Video-Vollbild gehört zum bisherigen Tab: nach Tabwechsel oder Schließen nicht im Vollbild hängen bleiben
+            // Video-Vollbild gehört zum bisherigen Tab: nach Tabwechsel oder Schließen nicht im Vollbild hängen bleiben.
+            // Das Video selbst im bisherigen Tab beenden – sonst steckt es beim Zurückwechseln noch im Vollbild.
             if (_isFullscreen && _fullscreenFromPage && ActiveTab.WebView?.CoreWebView2?.ContainsFullScreenElement != true)
             {
+                if (previous?.WebView?.CoreWebView2 is { ContainsFullScreenElement: true } previousCore)
+                {
+                    _ = previousCore.ExecuteScriptAsync("document.fullscreenElement && document.exitFullscreen()");
+                }
                 SetFullscreen(false, fromPage: true);
             }
 
+            // Getippter, nicht abgeschickter Text gehört zum vorherigen Tab – nicht in den neuen übernehmen
+            CloseOmniboxPopup();
+            FinishAddressEditing();
             ShowAddress(ActiveTab);
             UpdateNavigationControls();
             CheckBookmarkStatus();
@@ -611,7 +706,17 @@ namespace EchoBrowser
                     {
                         var dragged = _draggedTab;
                         var data = new DataObject("EchoBrowserTab", dragged);
-                        DragDrop.DoDragDrop(fe, data, DragDropEffects.Move);
+                        // Gezogenen Tab sichtbar "anheben", solange er verschoben wird
+                        double opacityBefore = fe.Opacity;
+                        fe.Opacity = 0.6;
+                        try
+                        {
+                            DragDrop.DoDragDrop(fe, data, DragDropEffects.Move);
+                        }
+                        finally
+                        {
+                            fe.Opacity = opacityBefore;
+                        }
                         _draggedTab = null;
 
                         // Gruppe nach der neuen Position anpassen (MainWindow.TabGroups.cs)

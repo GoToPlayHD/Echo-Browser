@@ -91,12 +91,12 @@ namespace EchoBrowser.Services
         {
             var sb = new StringBuilder();
             sb.AppendLine("<!DOCTYPE NETSCAPE-Bookmark-file-1>");
-            sb.AppendLine("<!-- Exportiert aus Echo-Browser -->");
+            sb.AppendLine("<!-- Exportiert aus Echo -->");
             sb.AppendLine("<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">");
             sb.AppendLine("<TITLE>Bookmarks</TITLE>");
             sb.AppendLine("<H1>Bookmarks</H1>");
             sb.AppendLine("<DL><p>");
-            sb.AppendLine("    <DT><H3 PERSONAL_TOOLBAR_FOLDER=\"true\">Echo-Browser</H3>");
+            sb.AppendLine("    <DT><H3 PERSONAL_TOOLBAR_FOLDER=\"true\">Echo</H3>");
             sb.AppendLine("    <DL><p>");
 
             foreach (var bookmark in bookmarks)

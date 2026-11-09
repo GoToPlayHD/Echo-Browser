@@ -48,12 +48,12 @@ namespace EchoBrowser.Services
             string open = $"\"{exePath}\" \"%1\"";
             string icon = $"\"{exePath}\",0";
 
-            WriteProgId(root, UrlProgId, "Echo-Browser URL", icon, open, isUrlProtocol: true);
-            WriteProgId(root, HtmlProgId, "Echo-Browser HTML", icon, open, isUrlProtocol: false);
+            WriteProgId(root, UrlProgId, "Echo URL", icon, open, isUrlProtocol: true);
+            WriteProgId(root, HtmlProgId, "Echo HTML", icon, open, isUrlProtocol: false);
 
             using (var client = root.CreateSubKey(ClientKey))
             {
-                client.SetValue("", "Echo-Browser");
+                client.SetValue("", "Echo");
                 using var defaultIcon = client.CreateSubKey("DefaultIcon");
                 defaultIcon.SetValue("", icon);
                 using var command = client.CreateSubKey(@"shell\open\command");
@@ -62,8 +62,8 @@ namespace EchoBrowser.Services
 
             using (var capabilities = root.CreateSubKey(CapabilitiesKey))
             {
-                capabilities.SetValue("ApplicationName", "Echo-Browser");
-                capabilities.SetValue("ApplicationDescription", "Echo-Browser – schneller, privater Browser mit Echo Shield");
+                capabilities.SetValue("ApplicationName", "Echo");
+                capabilities.SetValue("ApplicationDescription", "Echo – schneller, privater Browser mit Echo Shield");
                 capabilities.SetValue("ApplicationIcon", icon);
 
                 using var startMenu = capabilities.CreateSubKey("StartMenu");
@@ -143,7 +143,7 @@ namespace EchoBrowser.Services
 
             using (var application = key.CreateSubKey("Application"))
             {
-                application.SetValue("ApplicationName", "Echo-Browser");
+                application.SetValue("ApplicationName", "Echo");
                 application.SetValue("ApplicationIcon", icon);
             }
             using (var defaultIcon = key.CreateSubKey("DefaultIcon"))

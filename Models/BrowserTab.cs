@@ -358,6 +358,34 @@ namespace EchoBrowser.Models
         /// <summary>Adresse der laufenden Hauptseiten-Navigation (auch nach Weiterleitungen) – für den Shield-Netzwerkfilter.</summary>
         public string? MainFrameNavigationUri { get; set; }
 
+        /// <summary>
+        /// ID der zuletzt gestarteten Hauptseiten-Navigation. Ein verspätetes NavigationCompleted einer abgelösten
+        /// Navigation darf Ladezustand und Adresse der neuen nicht überschreiben.
+        /// </summary>
+        public ulong CurrentNavigationId { get; set; }
+
+        /// <summary>
+        /// Echo selbst startet gleich eine Navigation (Adressleiste, Lesezeichen, Zurück/Vor). Nur dann zeigt die
+        /// Adressleiste das Ziel schon während des Ladens – von der Seite ausgelöste Navigationen erst nach dem Laden
+        /// (sonst könnte eine Seite eine fremde Adresse anzeigen lassen, die nie lädt).
+        /// </summary>
+        public bool ExpectBrowserNavigation { get; set; }
+
+        /// <summary>ID der zuletzt von Echo gestarteten Navigation (gilt auch für ihre Weiterleitungen).</summary>
+        public ulong BrowserNavigationId { get; set; }
+
+        /// <summary>Die letzte Navigation ist fehlgeschlagen (Fehlerseite) – kein Verlaufseintrag für diese Adresse.</summary>
+        public bool LoadFailed { get; set; }
+
+        /// <summary>
+        /// Laufende oder pausierte Downloads dieses Tabs. WebView2 bricht Downloads ab, sobald ihre WebView
+        /// freigegeben wird – solche Tabs werden nicht verworfen, und beim Schließen lebt die WebView unsichtbar weiter.
+        /// </summary>
+        public int ActiveDownloads { get; set; }
+
+        /// <summary>Zuletzt gezeigte eigene Fehlerseite (Adresse, Art, Status) – siehe MainWindow.ShowNetErrorPageAsync.</summary>
+        public (string Url, Services.NetErrorPageService.ErrorKind Kind, Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus Status)? LastNetError { get; set; }
+
         /// <summary>Zuletzt sichtbar – Grundlage für den Tab-Schlaf.</summary>
         public DateTime LastActiveAt { get; set; } = DateTime.Now;
 

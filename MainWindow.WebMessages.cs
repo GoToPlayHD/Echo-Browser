@@ -64,8 +64,8 @@ namespace EchoBrowser
 
         private void OnSetSearchEngineMessage(WebMessageContext ctx)
         {
+            // Alle Fenster gleichen ihre Auswahlliste an (OnSettingChanged)
             AppSettingsService.Instance.SetSearchEngine(ctx.GetString("engine") ?? "");
-            SyncSearchEngineComboBox();
         }
 
         private void OnToggleStartpageFavoritesMessage(WebMessageContext ctx)
@@ -133,29 +133,31 @@ namespace EchoBrowser
             string? key = ctx.GetString("key");
             if (key == null || !ctx.TryGet("value", out var value)) return;
 
-            ApplySettingFromPage(ctx, key, value);
-            AppSettingsService.Instance.Save();
+            if (SetSettingFromPage(key, value))
+            {
+                // Speichern und alle Fenster die Änderung übernehmen lassen (MainWindow.SettingsSync.cs)
+                AppSettingsService.Instance.Changed(key);
+            }
+            else
+            {
+                Log.Warn($"Unbekannte Einstellung von der Einstellungsseite: '{key}'");
+            }
         }
 
-        private void ApplySettingFromPage(WebMessageContext ctx, string key, JsonElement value)
+        /// <summary>
+        /// Wert der Einstellungsseite übernehmen. Was ein Fenster daraus macht, steht in OnSettingChanged;
+        /// hier bleiben nur Wirkungen, die es pro App genau einmal gibt (Sprache, Updates, Fensterstil aller Fenster).
+        /// </summary>
+        private static bool SetSettingFromPage(string key, JsonElement value)
         {
             var settings = AppSettingsService.Instance.Settings;
             switch (key)
             {
                 // Allgemein
-                case "StartupBehavior":
-                    settings.StartupBehavior = value.GetString() ?? "startpage";
-                    break;
-                case "CustomStartupUrl":
-                    settings.CustomStartupUrl = value.GetString() ?? "";
-                    break;
-                case "ShowHomeButton":
-                    settings.ShowHomeButton = value.GetBoolean();
-                    btnHome.Visibility = settings.ShowHomeButton ? Visibility.Visible : Visibility.Collapsed;
-                    break;
-                case "IsStartpageFavoritesVisible":
-                    settings.IsStartpageFavoritesVisible = value.GetBoolean();
-                    break;
+                case "StartupBehavior": settings.StartupBehavior = value.GetString() ?? "startpage"; break;
+                case "CustomStartupUrl": settings.CustomStartupUrl = value.GetString() ?? ""; break;
+                case "ShowHomeButton": settings.ShowHomeButton = value.GetBoolean(); break;
+                case "IsStartpageFavoritesVisible": settings.IsStartpageFavoritesVisible = value.GetBoolean(); break;
                 case "Language":
                     settings.Language = value.GetString() ?? "de";
                     // LanguageChanged aktualisiert alle Fenster und die internen Seiten
@@ -163,28 +165,12 @@ namespace EchoBrowser
                     break;
 
                 // Suche
-                case "SearchEngine":
-                    AppSettingsService.Instance.SetSearchEngine(value.GetString() ?? "duckduckgo");
-                    SyncSearchEngineComboBox();
-                    break;
-                case "EnableSearchSuggestions":
-                    settings.EnableSearchSuggestions = value.GetBoolean();
-                    break;
+                case "SearchEngine": settings.SearchEngine = (value.GetString() ?? "duckduckgo").ToLowerInvariant().Trim(); break;
+                case "EnableSearchSuggestions": settings.EnableSearchSuggestions = value.GetBoolean(); break;
 
                 // Erscheinungsbild
-                case "IsBookmarksBarVisible":
-                    bool showBm = value.GetBoolean();
-                    _isBookmarksBarVisible = showBm;
-                    borderBookmarksBar.Visibility = showBm ? Visibility.Visible : Visibility.Collapsed;
-                    menuChkBookmarksBar.IsChecked = showBm;
-                    settings.IsBookmarksBarVisible = showBm;
-                    break;
-                case "IsSidebarVisible":
-                    bool showSb = value.GetBoolean();
-                    borderSidebar.Visibility = showSb ? Visibility.Visible : Visibility.Collapsed;
-                    menuChkSidebar.IsChecked = showSb;
-                    settings.IsSidebarVisible = showSb;
-                    break;
+                case "IsBookmarksBarVisible": settings.IsBookmarksBarVisible = value.GetBoolean(); break;
+                case "IsSidebarVisible": settings.IsSidebarVisible = value.GetBoolean(); break;
                 case "UseMica":
                     settings.UseMica = value.GetBoolean();
                     foreach (var window in Application.Current.Windows.OfType<MainWindow>())
@@ -192,126 +178,51 @@ namespace EchoBrowser
                         window.ApplyWindowEffects();
                     }
                     break;
-                case "DefaultZoomPercent":
-                    settings.DefaultZoomPercent = value.GetInt32();
-                    ApplyDefaultZoom();
-                    break;
+                case "DefaultZoomPercent": settings.DefaultZoomPercent = value.GetInt32(); break;
 
                 // Symbolleiste
-                case "ShowSidebarButton":
-                    settings.ShowSidebarButton = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
-                case "ShowBackButton":
-                    settings.ShowBackButton = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
-                case "ShowForwardButton":
-                    settings.ShowForwardButton = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
-                case "ShowReloadButton":
-                    settings.ShowReloadButton = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
-                case "ShowSearchEngineSelector":
-                    settings.ShowSearchEngineSelector = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
-                case "ShowExtensionsButton":
-                    settings.ShowExtensionsButton = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
-                case "ShowDownloadsButton":
-                    settings.ShowDownloadsButton = value.GetBoolean();
-                    ApplyToolbarButtonVisibilities();
-                    break;
+                case "ShowSidebarButton": settings.ShowSidebarButton = value.GetBoolean(); break;
+                case "ShowBackButton": settings.ShowBackButton = value.GetBoolean(); break;
+                case "ShowForwardButton": settings.ShowForwardButton = value.GetBoolean(); break;
+                case "ShowReloadButton": settings.ShowReloadButton = value.GetBoolean(); break;
+                case "ShowSearchEngineSelector": settings.ShowSearchEngineSelector = value.GetBoolean(); break;
+                case "ShowExtensionsButton": settings.ShowExtensionsButton = value.GetBoolean(); break;
+                case "ShowDownloadsButton": settings.ShowDownloadsButton = value.GetBoolean(); break;
 
                 // Datenschutz
-                case "TrackingPreventionLevel":
-                    settings.TrackingPreventionLevel = value.GetString() ?? "balanced";
-                    ApplyTrackingPrevention(settings.TrackingPreventionLevel);
-                    break;
-                case "BlockPopups":
-                    settings.BlockPopups = value.GetBoolean();
-                    foreach (var tab in Tabs)
-                    {
-                        string host = Uri.TryCreate(tab.Url, UriKind.Absolute, out var tabUri) ? tabUri.Host : "";
-                        tab.PopupsBlocked = settings.BlockPopups && !settings.PopupAllowedDomains.Contains(host);
-                    }
-                    break;
-                case "EnableJavaScript":
-                    // Gilt für Webseiten ab dem nächsten Laden; interne Seiten behalten JavaScript (NavigationStarting)
-                    settings.EnableJavaScript = value.GetBoolean();
-                    foreach (var tab in Tabs)
-                    {
-                        tab.JavaScriptEnabled = settings.EnableJavaScript;
-                    }
-                    break;
-                case "IsAdBlockerEnabled":
-                    settings.IsAdBlockerEnabled = value.GetBoolean();
-                    _ = SyncShieldStateForAllTabsAsync();
-                    UpdateShieldBadge();
-                    if (popupShield.IsOpen) UpdateShieldUi();
-                    break;
-                case "AllowExtensionsInIncognito":
-                    // Gilt für neu geöffnete Inkognito-Fenster
-                    settings.AllowExtensionsInIncognito = value.GetBoolean();
-                    break;
-                case "SendDoNotTrack":
-                    settings.SendDoNotTrack = value.GetBoolean();
-                    _ = SyncPrivacySignalsForAllTabsAsync();
-                    break;
-                case "SavePasswords":
-                    settings.SavePasswords = value.GetBoolean();
-                    ApplyAutofillSettings(ctx.Core);
-                    break;
-                case "AutofillForms":
-                    settings.AutofillForms = value.GetBoolean();
-                    ApplyAutofillSettings(ctx.Core);
-                    break;
+                case "TrackingPreventionLevel": settings.TrackingPreventionLevel = value.GetString() ?? "balanced"; break;
+                case "BlockPopups": settings.BlockPopups = value.GetBoolean(); break;
+                case "EnableJavaScript": settings.EnableJavaScript = value.GetBoolean(); break;
+                case "IsAdBlockerEnabled": settings.IsAdBlockerEnabled = value.GetBoolean(); break;
+                // Gilt für neu geöffnete Inkognito-Fenster
+                case "AllowExtensionsInIncognito": settings.AllowExtensionsInIncognito = value.GetBoolean(); break;
+                case "SendDoNotTrack": settings.SendDoNotTrack = value.GetBoolean(); break;
+                case "SavePasswords": settings.SavePasswords = value.GetBoolean(); break;
+                case "AutofillForms": settings.AutofillForms = value.GetBoolean(); break;
 
                 // Downloads & Tabs
-                case "AskDownloadLocation":
-                    settings.AskDownloadLocation = value.GetBoolean();
-                    break;
-                case "OpenNewTabInBackground":
-                    settings.OpenNewTabInBackground = value.GetBoolean();
-                    break;
+                case "AskDownloadLocation": settings.AskDownloadLocation = value.GetBoolean(); break;
+                case "OpenNewTabInBackground": settings.OpenNewTabInBackground = value.GetBoolean(); break;
                 case "VerticalTabs":
                     settings.VerticalTabs = value.GetBoolean();
                     ApplyTabLayoutToAllWindows();
                     break;
-                case "TabSleepMinutes":
-                    settings.TabSleepMinutes = Math.Max(0, value.GetInt32());
-                    break;
-                case "WarnOnClosingMultipleTabs":
-                    settings.WarnOnClosingMultipleTabs = value.GetBoolean();
-                    break;
+                case "TabSleepMinutes": settings.TabSleepMinutes = Math.Max(0, value.GetInt32()); break;
+                case "WarnOnClosingMultipleTabs": settings.WarnOnClosingMultipleTabs = value.GetBoolean(); break;
 
                 // Updates (Velopack)
                 case "AutoCheckForUpdates":
                     settings.AutoCheckForUpdates = value.GetBoolean();
-                    if (settings.AutoCheckForUpdates)
-                    {
-                        UpdateService.Instance.StartAutoCheckTimer();
-                    }
-                    else
-                    {
-                        UpdateService.Instance.StopAutoCheckTimer();
-                    }
+                    if (settings.AutoCheckForUpdates) UpdateService.Instance.StartAutoCheckTimer();
+                    else UpdateService.Instance.StopAutoCheckTimer();
                     break;
-                case "CheckPrereleaseUpdates":
-                    settings.CheckPrereleaseUpdates = value.GetBoolean();
-                    break;
-                case "UpdateUrl":
-                    settings.UpdateUrl = value.GetString() ?? UpdateService.DefaultUpdateUrl;
-                    break;
+                case "CheckPrereleaseUpdates": settings.CheckPrereleaseUpdates = value.GetBoolean(); break;
+                case "UpdateUrl": settings.UpdateUrl = value.GetString() ?? UpdateService.DefaultUpdateUrl; break;
 
                 default:
-                    Log.Warn($"Unbekannte Einstellung von der Einstellungsseite: '{key}'");
-                    break;
+                    return false;
             }
+            return true;
         }
 
         private void OnSetThemePresetMessage(WebMessageContext ctx)

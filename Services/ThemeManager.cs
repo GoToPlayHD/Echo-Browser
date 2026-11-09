@@ -47,10 +47,16 @@ namespace EchoBrowser.Services
         public void ApplyPreset(ThemePreset preset)
         {
             CurrentPreset = preset;
-            foreach (var kvp in GetPaletteForPreset(EffectivePreset))
+            var palette = GetPaletteForPreset(EffectivePreset);
+            foreach (var kvp in palette)
             {
                 SetResourceColor(kvp.Key, kvp.Value);
             }
+            SetAccentForeground(palette["AccentSilverBrush"]);
+
+            // Schatten: im hellen Design deutlich zarter (wie --echo-shadow-k auf den internen Seiten)
+            SetShadow("ElevationShadow", 22, 5, IsLight ? 0.16 : 0.45);
+            SetShadow("ElevationShadowStrong", 30, 7, IsLight ? 0.22 : 0.6);
 
             // Eigene Akzentfarbe gilt für alle Presets
             if (_customAccent is { } accent)
@@ -84,6 +90,7 @@ namespace EchoBrowser.Services
                 color = Shift(color, -90);
             }
             SetResourceColor("AccentSilverBrush", color);
+            SetAccentForeground(color);
 
             Color bright = Shift(color, light ? -50 : 40);
             Color dim = Shift(color, light ? 50 : -40);
@@ -93,6 +100,10 @@ namespace EchoBrowser.Services
             SetResourceColor("OmniboxFocusBorderBrush", bright);
             SetResourceColor("TabActiveIndicatorBrush", bright);
         }
+
+        /// <summary>Text auf Akzent-Flächen (z.B. Hauptknopf in Dialogen): dunkel auf hellem, weiß auf dunklem Akzent.</summary>
+        private void SetAccentForeground(Color accent) =>
+            SetResourceColor("AccentForegroundBrush", Luminance(accent) > 0.5 ? ColorFromHex("#16171A") : Colors.White);
 
         private static Color Shift(Color c, int delta) => Color.FromArgb(
             c.A,
@@ -124,6 +135,20 @@ namespace EchoBrowser.Services
 
         /// <summary>Relative Helligkeit 0 (schwarz) bis 1 (weiß).</summary>
         private static double Luminance(Color c) => (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0;
+
+        private static void SetShadow(string key, double blur, double depth, double opacity)
+        {
+            var shadow = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = blur,
+                ShadowDepth = depth,
+                Direction = 270,
+                Color = Colors.Black,
+                Opacity = opacity
+            };
+            shadow.Freeze();
+            Application.Current.Resources[key] = shadow;
+        }
 
         private void SetResourceColor(string key, Color color)
         {
@@ -254,7 +279,7 @@ namespace EchoBrowser.Services
                     { "BorderSubtleBrush", ColorFromHex("#14161B") },
                     { "TextPrimaryBrush", ColorFromHex("#FFFFFF") },
                     { "TextSecondaryBrush", ColorFromHex("#8F94A0") },
-                    { "TextMutedBrush", ColorFromHex("#5E636E") },
+                    { "TextMutedBrush", ColorFromHex("#757E8C") },
                     { "ButtonHoverBackgroundBrush", ColorFromHex("#1E2129") },
                     { "ButtonPressedBackgroundBrush", ColorFromHex("#2A2E39") },
                     { "StatusSuccessBrush", ColorFromHex("#34D399") },
@@ -286,17 +311,17 @@ namespace EchoBrowser.Services
                     { "BookmarkItemHoverBrush", ColorFromHex("#DAE0E8") },
                     { "AccentSilverBrush", ColorFromHex("#4E5664") },
                     { "AccentSilverBrightBrush", ColorFromHex("#1C2028") },
-                    { "AccentSilverDimBrush", ColorFromHex("#7E8796") },
+                    { "AccentSilverDimBrush", ColorFromHex("#5F6775") },
                     { "BorderBrush", ColorFromHex("#CCD2DC") },
                     { "BorderSubtleBrush", ColorFromHex("#E0E4EB") },
                     { "TextPrimaryBrush", ColorFromHex("#181B20") },
                     { "TextSecondaryBrush", ColorFromHex("#586070") },
-                    { "TextMutedBrush", ColorFromHex("#8A93A2") },
+                    { "TextMutedBrush", ColorFromHex("#6B7383") },
                     { "ButtonHoverBackgroundBrush", ColorFromHex("#E0E4EB") },
                     { "ButtonPressedBackgroundBrush", ColorFromHex("#D2D7E0") },
-                    { "StatusSuccessBrush", ColorFromHex("#10B981") },
-                    { "StatusWarningBrush", ColorFromHex("#D97706") },
-                    { "StatusDangerBrush", ColorFromHex("#EF4444") },
+                    { "StatusSuccessBrush", ColorFromHex("#047857") },
+                    { "StatusWarningBrush", ColorFromHex("#B45309") },
+                    { "StatusDangerBrush", ColorFromHex("#DC2626") },
                     { "ShieldActiveBrush", ColorFromHex("#0284C7") },
                     { "ScrollBarThumbBrush", ColorFromHex("#B0B7C3") },
                     { "ScrollBarThumbHoverBrush", ColorFromHex("#949CA9") },
@@ -328,7 +353,7 @@ namespace EchoBrowser.Services
                     { "BorderSubtleBrush", ColorFromHex("#1C273E") },
                     { "TextPrimaryBrush", ColorFromHex("#F1F5F9") },
                     { "TextSecondaryBrush", ColorFromHex("#94A3B8") },
-                    { "TextMutedBrush", ColorFromHex("#64748B") },
+                    { "TextMutedBrush", ColorFromHex("#7C8BA1") },
                     { "ButtonHoverBackgroundBrush", ColorFromHex("#263756") },
                     { "ButtonPressedBackgroundBrush", ColorFromHex("#32476E") },
                     { "StatusSuccessBrush", ColorFromHex("#34D399") },
@@ -366,7 +391,7 @@ namespace EchoBrowser.Services
                     { "BorderSubtleBrush", ColorFromHex("#25272D") },
                     { "TextPrimaryBrush", ColorFromHex("#F0F2F5") },
                     { "TextSecondaryBrush", ColorFromHex("#A0A4AB") },
-                    { "TextMutedBrush", ColorFromHex("#6B707B") },
+                    { "TextMutedBrush", ColorFromHex("#868B95") },
                     { "ButtonHoverBackgroundBrush", ColorFromHex("#353841") },
                     { "ButtonPressedBackgroundBrush", ColorFromHex("#444853") },
                     { "StatusSuccessBrush", ColorFromHex("#34D399") },

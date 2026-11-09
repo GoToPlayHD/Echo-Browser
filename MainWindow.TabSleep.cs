@@ -55,7 +55,8 @@ namespace EchoBrowser
             IsAudible: tab.IsAudible,
             IsLoading: tab.IsLoading,
             SleepRefused: tab.SleepRefused,
-            LastActiveAt: tab.LastActiveAt);
+            LastActiveAt: tab.LastActiveAt,
+            HasActiveDownload: tab.ActiveDownloads > 0);
 
         /// <summary>Jede Minute: lange inaktive Tabs einfrieren bzw. verwerfen.</summary>
         private async Task CheckSleepingTabsAsync()

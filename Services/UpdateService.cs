@@ -327,6 +327,7 @@ namespace EchoBrowser.Services
             {
                 // Sitzung sofort synchron sichern und sauberen Exit markieren
                 SessionService.Instance.SaveNow();
+                BackgroundFileWriter.Flush(); // ApplyUpdatesAndRestart beendet den Prozess sofort
                 SessionService.Instance.MarkCleanExit();
 
                 var source = CreateUpdateSource();

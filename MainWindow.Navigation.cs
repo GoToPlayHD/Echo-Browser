@@ -39,23 +39,20 @@ namespace EchoBrowser
                 pathStop.Visibility = Visibility.Visible;
                 btnReload.ToolTip = Tr.Get("Nav_StopLoading");
                 progressLoading.Visibility = Visibility.Visible;
+                progressLoading.IsIndeterminate = true;
             }
             else
             {
                 pathReload.Visibility = Visibility.Visible;
                 pathStop.Visibility = Visibility.Collapsed;
                 btnReload.ToolTip = Tr.Get("Nav_Reload");
-                progressLoading.Visibility = Visibility.Collapsed;
+                // Unsichtbar, behält aber seine Höhe; Animation anhalten, solange nichts lädt
+                progressLoading.Visibility = Visibility.Hidden;
+                progressLoading.IsIndeterminate = false;
             }
         }
 
-        public static bool IsStartPage(string? url)
-        {
-            if (string.IsNullOrWhiteSpace(url)) return true;
-            return InternalPages.Is(url, InternalPages.Start) ||
-                   InternalPages.Is(url, InternalPages.NewTab) ||
-                   url.Equals("about:blank", StringComparison.OrdinalIgnoreCase);
-        }
+        public static bool IsStartPage(string? url) => AddressInput.IsStartPage(url);
 
         /// <summary>Eingabe aus Adressleiste oder Startseite: Adresse öffnen oder mit der gewählten Suchmaschine suchen.</summary>
         private void NavigateToInput(string input, BrowserTab? tab = null)
@@ -64,38 +61,26 @@ namespace EchoBrowser
             var core = tab?.WebView?.CoreWebView2;
             if (string.IsNullOrWhiteSpace(input) || tab == null || core == null) return;
 
-            string target = input.Trim();
-
-            // Startseite
-            if (IsStartPage(target))
+            // Bedeutung der Eingabe: Services/AddressInput.cs
+            var target = AddressInput.Resolve(input);
+            switch (target.Kind)
             {
-                tab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
-                core.Navigate(StartPageService.StartPageUrl);
-                return;
+                case AddressTargetKind.StartPage:
+                    tab.Title = Tr.Get(_isIncognito ? "Tab_NewTabIncognito" : "Tab_NewTab");
+                    break;
+                case AddressTargetKind.Settings:
+                    tab.Title = Tr.Get("Tab_Settings");
+                    break;
             }
-
-            // Einstellungsseite (auch unter den von Chrome/Edge/Firefox gewohnten Adressen)
-            if (InternalPages.Is(target, InternalPages.Settings) ||
-                target.Equals("about:settings", StringComparison.OrdinalIgnoreCase) ||
-                target.Equals("about:preferences", StringComparison.OrdinalIgnoreCase) ||
-                target.Equals("chrome://settings", StringComparison.OrdinalIgnoreCase) ||
-                target.Equals("edge://settings", StringComparison.OrdinalIgnoreCase) ||
-                target.Equals("settings", StringComparison.OrdinalIgnoreCase))
-            {
-                NavigateToSettingsPage(tab);
-                return;
-            }
-
-            // Adresse öffnen oder mit der eingestellten Suchmaschine suchen (Erkennung: UrlHelper.ToNavigableUrl)
-            target = UrlHelper.ToNavigableUrl(target) ?? AppSettingsService.Instance.GetSearchUrl(target);
 
             try
             {
-                core.Navigate(target);
+                tab.ExpectBrowserNavigation = true;
+                core.Navigate(target.Url);
             }
             catch (Exception ex)
             {
-                Log.Warn($"Navigation zu '{target}' fehlgeschlagen", ex);
+                Log.Warn($"Navigation zu '{target.Url}' fehlgeschlagen", ex);
             }
         }
 
@@ -133,6 +118,7 @@ namespace EchoBrowser
         {
             if (ActiveTab?.WebView != null && ActiveTab.WebView.CanGoBack)
             {
+                ActiveTab.ExpectBrowserNavigation = true;
                 ActiveTab.WebView.GoBack();
             }
         }
@@ -141,6 +127,7 @@ namespace EchoBrowser
         {
             if (ActiveTab?.WebView != null && ActiveTab.WebView.CanGoForward)
             {
+                ActiveTab.ExpectBrowserNavigation = true;
                 ActiveTab.WebView.GoForward();
             }
         }

@@ -10,13 +10,13 @@
         xmlns:controls="clr-namespace:EchoBrowser.Views.Controls"
         mc:Ignorable="d"
         Icon="app.ico"
-        Title="Echo-Browser"
+        Title="Echo"
         Height="840" Width="1380"
         MinHeight="540" MinWidth="800"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}"
-        FontFamily="Segoe UI, -apple-system, Roboto, sans-serif"
+        FontFamily="{StaticResource UiFont}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         Loaded="Window_Loaded">
@@ -65,7 +65,7 @@
             <Border Grid.Column="0" 
                     Margin="12,0,8,0" 
                     VerticalAlignment="Center"
-                    ToolTip="Echo-Browser">
+                    ToolTip="Echo">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="app.png" Width="20" Height="20" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="ECHO" 
@@ -104,7 +104,7 @@
                             ToolTip="{loc:Loc VTabs_TurnOn}"
                             AutomationProperties.Name="{loc:Loc VTabs_TurnOn}">
                         <Path Data="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h5V6H4zm7 0v12h9V6h-9zM5 8h3v1.5H5zm0 3h3v1.5H5zm0 3h3v1.5H5z"
-                              Fill="{DynamicResource AccentSilverBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform"/>
                     </Button>
                 </StackPanel>
             </Border>
@@ -202,6 +202,7 @@
                                                 </StackPanel>
                                             </ToolTip>
                                         </Border.ToolTip>
+                                        <Grid>
                                         <Grid x:Name="tabContent" Margin="10,0,8,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -267,9 +268,11 @@
                                             </Button>
 
                                             <!-- Tab Close Button -->
+                                            <!-- Schließen-Kreuz: beim aktiven Tab und beim Darüberfahren (Hidden hält den Platz, der Titel springt nicht) -->
                                             <Button x:Name="btnTabClose"
                                                     Grid.Column="3"
                                                     Style="{DynamicResource SmallRoundButtonStyle}"
+                                                    Visibility="Hidden"
                                                     Margin="6,0,0,0"
                                                     Click="BtnCloseTab_Click"
                                                     Tag="{Binding}"
@@ -280,13 +283,6 @@
                                                       Width="9" Height="9" Stretch="Uniform"/>
                                             </Button>
 
-                                            <!-- Active Tab Bottom Accent Indicator -->
-                                            <Border x:Name="activeIndicator"
-                                                    Grid.ColumnSpan="4"
-                                                    Height="2"
-                                                    VerticalAlignment="Bottom"
-                                                    Background="{DynamicResource TabActiveIndicatorBrush}"
-                                                    Visibility="Collapsed"/>
                                             <!-- Farbe der Tab-Gruppe -->
                                             <Border x:Name="groupLine"
                                                     Grid.ColumnSpan="4"
@@ -296,12 +292,22 @@
                                                     Background="{Binding Group.ColorBrush}"
                                                     Visibility="Collapsed"/>
                                         </Grid>
+                                        <!-- Markierung des aktiven Tabs: über die volle Tab-Breite und über der Gruppenfarbe -->
+                                        <Border x:Name="activeIndicator"
+                                                Height="2"
+                                                Margin="6,0"
+                                                CornerRadius="1"
+                                                VerticalAlignment="Bottom"
+                                                Background="{DynamicResource TabActiveIndicatorBrush}"
+                                                Visibility="Collapsed"/>
+                                        </Grid>
                                     </Border>
                                     <DataTemplate.Triggers>
                                         <!-- Reihenfolge zählt: spätere Trigger gewinnen (aktiver Tab vor Hover) -->
                                         <Trigger SourceName="tabBorder" Property="IsMouseOver" Value="True">
                                             <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource TabHoverBackgroundBrush}"/>
                                             <Setter TargetName="tabTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                            <Setter TargetName="btnTabClose" Property="Visibility" Value="Visible"/>
                                         </Trigger>
                                         <DataTrigger Binding="{Binding IsSplitVisible}" Value="True">
                                             <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource TabActiveBackgroundBrush}"/>
@@ -310,6 +316,7 @@
                                         <DataTrigger Binding="{Binding IsActive}" Value="True">
                                             <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource TabActiveBackgroundBrush}"/>
                                             <Setter TargetName="activeIndicator" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="btnTabClose" Property="Visibility" Value="Visible"/>
                                             <Setter TargetName="tabBorder" Property="BorderBrush" Value="{DynamicResource AccentSilverDimBrush}"/>
                                             <Setter TargetName="tabTitle" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                         </DataTrigger>
@@ -415,7 +422,7 @@
                                 ToolTip="{loc:Loc Nav_NewTab}"
                                 WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-                                  Fill="{DynamicResource AccentSilverBrush}"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   Width="12" Height="12" Stretch="Uniform"/>
                         </Button>
                 </controls:TabStripLayout>
@@ -431,7 +438,7 @@
                         Click="BtnMinimize_Click" 
                         ToolTip="{loc:Loc Window_Minimize}">
                     <Path Data="M19 13H5v-2h14v2z" 
-                          Fill="{DynamicResource AccentSilverBrush}" 
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                           Width="11" Height="11" Stretch="Uniform"/>
                 </Button>
                 <!-- Maximize / Restore Button (Snap-Layouts: MainWindow.WindowChrome.cs) -->
@@ -441,7 +448,7 @@
                         ToolTip="{loc:Loc Window_Maximize}">
                     <Path x:Name="pathMaximizeIcon"
                           Data="M3 3h18v18H3V3zm16 16V5H5v14h14z" 
-                          Fill="{DynamicResource AccentSilverBrush}" 
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                           Width="11" Height="11" Stretch="Uniform"/>
                 </Button>
                 <!-- Close Window Button -->
@@ -449,7 +456,7 @@
                         Click="BtnCloseWindow_Click" 
                         ToolTip="{loc:Loc Common_Close}">
                     <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                          Fill="{DynamicResource AccentSilverBrush}" 
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                           Width="11" Height="11" Stretch="Uniform"/>
                 </Button>
             </StackPanel>
@@ -621,10 +628,23 @@
                 <!-- Center: Smart Omnibox (Address & Search Bar) -->
                 <Border CornerRadius="18" 
                         Background="{DynamicResource OmniboxBackgroundBrush}" 
-                        BorderBrush="{DynamicResource OmniboxBorderBrush}" 
                         BorderThickness="1"
                         Height="34"
                         x:Name="omniboxContainer">
+                    <!-- Tastaturfokus sichtbar machen (die TextBox selbst hat keinen Rahmen); Rahmen nicht als lokaler Wert, sonst greift der Trigger nicht -->
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="{DynamicResource OmniboxBorderBrush}"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentSilverDimBrush}"/>
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=txtUrl}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource OmniboxFocusBorderBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <!-- Shield / Site Info Button -->
@@ -711,14 +731,14 @@
                                        Margin="10,0,10,0"
                                        VerticalAlignment="Center"
                                        FontSize="13.5"
-                                       FontFamily="Segoe UI, Inter, sans-serif"
+                                       FontFamily="{StaticResource UiFont}"
                                        TextTrimming="CharacterEllipsis"
                                        Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <TextBlock x:Name="txtUrlPlaceholder"
                                        Text="{loc:Loc Nav_AddressPlaceholder}"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        FontSize="13.5"
-                                       FontFamily="Segoe UI, Inter, sans-serif"
+                                       FontFamily="{StaticResource UiFont}"
                                        VerticalAlignment="Center"
                                        Margin="10,0,0,0"
                                        IsHitTestVisible="False">
@@ -915,14 +935,15 @@
         <!-- ============================================================ -->
         <!-- ROW 3: LOADING PROGRESS BAR                                  -->
         <!-- ============================================================ -->
+        <!-- Hidden statt Collapsed (MainWindow.Navigation.cs): die Seite darunter springt sonst bei jedem Laden um die Balkenhöhe -->
         <ProgressBar Grid.Row="3" 
                      x:Name="progressLoading"
-                     Height="2.5" 
-                     IsIndeterminate="True" 
+                     Height="2" 
+                     IsIndeterminate="False" 
                      BorderThickness="0"
                      Background="Transparent"
                      Foreground="{DynamicResource ShieldActiveBrush}"
-                     Visibility="Collapsed"/>
+                     Visibility="Hidden"/>
 
         <!-- ============================================================ -->
         <!-- ROW 4: AUF SEITE SUCHEN (STRG+F)                             -->
@@ -1291,7 +1312,7 @@
                                 Click="BtnAddSidebarFavorite_Click"
                                 ToolTip="{loc:Loc Sidebar_AddFavoriteTooltip}">
                             <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" 
-                                  Fill="{DynamicResource AccentSilverBrush}" 
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
                                   Width="14" Height="14" Stretch="Uniform"/>
                         </Button>
                     </StackPanel>
@@ -1332,7 +1353,7 @@
                         <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"
                               Fill="{DynamicResource AccentSilverDimBrush}" 
                               Width="48" Height="48" Stretch="Uniform" Opacity="0.5"/>
-                        <TextBlock Text="Echo-Browser" 
+                        <TextBlock Text="Echo" 
                                    FontSize="20" FontWeight="SemiBold" 
                                    Foreground="{DynamicResource AccentSilverBrush}" 
                                    HorizontalAlignment="Center" Margin="0,14,0,0"/>
@@ -1715,7 +1736,7 @@
                     Padding="18,9"
                     Margin="8">
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.4"/>
+                    <DynamicResource ResourceKey="ElevationShadow"/>
                 </Border.Effect>
                 <TextBlock x:Name="txtToast" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
             </Border>

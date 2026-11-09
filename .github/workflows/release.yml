@@ -92,10 +92,10 @@ jobs:
         shell: pwsh
         run: |
           # --framework: Setup installiert die .NET 8 Desktop Runtime, falls sie fehlt
-          vpk pack --packId EchoBrowser --packVersion ${{ steps.get_version.outputs.version }} --packDir ./publish --mainExe EchoBrowser.exe --outputDir ./releases --icon app.ico --framework net8.0-x64-desktop
+          vpk pack --packId EchoBrowser --packVersion ${{ steps.get_version.outputs.version }} --packDir ./publish --mainExe EchoBrowser.exe --outputDir ./releases --packTitle "Echo" --icon app.ico --framework net8.0-x64-desktop
 
       - name: Upload Velopack Assets to GitHub Release
         shell: pwsh
         run: |
           $pre = if ("${{ steps.get_version.outputs.prerelease }}" -eq "true") { "--pre" } else { "" }
-          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --publish --outputDir ./releases --tag ${{ steps.get_version.outputs.tag }} --releaseName "Echo-Browser ${{ steps.get_version.outputs.version }}" $pre
+          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --publish --outputDir ./releases --tag ${{ steps.get_version.outputs.tag }} --releaseName "Echo ${{ steps.get_version.outputs.version }}" $pre

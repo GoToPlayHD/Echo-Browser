@@ -217,6 +217,8 @@ namespace EchoBrowser.Services
                 FolderIndex[ext.Id] = manifestFolder;
                 SaveFolderIndex();
             }
+            // Frisch hinzugefügt: WebView2 hat den aktuellen Service Worker registriert
+            ExtensionCompat.MarkServiceWorkerRegistered(manifestFolder);
         }
 
         /// <summary>
@@ -544,6 +546,7 @@ namespace EchoBrowser.Services
                     {
                         var ext = await profile.AddBrowserExtensionAsync(folder);
                         present.Add(ext.Id);
+                        ExtensionCompat.MarkServiceWorkerRegistered(folder);
                         if (!ext.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) renamed[id] = ext.Id;
                         Log.Info($"Erweiterung neu geladen: {ext.Name} ({folder})");
                     }
@@ -552,6 +555,8 @@ namespace EchoBrowser.Services
                         Log.Warn($"Erweiterung konnte nicht neu geladen werden: {folder}", ex);
                     }
                 }
+
+                await RefreshChangedServiceWorkersAsync(profile);
 
                 if (renamed.Count == 0) return;
 
@@ -572,6 +577,40 @@ namespace EchoBrowser.Services
             catch (Exception ex)
             {
                 Log.Warn("Erweiterungen konnten nicht überprüft werden", ex);
+            }
+        }
+
+        /// <summary>
+        /// WebView2 übernimmt einen geänderten Service Worker (Kompatibilitätsschicht) einer schon installierten
+        /// Erweiterung beim Start nicht – sie läuft dann ganz ohne Hintergrund. Einmal aus- und wieder einschalten
+        /// registriert ihn neu; Einstellungen und Anmeldedaten der Erweiterung (chrome.storage) bleiben erhalten.
+        /// </summary>
+        private async Task RefreshChangedServiceWorkersAsync(CoreWebView2Profile profile)
+        {
+            foreach (var ext in await profile.GetBrowserExtensionsAsync())
+            {
+                string? folder;
+                lock (_indexLock)
+                {
+                    if (!FolderIndex.TryGetValue(ext.Id, out folder)) continue;
+                }
+                if (!ExtensionCompat.NeedsServiceWorkerRefresh(folder)) continue;
+
+                try
+                {
+                    // Eine vom Nutzer ausgeschaltete Erweiterung registriert ihn beim Einschalten ohnehin neu
+                    if (ext.IsEnabled)
+                    {
+                        await ext.EnableAsync(false);
+                        await ext.EnableAsync(true);
+                        Log.Info($"Hintergrund der Erweiterung neu gestartet: {ext.Name}");
+                    }
+                    ExtensionCompat.MarkServiceWorkerRegistered(folder);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Hintergrund der Erweiterung konnte nicht neu gestartet werden: {ext.Name}", ex);
+                }
             }
         }
 
@@ -825,7 +864,7 @@ namespace EchoBrowser.Services
                 </div>
                 <div>
                     <div style=""font-size:13px; font-weight:600; color:#FFFFFF; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"" id=""echo-ext-install-title""></div>
-                    <div style=""font-size:11px; color:#9BA1AC;"">Echo-Browser Erweiterung</div>
+                    <div style=""font-size:11px; color:#9BA1AC;"">Echo-Erweiterung</div>
                 </div>
             </div>
             <button id=""echo-btn-install"" class=""echo-install-btn"">

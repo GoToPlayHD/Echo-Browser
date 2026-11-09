@@ -60,8 +60,9 @@ namespace EchoBrowser
             {
                 if (_activeTab != value)
                 {
+                    var previous = _activeTab;
                     _activeTab = value;
-                    OnActiveTabChanged();
+                    OnActiveTabChanged(previous);
                 }
             }
         }
@@ -92,6 +93,13 @@ namespace EchoBrowser
             _incognitoWithExtensions = isIncognito && AppSettingsService.Instance.Settings.AllowExtensionsInIncognito;
             // Sprache vor InitializeComponent setzen, damit die XAML-Texte direkt richtig erscheinen
             LocalizationService.Instance.SetLanguage(AppSettingsService.Instance.Settings.Language);
+
+            // WebView2 so früh wie möglich starten: läuft parallel zu Layout und erstem Zeichnen des Fensters
+            // (vorher erst in Window_Loaded). Send-Priorität = sobald der Dispatcher läuft, vor dem Layout.
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Send, () =>
+                // Fehler (z.B. fehlende WebView2 Runtime) meldet Window_Loaded beim zweiten Versuch mit Dialog
+                BrowserEnvironment.GetAsync().ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted));
+
             InitializeComponent();
             InitializeToolbarContextMenus();
             InitializeHistoryPanel();
@@ -147,20 +155,15 @@ namespace EchoBrowser
 
             // Restore saved settings
             RestoreSavedSettings();
+            AttachSettingsSync();
         }
 
         private void RestoreSavedSettings()
         {
             var settings = AppSettingsService.Instance.Settings;
 
-            // Restore Bookmarks bar visibility
-            _isBookmarksBarVisible = settings.IsBookmarksBarVisible;
-            borderBookmarksBar.Visibility = _isBookmarksBarVisible ? Visibility.Visible : Visibility.Collapsed;
-            menuChkBookmarksBar.IsChecked = _isBookmarksBarVisible;
-
-            // Restore Sidebar visibility
-            borderSidebar.Visibility = settings.IsSidebarVisible ? Visibility.Visible : Visibility.Collapsed;
-            menuChkSidebar.IsChecked = settings.IsSidebarVisible;
+            ApplyBookmarksBarVisibility();
+            ApplySidebarVisibility();
 
             // Restore Toolbar button visibilities
             ApplyToolbarButtonVisibilities();
@@ -428,13 +431,9 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
 
         private void MenuToggleBookmarksBar_Click(object sender, RoutedEventArgs e)
         {
-            _isBookmarksBarVisible = !_isBookmarksBarVisible;
-            borderBookmarksBar.Visibility = _isBookmarksBarVisible ? Visibility.Visible : Visibility.Collapsed;
-            menuChkBookmarksBar.IsChecked = _isBookmarksBarVisible;
-
-            // Persist setting
-            AppSettingsService.Instance.Settings.IsBookmarksBarVisible = _isBookmarksBarVisible;
-            AppSettingsService.Instance.Save();
+            // Gilt für alle Fenster (MainWindow.SettingsSync.cs)
+            AppSettingsService.Instance.Settings.IsBookmarksBarVisible = !_isBookmarksBarVisible;
+            AppSettingsService.Instance.Changed(nameof(AppSettings.IsBookmarksBarVisible));
 
             popupMenu.IsOpen = false;
         }

@@ -170,7 +170,40 @@ namespace EchoBrowser.Views.Controls
                 InternalChildren[i].Arrange(new Rect(x, 0, _widths[i], finalSize.Height));
                 x += _widths[i];
             }
+
+            double maxOffset = Math.Max(0, total - finalSize.Width);
+            UpdateEdgeFade(finalSize.Width, canScrollLeft: _scrollOffset > 0.5, canScrollRight: _scrollOffset < maxOffset - 0.5);
             return finalSize;
+        }
+
+        /// <summary>Breite des Ausblendens am Rand, wenn dort weitere Tabs verborgen sind.</summary>
+        private const double EdgeFadeWidth = 28;
+
+        private (double Width, bool Left, bool Right) _edgeFade;
+
+        /// <summary>
+        /// Weitere Tabs links bzw. rechts außerhalb der Leiste: den Rand weich ausblenden, damit sichtbar ist,
+        /// dass man (per Mausrad) weiterblättern kann – statt die Tabs hart abzuschneiden.
+        /// </summary>
+        private void UpdateEdgeFade(double width, bool canScrollLeft, bool canScrollRight)
+        {
+            if (_edgeFade == (width, canScrollLeft, canScrollRight)) return;
+            _edgeFade = (width, canScrollLeft, canScrollRight);
+
+            if ((!canScrollLeft && !canScrollRight) || width <= EdgeFadeWidth * 2)
+            {
+                OpacityMask = null;
+                return;
+            }
+
+            double fade = EdgeFadeWidth / width;
+            var mask = new System.Windows.Media.LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+            mask.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromArgb(canScrollLeft ? (byte)0 : (byte)255, 0, 0, 0), 0));
+            mask.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Colors.Black, fade));
+            mask.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Colors.Black, 1 - fade));
+            mask.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromArgb(canScrollRight ? (byte)0 : (byte)255, 0, 0, 0), 1));
+            mask.Freeze();
+            OpacityMask = mask;
         }
 
         /// <summary>Mausrad über der Tab-Leiste blättert durch die Tabs, wenn nicht alle hineinpassen.</summary>

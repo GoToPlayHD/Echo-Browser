@@ -87,7 +87,25 @@ namespace EchoBrowser
         /// Eigener Download-Ablauf: Zielordner bestimmen, optional nachfragen, in der gemeinsamen Liste anzeigen
         /// und heruntergeladene .crx-Erweiterungen zur Installation anbieten.
         /// </summary>
-        private void HandleDownloadStarting(CoreWebView2 core, CoreWebView2DownloadStartingEventArgs args)
+        /// <summary>Geschlossene Tabs, deren WebView für laufende Downloads weiterlebt (MainWindow.Tabs.cs CloseTab).</summary>
+        private readonly List<BrowserTab> _tabsKeptForDownloads = new();
+
+        /// <summary>Downloads in Tabs dieses Fensters, auch in geschlossenen, die nur noch für den Download weiterleben.</summary>
+        private int ActiveDownloadCount => Tabs.Concat(_tabsKeptForDownloads).Sum(t => t.ActiveDownloads);
+
+        private void OnTabDownloadFinished(BrowserTab tab)
+        {
+            tab.ActiveDownloads = Math.Max(0, tab.ActiveDownloads - 1);
+            if (tab.ActiveDownloads > 0 || !_tabsKeptForDownloads.Remove(tab)) return;
+
+            if (tab.WebView != null)
+            {
+                WebViewContainer.Children.Remove(tab.WebView);
+            }
+            tab.Dispose();
+        }
+
+        private void HandleDownloadStarting(BrowserTab tab, CoreWebView2 core, CoreWebView2DownloadStartingEventArgs args)
         {
             string fileName = Path.GetFileName(args.ResultFilePath);
             string customFolder = AppSettingsService.Instance.Settings.DownloadPath;
@@ -128,6 +146,22 @@ namespace EchoBrowser
 
             DownloadService.Instance.Add(download);
 
+            // Der Download braucht die WebView des Tabs bis zum Ende
+            tab.ActiveDownloads++;
+            bool finished = false;
+            void Finished()
+            {
+                if (finished) return;
+                finished = true;
+                OnTabDownloadFinished(tab);
+            }
+
+            // Tab nur für den Download geöffnet ("Erneut versuchen", Link mit target=_blank): kein leerer Tab zurück
+            if ((string.IsNullOrEmpty(core.Source) || core.Source == "about:blank") && !core.CanGoBack && Tabs.Contains(tab) && Tabs.Count > 1)
+            {
+                Dispatcher.BeginInvoke(() => CloseTab(tab, rememberForReopen: false));
+            }
+
             // Wie in Chrome: das Flyout zeigt den neuen Download sofort
             if (IsActive)
             {
@@ -153,6 +187,7 @@ namespace EchoBrowser
                         download.BytesReceived = (long)operation.BytesReceived;
                         download.IsCompleted = true;
                         download.Operation = null;
+                        Finished();
 
                         // Auto-install CRX if it is a downloaded extension – nur aus dem Chrome Web Store bzw. von Googles
                         // Update-Server; .crx von anderen Seiten lassen sich über "Installieren" im Download-Flyout installieren
@@ -164,7 +199,9 @@ namespace EchoBrowser
 
                     case CoreWebView2DownloadState.Interrupted:
                         // Pausieren meldet WebView2 ebenfalls als "unterbrochen" – das merken wir uns selbst
-                        if (download.IsPaused || operation.InterruptReason == CoreWebView2DownloadInterruptReason.UserPaused)
+                        // Netzabbruch o.ä., den WebView2 fortsetzen kann: als pausiert zeigen ("Fortsetzen") statt abgebrochen
+                        if (download.IsPaused || operation.InterruptReason == CoreWebView2DownloadInterruptReason.UserPaused ||
+                            (operation.CanResume && operation.InterruptReason != CoreWebView2DownloadInterruptReason.UserCanceled))
                         {
                             download.IsPaused = true;
                         }
@@ -172,6 +209,7 @@ namespace EchoBrowser
                         {
                             download.IsCancelled = true;
                             download.Operation = null;
+                            Finished();
                         }
                         break;
 

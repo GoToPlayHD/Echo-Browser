@@ -47,9 +47,14 @@ namespace EchoBrowser.Services
             _cacheFilePath = AppPaths.File("blocklist.txt");
         }
 
-        public Task InitializeAsync()
+        private Task? _initialization;
+
+        /// <summary>Blockliste laden – die Liste hat zehntausende Einträge, daher im Hintergrund statt auf dem UI-Thread.</summary>
+        public Task InitializeAsync() => _initialization ??= Task.Run(InitializeCore);
+
+        private void InitializeCore()
         {
-            if (IsInitialized) return Task.CompletedTask;
+            if (IsInitialized) return;
 
             // 1. Load bundled fallback domains immediately
             LoadBundledDefaults();
@@ -100,7 +105,6 @@ namespace EchoBrowser.Services
                     }
                 });
             }
-            return Task.CompletedTask;
         }
 
         /// <summary>Gleiche Adresse ohne Fragment ("#…") – damit wird die Hauptseiten-Anfrage einer Navigation erkannt.</summary>

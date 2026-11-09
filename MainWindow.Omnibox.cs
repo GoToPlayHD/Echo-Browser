@@ -194,14 +194,17 @@ namespace EchoBrowser
             ScheduleRemoteSuggestions(text.Trim());
         }
 
-        /// <summary>Erste Zeile: genau das Getippte – als Adresse öffnen oder suchen.</summary>
+        /// <summary>
+        /// Erste Zeile: genau das Getippte – öffnen oder suchen, mit derselben Bedeutung wie überall
+        /// (Services/AddressInput.cs; z.B. "settings" öffnet die Einstellungen statt einer Websuche).
+        /// </summary>
         private static OmniboxSuggestion TypedSuggestion(string text)
         {
             string trimmed = text.Trim();
-            string? url = UrlHelper.ToNavigableUrl(trimmed);
-            return url != null
-                ? new OmniboxSuggestion(SuggestionKind.Url, trimmed, url)
-                : new OmniboxSuggestion(SuggestionKind.Search, trimmed, AppSettingsService.Instance.GetSearchUrl(trimmed));
+            var target = AddressInput.Resolve(trimmed);
+            return target.Kind == AddressTargetKind.Search
+                ? new OmniboxSuggestion(SuggestionKind.Search, trimmed, target.Url)
+                : new OmniboxSuggestion(SuggestionKind.Url, trimmed, target.Url);
         }
 
         private IEnumerable<SuggestionSource> OpenTabSources() =>
@@ -324,10 +327,8 @@ namespace EchoBrowser
                 case Key.Delete when popupOpen && Keyboard.Modifiers == ModifierKeys.Shift
                                      && omniboxPanel.Selected is { IsHistory: true } historyEntry:
                     // Umschalt+Entf: Eintrag aus dem Verlauf löschen
-                    foreach (var item in _historyService.Entries.Where(h => UrlHelper.NormalizeForComparison(h.Url) == UrlHelper.NormalizeForComparison(historyEntry.Url)).ToList())
-                    {
-                        _historyService.RemoveEntry(item);
-                    }
+                    string normalized = UrlHelper.NormalizeForComparison(historyEntry.Url);
+                    _historyService.RemoveEntries(_historyService.Entries.Where(h => UrlHelper.NormalizeForComparison(h.Url) == normalized));
                     UpdateSuggestions(_typedAddressText, allowInlineCompletion: false);
                     e.Handled = true;
                     break;
@@ -372,7 +373,8 @@ namespace EchoBrowser
             if (string.IsNullOrWhiteSpace(input)) return;
             if (inNewTab)
             {
-                AddNewTab(UrlHelper.ToNavigableUrl(input.Trim()) ?? AppSettingsService.Instance.GetSearchUrl(input.Trim()));
+                // Gleiche Auflösung wie in der Adressleiste ("settings", "about:blank" …)
+                AddNewTab(AddressInput.Resolve(input).Url);
             }
             else
             {

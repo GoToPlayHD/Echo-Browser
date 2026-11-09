@@ -62,13 +62,28 @@ namespace EchoBrowser
             }
             else if (FaviconCache.HostKey(newUrl) != FaviconCache.HostKey(tab.Url))
             {
-                tab.Favicon = _isIncognito ? null : FaviconCache.Instance.Get(newUrl);
+                tab.Favicon = null;
+                if (!_isIncognito) _ = LoadCachedFaviconAsync(tab, newUrl);
+            }
+        }
+
+        /// <summary>Zwischengespeichertes Symbol setzen – sofern der Tab dann noch auf derselben Website ist und kein neueres hat.</summary>
+        private static async Task LoadCachedFaviconAsync(BrowserTab tab, string url)
+        {
+            var image = await FaviconCache.Instance.GetAsync(url);
+            // Laufende Navigation zählt (tab.Url wird in NavigationStarting erst danach gesetzt)
+            if (image != null && tab.Favicon == null && FaviconCache.HostKey(tab.MainFrameNavigationUri ?? tab.Url) == FaviconCache.HostKey(url))
+            {
+                tab.Favicon = image;
             }
         }
 
         private async Task UpdateFaviconAsync(BrowserTab tab, CoreWebView2 core)
         {
             if (InternalPages.IsInternalUrl(tab.Url)) return;
+
+            // Seite merken: wechselt sie während des Ladens (Weiterleitung), gehört das Symbol nicht zur neuen Adresse
+            string pageUrl = core.Source;
 
             if (string.IsNullOrEmpty(core.FaviconUri))
             {
@@ -84,9 +99,10 @@ namespace EchoBrowser
                 using var buffer = new MemoryStream();
                 await stream.CopyToAsync(buffer);
                 byte[] png = buffer.ToArray();
+                if (tab.WebView?.CoreWebView2 != core || core.Source != pageUrl) return;
 
                 // Inkognito: nur im Tab anzeigen, nichts auf der Festplatte ablegen
-                tab.Favicon = _isIncognito ? FaviconCache.Decode(png) : FaviconCache.Instance.Store(tab.Url, png);
+                tab.Favicon = _isIncognito ? FaviconCache.Decode(png) : FaviconCache.Instance.Store(pageUrl, png);
             }
             catch (Exception ex)
             {
@@ -199,18 +215,21 @@ namespace EchoBrowser
             AddNewTabAt(Tabs.IndexOf(tab) + 1, tab.Url, tab.Title);
         }
 
+        // Beim Schließen mehrerer Tabs zuerst den bleibenden Tab aktivieren: sonst würde jeder geschlossene aktive Tab
+        // seinen schlafenden Nachbarn aufwecken (neue WebView), der gleich danach selbst geschlossen wird.
         private void CloseOtherTabs(BrowserTab keep)
         {
+            SelectTab(keep);
             foreach (var tab in Tabs.Where(t => t != keep).ToList())
             {
                 CloseTab(tab);
             }
-            SelectTab(keep);
         }
 
         private void CloseTabsToRight(BrowserTab tab)
         {
             int index = Tabs.IndexOf(tab);
+            if (ActiveTab != null && Tabs.IndexOf(ActiveTab) > index) SelectTab(tab);
             foreach (var right in Tabs.Skip(index + 1).ToList())
             {
                 CloseTab(right);
@@ -242,6 +261,18 @@ namespace EchoBrowser
             if (ActiveTab == null || Tabs.Count < 2) return;
             int index = (Tabs.IndexOf(ActiveTab) + direction + Tabs.Count) % Tabs.Count;
             SelectTab(Tabs[index]);
+        }
+
+        /// <summary>Strg+Umschalt+Bild auf/ab: aktiven Tab nach links/rechts verschieben (angeheftete und Gruppen bleiben zusammen).</summary>
+        private void MoveActiveTab(int direction)
+        {
+            if (ActiveTab == null) return;
+            int index = Tabs.IndexOf(ActiveTab);
+            int target = index + direction;
+            if (index < 0 || target < 0 || target >= Tabs.Count) return;
+
+            Tabs.Move(index, target);
+            NormalizeTabs();
         }
 
         /// <summary>Strg+1 … Strg+8: Tab an dieser Stelle, Strg+9: letzter Tab.</summary>

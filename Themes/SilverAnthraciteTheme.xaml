@@ -1,5 +1,24 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ========================================== -->
+    <!--  0. DESIGN-TOKENS                          -->
+    <!--  Einheitliche Radien, Schriftgrößen und    -->
+    <!--  Schatten für alle Styles und Fenster      -->
+    <!-- ========================================== -->
+    <CornerRadius x:Key="RadiusSm">4</CornerRadius>
+    <CornerRadius x:Key="RadiusMd">6</CornerRadius>
+    <CornerRadius x:Key="RadiusLg">10</CornerRadius>
+    <CornerRadius x:Key="RadiusXl">12</CornerRadius>
+    <sys:Double x:Key="FontSizeCaption">11</sys:Double>
+    <sys:Double x:Key="FontSizeBody">12.5</sys:Double>
+    <sys:Double x:Key="FontSizeInput">13.5</sys:Double>
+    <sys:Double x:Key="FontSizeTitle">15</sys:Double>
+    <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <!-- Schatten: ThemeManager setzt sie im hellen Design deutlich zarter -->
+    <DropShadowEffect x:Key="ElevationShadow" BlurRadius="22" ShadowDepth="5" Direction="270" Color="#000000" Opacity="0.45"/>
+    <DropShadowEffect x:Key="ElevationShadowStrong" BlurRadius="30" ShadowDepth="7" Direction="270" Color="#000000" Opacity="0.6"/>
 
     <!-- ========================================== -->
     <!--  1. DEFAULT SILVER / ANTHRACITE PALETTE    -->
@@ -37,7 +56,9 @@
     <!-- Typography -->
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F0F2F5"/>
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A0A4AB"/>
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#6B707B"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#868B95"/>
+    <!-- Text auf Akzent-Flächen; ThemeManager wählt dunkel/weiß passend zur Akzentfarbe -->
+    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#16171A"/>
 
     <!-- Interactive States -->
     <SolidColorBrush x:Key="ButtonHoverBackgroundBrush" Color="#353841"/>
@@ -62,7 +83,7 @@
         <Setter Property="Control.Template">
             <Setter.Value>
                 <ControlTemplate>
-                    <Rectangle Margin="-2" RadiusX="7" RadiusY="7" StrokeThickness="2" SnapsToDevicePixels="True"
+                    <Rectangle Margin="-2" RadiusX="8" RadiusY="8" StrokeThickness="2" SnapsToDevicePixels="True"
                                Stroke="{DynamicResource OmniboxFocusBorderBrush}"/>
                 </ControlTemplate>
             </Setter.Value>
@@ -119,7 +140,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
+                            CornerRadius="{StaticResource RadiusMd}"
                             RenderTransformOrigin="0.5,0.5">
                         <Border.RenderTransform>
                             <ScaleTransform x:Name="btnScale" ScaleX="1.0" ScaleY="1.0"/>
@@ -127,12 +148,12 @@
                         <Grid>
                             <Border x:Name="hoverBg"
                                     Background="{DynamicResource ButtonHoverBackgroundBrush}"
-                                    CornerRadius="6"
+                                    CornerRadius="{StaticResource RadiusMd}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
                             <Border x:Name="pressedBg"
                                     Background="{DynamicResource ButtonPressedBackgroundBrush}"
-                                    CornerRadius="6"
+                                    CornerRadius="{StaticResource RadiusMd}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -201,7 +222,7 @@
                             </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" Value="0.35"/>
+                            <Setter Property="Opacity" Value="0.45"/>
                             <Setter Property="Cursor" Value="Arrow"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -245,6 +266,10 @@
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrightBrush}"/>
                             <Trigger.EnterActions>
@@ -423,6 +448,10 @@
                         <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="chipBorder" Property="Background" Value="{DynamicResource BookmarkItemHoverBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -455,7 +484,9 @@
                             <!-- Inactive Track -->
                             <Border x:Name="switchTrackOff"
                                     CornerRadius="10"
-                                    Background="{DynamicResource BorderBrush}"/>
+                                    Background="{DynamicResource BorderBrush}"
+                                    BorderBrush="{DynamicResource TextMutedBrush}"
+                                    BorderThickness="1"/>
                             <!-- Active Track Overlay (animates opacity) -->
                             <Border x:Name="switchTrackOn"
                                     CornerRadius="10"
@@ -512,7 +543,11 @@
                             <Setter TargetName="switchThumb" Property="Fill" Value="#FFFFFF"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="switchTrackOff" Property="BorderBrush" Value="{DynamicResource AccentSilverDimBrush}"/>
+                            <Setter TargetName="switchTrackOff" Property="BorderBrush" Value="{DynamicResource AccentSilverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -527,13 +562,9 @@
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}"/>
         <Setter Property="Padding" Value="16"/>
-        <Setter Property="Effect">
-            <Setter.Value>
-                <DropShadowEffect BlurRadius="24" ShadowDepth="6" Direction="270" Color="#000000" Opacity="0.45"/>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Effect" Value="{DynamicResource ElevationShadow}"/>
         <!-- Beim Öffnen leicht von oben hereingleiten (ergänzt das Einblenden der Popups) -->
         <Setter Property="RenderTransform">
             <Setter.Value>
@@ -576,11 +607,15 @@
                     <Border x:Name="b" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="5"
+                            CornerRadius="{StaticResource RadiusMd}"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrightBrush}"/>
@@ -612,11 +647,15 @@
                     <Border x:Name="b" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
+                            CornerRadius="{StaticResource RadiusMd}"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                             <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource AccentSilverDimBrush}"/>
@@ -858,6 +897,10 @@
                         </Popup>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentSilverBrush}"/>
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
@@ -889,6 +932,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="itemBorder" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrightBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="itemBorder" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentSilverBrightBrush}"/>
                         </Trigger>
@@ -926,7 +973,7 @@
                             Padding="4"
                             Margin="4">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.45"/>
+                            <DynamicResource ResourceKey="ElevationShadow"/>
                         </Border.Effect>
                         <StackPanel IsItemsHost="True" 
                                     KeyboardNavigation.DirectionalNavigation="Cycle"/>
@@ -1024,7 +1071,7 @@
                                         Padding="4"
                                         Margin="4">
                                     <Border.Effect>
-                                        <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.45"/>
+                                        <DynamicResource ResourceKey="ElevationShadow"/>
                                     </Border.Effect>
                                     <ScrollViewer CanContentScroll="True" SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>

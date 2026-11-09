@@ -217,6 +217,7 @@ namespace EchoBrowser
                     {
                         // In der jeweils anderen Seite öffnen
                         var other = tab == _splitLeft ? _splitRight! : _splitLeft!;
+                        other.ExpectBrowserNavigation = true;
                         other.WebView?.CoreWebView2?.Navigate(link);
                     }
                     else

@@ -121,8 +121,8 @@ namespace EchoBrowser
         private void SetToolbarButtonVisible(ToolbarButtonInfo button, bool visible)
         {
             button.SetVisible(AppSettingsService.Instance.Settings, visible);
-            AppSettingsService.Instance.Save();
-            ApplyToolbarButtonVisibilities();
+            // Alle Fenster blenden den Knopf aus bzw. ein (MainWindow.SettingsSync.cs)
+            AppSettingsService.Instance.Changed(nameof(AppSettings.ShowBackButton));
         }
 
         private void MenuHideToolbarButton_Click(object sender, RoutedEventArgs e)

@@ -28,13 +28,10 @@ namespace EchoBrowser
 
         private void BtnToggleSidebar_Click(object sender, RoutedEventArgs e)
         {
+            // Gilt für alle Fenster (MainWindow.SettingsSync.cs)
             bool isVisible = borderSidebar.Visibility == Visibility.Visible;
-            borderSidebar.Visibility = isVisible ? Visibility.Collapsed : Visibility.Visible;
-            menuChkSidebar.IsChecked = !isVisible;
-
-            // Persist setting
             AppSettingsService.Instance.Settings.IsSidebarVisible = !isVisible;
-            AppSettingsService.Instance.Save();
+            AppSettingsService.Instance.Changed(nameof(AppSettings.IsSidebarVisible));
         }
 
         private void SidebarFavorite_Click(object sender, RoutedEventArgs e)

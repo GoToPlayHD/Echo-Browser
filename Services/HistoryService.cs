@@ -104,7 +104,10 @@ namespace EchoBrowser.Services
             }
         }
 
-        public void AddEntry(string? title, string? url)
+        /// <param name="titleChangeOnly">
+        /// true, wenn nur der Seitentitel wechselte: ist die Adresse schon der letzte Eintrag, wird nur dessen Titel aktualisiert.
+        /// </param>
+        public void AddEntry(string? title, string? url, bool titleChangeOnly = false)
         {
             if (string.IsNullOrWhiteSpace(url)) return;
 
@@ -119,20 +122,18 @@ namespace EchoBrowser.Services
                 return;
             }
 
-            // Prevent duplicate entries for the exact same URL within 15 seconds
+            // Gleiche Adresse wie der letzte Eintrag: kein neuer Besuch, nur den Titel aktuell halten.
+            // Bei einer Titeländerung der Seite ("(3) Posteingang") gilt das unabhängig vom Alter des Eintrags.
             var mostRecent = Entries.FirstOrDefault();
             if (mostRecent != null &&
                 mostRecent.Url.Equals(cleanUrl, StringComparison.OrdinalIgnoreCase) &&
-                (DateTime.Now - mostRecent.VisitedAt).TotalSeconds < 15)
+                (titleChangeOnly || (DateTime.Now - mostRecent.VisitedAt).TotalSeconds < 15))
             {
-                // Update title if previously blank
-                if (string.IsNullOrWhiteSpace(mostRecent.Title) || mostRecent.Title == cleanUrl)
+                string newTitle = title?.Trim() ?? "";
+                if (newTitle.Length > 0 && newTitle != cleanUrl && newTitle != mostRecent.Title)
                 {
-                    if (!string.IsNullOrWhiteSpace(title) && title != cleanUrl)
-                    {
-                        mostRecent.Title = title;
-                        ScheduleSave();
-                    }
+                    mostRecent.Title = newTitle;
+                    ScheduleSave();
                 }
                 return;
             }
@@ -151,13 +152,17 @@ namespace EchoBrowser.Services
             ScheduleSave();
         }
 
-        public void RemoveEntry(HistoryItem item)
+        public void RemoveEntry(HistoryItem item) => RemoveEntries(new[] { item });
+
+        /// <summary>Einträge löschen und einmal speichern (sofort – Löschen soll auch bei einem Absturz gelten).</summary>
+        public void RemoveEntries(IEnumerable<HistoryItem> items)
         {
-            if (Entries.Contains(item))
+            bool removed = false;
+            foreach (var item in items.ToList())
             {
-                Entries.Remove(item);
-                SaveHistory();
+                removed |= Entries.Remove(item);
             }
+            if (removed) SaveHistory();
         }
 
         public void ClearHistory()

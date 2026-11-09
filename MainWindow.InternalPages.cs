@@ -69,7 +69,7 @@ namespace EchoBrowser
                 string path = AppSettingsService.Instance.Settings.StartpageBackgroundPath;
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                 {
-                    bytes = File.ReadAllBytes(path);
+                    bytes = ReadWallpaper(path);
                     contentType = Path.GetExtension(path).ToLowerInvariant() switch
                     {
                         ".jpg" or ".jpeg" => "image/jpeg",
@@ -84,6 +84,19 @@ namespace EchoBrowser
             return bytes == null
                 ? env.CreateWebResourceResponse(null, 404, "Not Found", "")
                 : env.CreateWebResourceResponse(new MemoryStream(bytes), 200, "OK", $"Content-Type: {contentType}\r\nCache-Control: max-age=600");
+        }
+
+        // Hintergrundbild der Startseite (oft mehrere MB): bei jedem neuen Tab gebraucht, daher zwischengespeichert
+        private static (string Path, DateTime Modified, byte[] Bytes)? _wallpaperCache;
+
+        private static byte[] ReadWallpaper(string path)
+        {
+            DateTime modified = File.GetLastWriteTimeUtc(path);
+            if (_wallpaperCache is { } cache && cache.Path == path && cache.Modified == modified) return cache.Bytes;
+
+            byte[] bytes = File.ReadAllBytes(path);
+            _wallpaperCache = (path, modified, bytes);
+            return bytes;
         }
 
         private string? BuildInternalPageHtml(string url)

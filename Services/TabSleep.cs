@@ -16,7 +16,8 @@ namespace EchoBrowser.Services
         bool IsAudible,
         bool IsLoading,
         bool SleepRefused,
-        DateTime LastActiveAt);
+        DateTime LastActiveAt,
+        bool HasActiveDownload = false);
 
     /// <summary>
     /// Tab-Schlaf wie in Edge: inaktive Tabs werden nach einer einstellbaren Zeit eingefroren
@@ -42,7 +43,8 @@ namespace EchoBrowser.Services
 
             TimeSpan idle = now - tab.LastActiveAt;
             // Hat die Seite das Einfrieren abgelehnt (z.B. laufende Kamera/Anruf), wird sie auch nicht verworfen
-            if (idle >= DiscardAfter(sleepMinutes) && !tab.SleepRefused) return TabSleepAction.Discard;
+            // Verwerfen gibt die WebView frei und würde laufende Downloads abbrechen
+            if (idle >= DiscardAfter(sleepMinutes) && !tab.SleepRefused && !tab.HasActiveDownload) return TabSleepAction.Discard;
             if (idle >= TimeSpan.FromMinutes(sleepMinutes) && !tab.IsSleeping && !tab.SleepRefused) return TabSleepAction.Sleep;
             return TabSleepAction.None;
         }

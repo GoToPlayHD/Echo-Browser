@@ -66,6 +66,39 @@ public class ExtensionCompatTests
         finally { Directory.Delete(dir, true); }
     }
 
+    [Fact]
+    public void ServiceWorkerRefresh_NeededOnceAfterSwitchingToWrapper()
+    {
+        string dir = NewExtension("""{ "manifest_version": 3, "background": { "service_worker": "bg.js" } }""");
+        try
+        {
+            Assert.False(ExtensionCompat.NeedsServiceWorkerRefresh(dir));
+
+            ExtensionCompat.Apply(dir);
+            Assert.True(ExtensionCompat.NeedsServiceWorkerRefresh(dir));
+
+            ExtensionCompat.MarkServiceWorkerRegistered(dir);
+            Assert.False(ExtensionCompat.NeedsServiceWorkerRefresh(dir));
+
+            // Weitere Starts ändern das Manifest nicht mehr – kein erneutes Aus- und Einschalten
+            ExtensionCompat.Apply(dir);
+            Assert.False(ExtensionCompat.NeedsServiceWorkerRefresh(dir));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void MarkServiceWorkerRegistered_WithoutWrapper_WritesNothing()
+    {
+        string dir = NewExtension("""{ "manifest_version": 3, "name": "eigener Ordner" }""");
+        try
+        {
+            ExtensionCompat.MarkServiceWorkerRegistered(dir);
+            Assert.False(File.Exists(Path.Combine(dir, ExtensionCompat.RegisteredMarkerFileName)));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
     [Theory]
     [InlineData("""{ "manifest_version": 2, "background": { "scripts": ["bg.js"] } }""")]
     [InlineData("""{ "manifest_version": 3, "name": "nur Inhaltsskripte" }""")]

@@ -9,7 +9,13 @@
     <RootNamespace>EchoBrowser</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <StartupObject>EchoBrowser.App</StartupObject>
-    <Version>1.2.5</Version>
+    <Version>1.2.6</Version>
+    <!-- Nach außen heißt der Browser nur "Echo" (Task-Manager, Dateieigenschaften, "Öffnen mit").
+         EXE-Name, Paket-ID (Velopack) und Datenordner bleiben "EchoBrowser" – sonst fänden bestehende
+         Installationen weder Updates noch ihre Daten. -->
+    <Product>Echo</Product>
+    <AssemblyTitle>Echo</AssemblyTitle>
+    <Company>Echo</Company>
   </PropertyGroup>
 
   <!-- App.xaml als Page deklarieren, damit Main() den VelopackApp-Bootstrap vor WPF ausführen kann -->
@@ -39,6 +45,8 @@
   <ItemGroup>
     <!-- Übersetzungen: Localization/<sprache>.json, werden in die EXE eingebettet -->
     <EmbeddedResource Include="Localization\*.json" />
+    <!-- Interne Seiten (echo://start, echo://settings, Absturzseite) – siehe Services/PageTemplates.cs -->
+    <EmbeddedResource Include="InternalPages\*.html" LogicalName="InternalPages.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

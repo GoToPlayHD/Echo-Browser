@@ -10,7 +10,7 @@
         Width="440"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        FontFamily="Segoe UI, -apple-system, Roboto, sans-serif"
+        FontFamily="{StaticResource UiFont}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
 
@@ -21,7 +21,7 @@
             Margin="16"
             Padding="22">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="28" ShadowDepth="6" Opacity="0.55" Color="#000000"/>
+            <DynamicResource ResourceKey="ElevationShadowStrong"/>
         </Border.Effect>
 
         <StackPanel>
@@ -44,7 +44,7 @@
                     <Image Source="pack://application:,,,/app.png" Width="16" Height="16" Margin="0,0,8,0"
                            VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock x:Name="txtDialogTitle" 
-                               Text="Echo-Browser" 
+                               Text="Echo" 
                                FontWeight="SemiBold" 
                                FontSize="12" 
                                Foreground="{DynamicResource TextMutedBrush}" 
@@ -129,6 +129,7 @@
                         Click="BtnSecondary_Click">
                     <Button.Style>
                         <Style TargetType="Button">
+                            <Setter Property="FocusVisualStyle" Value="{DynamicResource EchoFocusVisual}"/>
                             <Setter Property="Background" Value="{DynamicResource TabBackgroundBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -141,10 +142,13 @@
                                         <Border x:Name="b" Background="{TemplateBinding Background}" 
                                                 BorderBrush="{TemplateBinding BorderBrush}" 
                                                 BorderThickness="{TemplateBinding BorderThickness}" 
-                                                CornerRadius="7">
+                                                CornerRadius="{StaticResource RadiusMd}">
                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Opacity" Value="0.45"/>
+                                            </Trigger>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="b" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
                                                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -167,8 +171,9 @@
                         Click="BtnPrimary_Click">
                     <Button.Style>
                         <Style TargetType="Button">
+                            <Setter Property="FocusVisualStyle" Value="{DynamicResource EchoFocusVisual}"/>
                             <Setter Property="Background" Value="{DynamicResource AccentSilverBrush}"/>
-                            <Setter Property="Foreground" Value="#16171A"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
                             <Setter Property="BorderThickness" Value="0"/>
                             <Setter Property="FontSize" Value="12"/>
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -176,10 +181,13 @@
                                 <Setter.Value>
                                     <ControlTemplate TargetType="Button">
                                         <Border x:Name="b" Background="{TemplateBinding Background}" 
-                                                CornerRadius="7">
+                                                CornerRadius="{StaticResource RadiusMd}">
                                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Opacity" Value="0.45"/>
+                                            </Trigger>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="b" Property="Background" Value="{DynamicResource AccentSilverBrightBrush}"/>
                                             </Trigger>

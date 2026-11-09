@@ -142,7 +142,7 @@ namespace EchoBrowser.Views
             var dlg = new ThemedDialogWindow
             {
                 Owner = owner ?? Application.Current.MainWindow,
-                txtDialogTitle = { Text = "Echo-Browser" },
+                txtDialogTitle = { Text = "Echo" },
                 txtHeadline = { Text = title },
                 txtMessage = { Text = message },
                 btnPrimary = { Content = Tr.Get("Common_OK") },

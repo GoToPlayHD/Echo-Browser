@@ -101,8 +101,9 @@ namespace EchoBrowser.Services
 
             try
             {
+                // Erfassen auf dem UI-Thread, schreiben im Hintergrund (Titel- und Adresswechsel lösen das oft aus)
                 var snapshot = new SessionSnapshot { Windows = _collector().Where(w => w.Tabs.Count > 0).ToList() };
-                AtomicFile.WriteAllText(_sessionFile, SessionSerializer.Serialize(snapshot));
+                BackgroundFileWriter.Enqueue(_sessionFile, SessionSerializer.Serialize(snapshot));
             }
             catch (Exception ex)
             {

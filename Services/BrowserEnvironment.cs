@@ -83,9 +83,13 @@ namespace EchoBrowser.Services
         {
             try
             {
-                Directory.CreateDirectory(AppPaths.WebViewDataFolder);
-                DeleteLeftoverIncognitoProfiles(AppPaths.WebViewDataFolder);
-                ExtensionService.Instance.ApplyCompatToInstalledExtensions();
+                // Dateiarbeit (nach einem Absturz u.U. große Inkognito-Reste) im Hintergrund, das Fenster bleibt bedienbar
+                await Task.Run(() =>
+                {
+                    Directory.CreateDirectory(AppPaths.WebViewDataFolder);
+                    DeleteLeftoverIncognitoProfiles(AppPaths.WebViewDataFolder);
+                    ExtensionService.Instance.ApplyCompatToInstalledExtensions();
+                });
 
                 var echoScheme = new CoreWebView2CustomSchemeRegistration(InternalPages.Scheme)
                 {
