@@ -355,19 +355,23 @@ namespace EchoBrowser
 
             if (dlg.ShowDialog() == true)
             {
-                string extName = Path.GetFileNameWithoutExtension(dlg.FileName);
-                if (ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, dlg.FileName))
+                try
                 {
-                    try
+                    // Erst entpacken: Die Nachfrage zeigt die Berechtigungen aus dem Manifest
+                    var prepared = ExtensionService.Instance.PrepareFromCrx(dlg.FileName);
+                    if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, prepared, dlg.FileName))
                     {
-                        var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, dlg.FileName);
-                        ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id);
-                        await RefreshExtensionsListAsync();
+                        ExtensionService.Instance.DiscardPrepared(prepared);
+                        return;
                     }
-                    catch (Exception ex)
-                    {
-                        ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_InstallFailedTitle"), Tr.Format("Ext_InstallError", ex.Message), MessageBoxImage.Error);
-                    }
+
+                    var ext = await ExtensionService.Instance.InstallPreparedAsync(profile, prepared);
+                    ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? prepared.Name, ext?.Id);
+                    await RefreshExtensionsListAsync();
+                }
+                catch (Exception ex)
+                {
+                    ThemedDialogWindow.ShowMessage(this, Tr.Get("Ext_InstallFailedTitle"), Tr.Format("Ext_InstallError", ex.Message), MessageBoxImage.Error);
                 }
             }
         }
