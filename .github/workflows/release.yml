@@ -21,6 +21,9 @@ concurrency:
 env:
   # vpk muss zur Velopack-Version in EchoBrowser.csproj passen
   VPK_VERSION: 1.2.161
+  # Arbeitsordner für vpk. Bewusst nicht ./releases: Windows unterscheidet keine Groß-/Kleinschreibung,
+  # das wäre derselbe Ordner wie das eingecheckte Releases/ mit Dateien eines alten lokalen Builds.
+  RELEASE_DIR: ci-releases
 
 jobs:
   release:
@@ -72,6 +75,31 @@ jobs:
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
           echo "prerelease=$isPre" >> $env:GITHUB_OUTPUT
 
+      # Dieser Workflow erstellt das GitHub-Release selbst. Gibt es zum Tag schon eines (z.B. lokal per
+      # "vpk upload" veröffentlicht, was den Tag anlegt und so diesen Workflow startet), scheitert sonst
+      # "vpk pack": Der Delta-Download holt genau diese Version, und vpk verweigert dann dieselbe Version
+      # noch einmal. Danach würde auch "vpk upload" scheitern, weil Release und Assets schon existieren.
+      - name: Check Release Does Not Exist Yet
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Die Fehlermeldung erscheint als Annotation in der Run-Übersicht – Umlaute dafür als UTF-8 ausgeben
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          $tag = "${{ steps.get_version.outputs.tag }}"
+          $list = gh release list --repo "${{ github.repository }}" --limit 1000 --json tagName,name,isDraft
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Die vorhandenen Releases ließen sich nicht abfragen."
+            exit 1
+          }
+          $existing = $list | ConvertFrom-Json | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1
+          if ($existing) {
+            $state = if ($existing.isDraft) { "Entwurf" } else { "veröffentlicht" }
+            Write-Host "::error title=Release $tag existiert bereits::'$($existing.name)' ($state) gibt es schon. Der Workflow erstellt das Release selbst und kann nicht mit vorhandenen Dateien zusammenführen. Für ein Release aus der CI nur den Tag pushen und nichts von Hand hochladen. Ein Entwurf aus einem abgebrochenen Lauf kann gelöscht und der Lauf wiederholt werden."
+            exit 1
+          }
+          Write-Host "Noch kein Release zu $tag – der Workflow erstellt es."
+
       - name: Run Tests
         run: dotnet test tests/EchoBrowser.Tests -c Release
 
@@ -82,9 +110,9 @@ jobs:
       - name: Download Previous Releases (for Delta Patches)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path ./releases | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
           # Beim allerersten Release gibt es nichts zu laden – das ist kein Fehler
-          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --outputDir ./releases
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --outputDir $env:RELEASE_DIR
           if ($LASTEXITCODE -ne 0) { Write-Host "Kein vorheriges Release gefunden – es wird nur ein Vollpaket erstellt." }
           exit 0
 
@@ -92,10 +120,14 @@ jobs:
         shell: pwsh
         run: |
           # --framework: Setup installiert die .NET 8 Desktop Runtime, falls sie fehlt
-          vpk pack --packId EchoBrowser --packVersion ${{ steps.get_version.outputs.version }} --packDir ./publish --mainExe EchoBrowser.exe --outputDir ./releases --packTitle "Echo" --icon app.ico --framework net8.0-x64-desktop
+          vpk pack --packId EchoBrowser --packVersion ${{ steps.get_version.outputs.version }} --packDir ./publish --mainExe EchoBrowser.exe --outputDir $env:RELEASE_DIR --packTitle "Echo" --icon app.ico --framework net8.0-x64-desktop
 
       - name: Upload Velopack Assets to GitHub Release
         shell: pwsh
         run: |
-          $pre = if ("${{ steps.get_version.outputs.prerelease }}" -eq "true") { "--pre" } else { "" }
-          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --publish --outputDir ./releases --tag ${{ steps.get_version.outputs.tag }} --releaseName "Echo ${{ steps.get_version.outputs.version }}" $pre
+          # Als Array, das leer bleiben darf: Ein leerer String käme bei vpk als eigenes Argument an
+          # und bräche mit "Unrecognized command or argument ''" ab.
+          $extra = @()
+          if ("${{ steps.get_version.outputs.prerelease }}" -eq "true") { $extra += "--pre" }
+          # --targetCommitish: Startet man per workflow_dispatch ohne Tag, legt GitHub ihn auf genau dem gebauten Commit an
+          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" --publish --outputDir $env:RELEASE_DIR --tag ${{ steps.get_version.outputs.tag }} --targetCommitish ${{ github.sha }} --releaseName "Echo ${{ steps.get_version.outputs.version }}" @extra
