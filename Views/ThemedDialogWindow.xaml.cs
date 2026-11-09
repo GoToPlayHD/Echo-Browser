@@ -64,16 +64,44 @@ namespace EchoBrowser.Views
             dlg.pathStatusIcon.Data = Geometry.Parse("M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z");
             dlg.pathStatusIcon.Fill = (Brush)dlg.FindResource(extension.Permissions.AllSites ? "StatusWarningBrush" : "ShieldActiveBrush");
 
+            dlg.ShowPermissionDetails(extension, source);
+            return dlg.ShowDialog() == true;
+        }
+
+        /// <summary>
+        /// Update einer Erweiterung verlangt neue Berechtigungen: erst nach Zustimmung einspielen (wie Chrome).
+        /// Abgelehnt bleibt die bisherige Version installiert.
+        /// </summary>
+        public static bool ShowExtensionUpdatePrompt(Window? owner, PreparedExtension update)
+        {
+            var dlg = new ThemedDialogWindow
+            {
+                Owner = owner ?? Application.Current.MainWindow,
+                txtDialogTitle = { Text = Tr.Get("Ext_UpdateConsentTitle") },
+                txtHeadline = { Text = Tr.Format("Ext_UpdateConsentHeadline", update.Name) },
+                txtMessage = { Text = Tr.Format("Ext_UpdateConsentMessage", update.Version ?? "?") },
+                btnPrimary = { Content = Tr.Get("Ext_UpdateAllow") },
+                btnSecondary = { Content = Tr.Get("Ext_UpdateLater"), Visibility = Visibility.Visible }
+            };
+
+            dlg.pathStatusIcon.Data = Geometry.Parse("M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z");
+            dlg.pathStatusIcon.Fill = (Brush)dlg.FindResource("StatusWarningBrush");
+
+            dlg.ShowPermissionDetails(update, update.StoreId != null ? Tr.Format("Ext_IdLabel", update.StoreId) : null);
+            return dlg.ShowDialog() == true;
+        }
+
+        /// <summary>»Diese Erweiterung kann:« mit der Liste aus dem Manifest, darunter Version und Herkunft.</summary>
+        private void ShowPermissionDetails(PreparedExtension extension, string? source)
+        {
             var details = new System.Text.StringBuilder(ExtensionPermissions.Format(extension.Permissions));
             details.Append("\n\n");
             if (!string.IsNullOrWhiteSpace(extension.Version)) details.Append(Tr.Format("Ext_VersionLabel", extension.Version)).Append('\n');
             if (!string.IsNullOrWhiteSpace(source)) details.Append(source);
 
-            dlg.borderDetails.Visibility = Visibility.Visible;
-            dlg.txtDetailsLabel.Text = Tr.Get("Ext_Perm_Header");
-            dlg.txtDetailsContent.Text = details.ToString().TrimEnd();
-
-            return dlg.ShowDialog() == true;
+            borderDetails.Visibility = Visibility.Visible;
+            txtDetailsLabel.Text = Tr.Get("Ext_Perm_Header");
+            txtDetailsContent.Text = details.ToString().TrimEnd();
         }
 
         public static void ShowExtensionInstalledSuccess(Window? owner, string extensionName, string? extensionId = null)

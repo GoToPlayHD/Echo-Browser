@@ -506,6 +506,7 @@ namespace EchoBrowser
                 Log.Warn("Erweiterungen konnten nicht vorbereitet werden", ex);
             }
             UpdatePinnedExtensionsToolbar();
+            StartExtensionUpdateChecks();
         }
 
         /// <summary>Eigene Fehlerseite statt Chromiums Standardseite (Services/NetErrorPageService.cs).</summary>
