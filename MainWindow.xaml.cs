@@ -273,6 +273,10 @@ namespace EchoBrowser
                 UpdateNavigationControls();
                 CheckBookmarkStatus();
                 UpdateShieldUi();
+                if (ActiveTab != null)
+                {
+                    UpdateSecurityChip(ActiveTab);   // Tooltip wird im Code gesetzt
+                }
 
                 // Interne Seiten neu aufbauen, damit sie in der neuen Sprache erscheinen
                 foreach (var tab in Tabs.ToList())
@@ -656,6 +660,12 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
                 tab.Dispose();
             }
             Tabs.Clear();
+
+            // Mit dem Profil enden auch dessen Zertifikats-Ausnahmen (»Trotzdem fortfahren«)
+            if (_isIncognito && !Application.Current.Windows.OfType<MainWindow>().Any(w => w != this && w.IsIncognito))
+            {
+                CertificateErrorTracker.ForProfile(incognito: true).Clear();
+            }
 
             if (LastActive == this)
             {

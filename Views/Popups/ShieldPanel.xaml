@@ -22,8 +22,8 @@
                     <TextBlock x:Name="txtShieldHost" Text="{loc:Loc Shield_StartPageHost}" 
                                FontWeight="Bold" FontSize="14" 
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock x:Name="txtShieldStatus" Text="{loc:Loc Security_Secure}" 
-                               FontSize="11" 
+                    <TextBlock x:Name="txtShieldStatus" Text="{loc:Loc Security_Secure}"
+                               FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource StatusSuccessBrush}"/>
                 </StackPanel>
             </DockPanel>
