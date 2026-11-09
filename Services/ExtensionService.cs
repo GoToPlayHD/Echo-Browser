@@ -12,6 +12,16 @@ using Microsoft.Web.WebView2.Core;
 
 namespace EchoBrowser.Services
 {
+    /// <summary>Entpackte, noch nicht installierte Erweiterung (siehe <see cref="ExtensionService.PrepareFromCrx"/>).</summary>
+    /// <param name="RootFolder">Von Echo angelegter Ordner unter Extensions\ (wird bei Abbruch gelöscht).</param>
+    /// <param name="ManifestFolder">Ordner mit der manifest.json, darin oder eine Ebene tiefer.</param>
+    public sealed record PreparedExtension(
+        string RootFolder,
+        string ManifestFolder,
+        string Name,
+        string? Version,
+        ExtensionPermissionSummary Permissions);
+
     public class ExtensionService
     {
         private static ExtensionService? _instance;
@@ -25,30 +35,105 @@ namespace EchoBrowser.Services
             Directory.CreateDirectory(_extensionsDirectory);
         }
 
-        public async Task<CoreWebView2BrowserExtension?> InstallExtensionFromCrxAsync(CoreWebView2Profile profile, string crxPath)
+        /// <summary>
+        /// .crx entpacken und das Manifest lesen, aber noch nicht installieren: Der Nutzer soll vorher sehen,
+        /// worauf die Erweiterung zugreifen darf. Danach <see cref="InstallPreparedAsync"/> oder <see cref="DiscardPrepared"/>.
+        /// </summary>
+        public PreparedExtension PrepareFromCrx(string crxPath)
         {
             if (!File.Exists(crxPath))
                 throw new FileNotFoundException(Tr.Get("Ext_ErrorCrxNotFound"), crxPath);
 
             string extName = Path.GetFileNameWithoutExtension(crxPath);
             string targetFolder = Path.Combine(_extensionsDirectory, $"{extName}_{Guid.NewGuid():N}");
-
-            ExtractCrx(crxPath, targetFolder);
-
-            // Find directory containing manifest.json
-            string? manifestFolder = FindManifestDirectory(targetFolder);
-            if (manifestFolder == null)
+            try
             {
-                throw new InvalidOperationException(Tr.Get("Ext_ErrorManifestMissingUnpacked"));
+                ExtractCrx(crxPath, targetFolder);
+
+                string manifestFolder = FindManifestDirectory(targetFolder)
+                    ?? throw new InvalidOperationException(Tr.Get("Ext_ErrorManifestMissingUnpacked"));
+
+                // Chromium lehnt entpackte Erweiterungen mit "_"-Ordnern ab (z.B. _metadata aus dem Web Store)
+                SanitizeUnpackedExtension(manifestFolder);
+
+                var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+                using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(manifestFolder, "manifest.json")), options);
+                var root = manifest.RootElement;
+                var prepared = new PreparedExtension(
+                    targetFolder,
+                    manifestFolder,
+                    ResolveDisplayName(manifestFolder, root) ?? extName,
+                    root.TryGetProperty("version", out var version) && version.ValueKind == JsonValueKind.String ? version.GetString() : null,
+                    ExtensionPermissions.Describe(root));
+
+                // Ändert nur den Service Worker, nicht die Berechtigungen
+                ExtensionCompat.Apply(manifestFolder);
+                return prepared;
             }
+            catch
+            {
+                DeleteExtractedFolder(targetFolder);
+                throw;
+            }
+        }
 
-            // Remove any underscore directories (e.g. _metadata) forbidden by Chromium unpacked extensions loader
-            SanitizeUnpackedExtension(manifestFolder);
-            ExtensionCompat.Apply(manifestFolder);
+        /// <summary>Nach Zustimmung des Nutzers: vorbereitete Erweiterung ins Profil laden.</summary>
+        public async Task<CoreWebView2BrowserExtension?> InstallPreparedAsync(CoreWebView2Profile profile, PreparedExtension prepared)
+        {
+            try
+            {
+                var ext = await profile.AddBrowserExtensionAsync(prepared.ManifestFolder);
+                RememberExtensionFolder(ext, prepared.ManifestFolder);
+                return ext;
+            }
+            catch
+            {
+                DiscardPrepared(prepared);
+                throw;
+            }
+        }
 
-            var ext = await profile.AddBrowserExtensionAsync(manifestFolder);
-            RememberExtensionFolder(ext, manifestFolder);
-            return ext;
+        /// <summary>Installation abgelehnt oder fehlgeschlagen: entpackte Dateien wieder löschen.</summary>
+        public void DiscardPrepared(PreparedExtension prepared) => DeleteExtractedFolder(prepared.RootFolder);
+
+        /// <summary>Löscht nur Ordner, die Echo selbst unter Extensions\ angelegt hat.</summary>
+        private void DeleteExtractedFolder(string folder)
+        {
+            try
+            {
+                string root = Path.GetFullPath(_extensionsDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                string full = Path.GetFullPath(folder);
+                if (full.StartsWith(root, StringComparison.OrdinalIgnoreCase) && Directory.Exists(full))
+                {
+                    Directory.Delete(full, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Entpackte Erweiterung konnte nicht gelöscht werden", ex);
+            }
+        }
+
+        /// <summary>
+        /// Anzeigename aus dem Manifest. "__MSG_name__" wird in der Sprache von Echo aufgelöst, sonst in der
+        /// Standardsprache der Erweiterung, sonst in irgendeiner vorhandenen.
+        /// </summary>
+        private static string? ResolveDisplayName(string folder, JsonElement manifest)
+        {
+            if (!manifest.TryGetProperty("name", out var nameEl) || nameEl.ValueKind != JsonValueKind.String) return null;
+            string name = nameEl.GetString() ?? "";
+
+            var msg = Regex.Match(name, @"^__MSG_(\w+)__$");
+            if (!msg.Success) return string.IsNullOrWhiteSpace(name) ? null : name;
+
+            string? defaultLocale = manifest.TryGetProperty("default_locale", out var dl) && dl.ValueKind == JsonValueKind.String ? dl.GetString() : null;
+            foreach (string? locale in new[] { LocalizationService.Instance.CurrentLanguage, defaultLocale })
+            {
+                if (string.IsNullOrWhiteSpace(locale)) continue;
+                string file = Path.Combine(folder, "_locales", locale, "messages.json");
+                if (File.Exists(file) && ReadLocaleMessage(file, msg.Groups[1].Value) is { Length: > 0 } resolved) return resolved;
+            }
+            return GetManifestNames(folder).FirstOrDefault(n => !n.StartsWith("__MSG_", StringComparison.Ordinal));
         }
 
         public async Task<CoreWebView2BrowserExtension?> InstallExtensionFromFolderAsync(CoreWebView2Profile profile, string folderPath)
@@ -78,7 +163,8 @@ namespace EchoBrowser.Services
             return ext;
         }
 
-        public async Task<CoreWebView2BrowserExtension?> DownloadAndInstallExtensionAsync(CoreWebView2Profile profile, string extensionId, string? extensionName = null)
+        /// <summary>Erweiterung aus dem Chrome Web Store laden und vorbereiten (noch nicht installieren).</summary>
+        public async Task<PreparedExtension> DownloadAndPrepareAsync(string extensionId)
         {
             // Die ID kommt von einer Webseite und landet in URL und Dateiname: nur echte Store-IDs zulassen
             if (!IsValidExtensionId(extensionId))
@@ -108,7 +194,7 @@ namespace EchoBrowser.Services
 
             try
             {
-                return await InstallExtensionFromCrxAsync(profile, tempCrxPath);
+                return PrepareFromCrx(tempCrxPath);
             }
             finally
             {

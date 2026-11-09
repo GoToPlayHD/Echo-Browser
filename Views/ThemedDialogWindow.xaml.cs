@@ -44,28 +44,34 @@ namespace EchoBrowser.Views
             Close();
         }
 
-        public static bool ShowExtensionInstallPrompt(Window? owner, string extensionName, string? extensionId = null, string? details = null)
+        /// <summary>
+        /// Nachfrage vor der Installation mit den Berechtigungen aus dem Manifest (wie Chrome: »Diese Erweiterung kann …«).
+        /// </summary>
+        /// <param name="source">Herkunft für die letzte Zeile, z.B. »Erweiterungs-ID: …« oder der Dateipfad.</param>
+        public static bool ShowExtensionInstallPrompt(Window? owner, PreparedExtension extension, string? source = null)
         {
             var dlg = new ThemedDialogWindow
             {
                 Owner = owner ?? Application.Current.MainWindow,
                 txtDialogTitle = { Text = Tr.Get("Ext_InstallTitle") },
-                txtHeadline = { Text = Tr.Format("Ext_InstallHeadline", extensionName) },
+                txtHeadline = { Text = Tr.Format("Ext_InstallHeadline", extension.Name) },
                 txtMessage = { Text = Tr.Get("Ext_InstallWarning") },
                 btnPrimary = { Content = Tr.Get("Ext_AddButton") },
                 btnSecondary = { Content = Tr.Get("Dialog_Cancel"), Visibility = Visibility.Visible }
             };
 
-            // Icon: Puzzle / Extension
+            // Icon: Puzzle / Extension – gelb, wenn die Erweiterung alle Websites lesen und ändern darf
             dlg.pathStatusIcon.Data = Geometry.Parse("M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z");
-            dlg.pathStatusIcon.Fill = (Brush)dlg.FindResource("ShieldActiveBrush");
+            dlg.pathStatusIcon.Fill = (Brush)dlg.FindResource(extension.Permissions.AllSites ? "StatusWarningBrush" : "ShieldActiveBrush");
 
-            if (!string.IsNullOrWhiteSpace(extensionId) || !string.IsNullOrWhiteSpace(details))
-            {
-                dlg.borderDetails.Visibility = Visibility.Visible;
-                dlg.txtDetailsLabel.Text = Tr.Get("Ext_DetailsLabel");
-                dlg.txtDetailsContent.Text = !string.IsNullOrWhiteSpace(details) ? details : Tr.Format("Ext_IdLabel", extensionId);
-            }
+            var details = new System.Text.StringBuilder(ExtensionPermissions.Format(extension.Permissions));
+            details.Append("\n\n");
+            if (!string.IsNullOrWhiteSpace(extension.Version)) details.Append(Tr.Format("Ext_VersionLabel", extension.Version)).Append('\n');
+            if (!string.IsNullOrWhiteSpace(source)) details.Append(source);
+
+            dlg.borderDetails.Visibility = Visibility.Visible;
+            dlg.txtDetailsLabel.Text = Tr.Get("Ext_Perm_Header");
+            dlg.txtDetailsContent.Text = details.ToString().TrimEnd();
 
             return dlg.ShowDialog() == true;
         }

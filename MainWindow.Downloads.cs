@@ -242,13 +242,18 @@ namespace EchoBrowser
         private async Task InstallCrxWithPromptAsync(CoreWebView2Profile profile, string crxPath)
         {
             if (!CanManageExtensions()) return;
-            string extName = Path.GetFileNameWithoutExtension(crxPath);
             try
             {
-                if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, null, crxPath)) return;
+                // Erst entpacken: Die Nachfrage zeigt die Berechtigungen aus dem Manifest
+                var prepared = ExtensionService.Instance.PrepareFromCrx(crxPath);
+                if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, prepared, crxPath))
+                {
+                    ExtensionService.Instance.DiscardPrepared(prepared);
+                    return;
+                }
 
-                var ext = await ExtensionService.Instance.InstallExtensionFromCrxAsync(profile, crxPath);
-                ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id);
+                var ext = await ExtensionService.Instance.InstallPreparedAsync(profile, prepared);
+                ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? prepared.Name, ext?.Id);
                 await RefreshExtensionsListAsync();
             }
             catch (Exception ex)

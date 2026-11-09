@@ -106,15 +106,18 @@ namespace EchoBrowser
 
             try
             {
-                if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, extName, extId))
+                // Erst laden und entpacken: Die Nachfrage zeigt die Berechtigungen aus dem Manifest
+                var prepared = await ExtensionService.Instance.DownloadAndPrepareAsync(extId);
+                if (!ThemedDialogWindow.ShowExtensionInstallPrompt(this, prepared, Tr.Format("Ext_IdLabel", extId)))
                 {
+                    ExtensionService.Instance.DiscardPrepared(prepared);
                     await ctx.CallPageAsync("onEchoExtensionInstallResult", false, "Vom Benutzer abgebrochen");
                     return;
                 }
 
-                var ext = await ExtensionService.Instance.DownloadAndInstallExtensionAsync(profile, extId, extName);
+                var ext = await ExtensionService.Instance.InstallPreparedAsync(profile, prepared);
                 await ctx.CallPageAsync("onEchoExtensionInstallResult", true, "Installiert");
-                ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? extName, ext?.Id ?? extId);
+                ThemedDialogWindow.ShowExtensionInstalledSuccess(this, ext?.Name ?? prepared.Name, ext?.Id ?? extId);
                 await RefreshExtensionsListAsync();
             }
             catch (Exception ex)
