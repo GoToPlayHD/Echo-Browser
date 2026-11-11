@@ -13,7 +13,7 @@
 
 ## Funktionen
 
-- **Tabs** mit Website-Symbolen, Drag & Drop, Kontextmenü (Duplizieren, Stummschalten, Andere schließen …),
+- **Tabs** mit Website-Symbolen, Drag & Drop (auch aus dem Fenster heraus in ein neues Fenster und in andere Fenster hinein – ohne Neuladen, `Esc` bricht ab), Kontextmenü (Duplizieren, Stummschalten, Andere schließen …),
   Ton-Anzeige, Mittelklick zum Schließen und „Geschlossenen Tab wieder öffnen“
 - **Angeheftete Tabs** und **Tab-Gruppen** mit Name und Farbe (Klick auf den Gruppenkopf klappt ein/aus,
   Rechtsklick bearbeitet); beides bleibt über einen Neustart erhalten

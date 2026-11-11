@@ -39,6 +39,24 @@ namespace EchoBrowser.Models
         public string Id { get; } = Guid.NewGuid().ToString();
 
         public WebView2? WebView { get; set; }
+
+        /// <summary>Umgebung, mit der die WebView angelegt wurde (für Handler, die nach einem Fensterwechsel neu gebunden werden).</summary>
+        public CoreWebView2Environment? Environment { get; set; }
+
+        /// <summary>
+        /// Das Fenster, zu dessen Tab-Leiste der Tab gerade gehört. Ein Tab kann per Drag &amp; Drop in ein anderes
+        /// Fenster wechseln (MainWindow.TabTransfer.cs) – seine WebView läuft dabei weiter.
+        /// </summary>
+        public System.Windows.Window? Host { get; set; }
+
+        /// <summary>Die WebView ist fertig eingerichtet (Core bereit, Einstellungen gesetzt) – ihre Handler lassen sich binden.</summary>
+        public bool IsWebViewSetUp { get; set; }
+
+        /// <summary>
+        /// Abmeldungen der Ereignis-Handler, die an <see cref="Host"/> gebunden sind. Beim Wechsel in ein anderes
+        /// Fenster werden sie gelöst und vom neuen Fenster neu angemeldet.
+        /// </summary>
+        private readonly List<(Action Unbind, bool WebViewBound)> _hostBindings = new();
         public string? CosmeticScriptId { get; set; }
         public bool IsAdBlockFilterRegistered { get; set; }
         public string? PrivacySignalsScriptId { get; set; }
@@ -434,6 +452,27 @@ namespace EchoBrowser.Models
             : MemoryDisplay.Length > 0 ? Tr.Format("Tab_MemoryUsage", MemoryDisplay)
             : "";
 
+        /// <summary>Merkt sich, wie ein an das Fenster gebundener Handler wieder abgemeldet wird.</summary>
+        /// <param name="webViewBound">Hängt an der WebView (entfällt mit ihr) statt am Tab selbst.</param>
+        public void AddHostBinding(Action unbind, bool webViewBound = true) => _hostBindings.Add((unbind, webViewBound));
+
+        /// <summary>Alle an das bisherige Fenster gebundenen Handler abmelden (vor dem Wechsel in ein anderes Fenster).</summary>
+        public void ReleaseHostBindings()
+        {
+            foreach (var (unbind, _) in _hostBindings)
+            {
+                try
+                {
+                    unbind();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("Handler eines Tabs ließ sich nicht abmelden", ex);
+                }
+            }
+            _hostBindings.Clear();
+        }
+
         /// <summary>
         /// WebView freigeben (Tab verwerfen oder nach einem Absturz neu aufbauen). Der Zustand, der an der
         /// alten CoreWebView2 hing, wird zurückgesetzt.
@@ -442,6 +481,9 @@ namespace EchoBrowser.Models
         {
             var webView = WebView;
             WebView = null;
+            // Handler der alten WebView verschwinden mit ihr – nur die am Tab selbst bleiben
+            _hostBindings.RemoveAll(b => b.WebViewBound);
+            IsWebViewSetUp = false;
             try
             {
                 webView?.Dispose();
@@ -521,6 +563,7 @@ namespace EchoBrowser.Models
         {
             if (_isDisposed) return;
             _isDisposed = true;
+            _hostBindings.Clear();
 
             try
             {

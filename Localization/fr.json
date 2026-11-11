@@ -460,6 +460,7 @@
   "Tab_Mute": "Couper le son de l'onglet",
   "Tab_Unmute": "Réactiver le son de l'onglet",
   "Tab_MoveToNewWindow": "Déplacer vers une nouvelle fenêtre",
+  "Tab_DragNewWindowHint": "Relâchez pour ouvrir une nouvelle fenêtre · Échap pour annuler",
   "Tab_Close": "Fermer l'onglet",
   "Tab_CloseOthers": "Fermer les autres onglets",
   "Tab_CloseRight": "Fermer les onglets à droite",

@@ -43,7 +43,13 @@ namespace EchoBrowser
 
         private void AttachTabIndicatorEvents(BrowserTab tab, CoreWebView2 core)
         {
-            core.FaviconChanged += async (s, e) => await UpdateFaviconAsync(tab, core);
+            Bind(tab, h => core.FaviconChanged += h, h => core.FaviconChanged -= h,
+                new EventHandler<object>(async (s, e) => await UpdateFaviconAsync(tab, core)));
+        }
+
+        /// <summary>Einmal pro WebView: Handler, die nur den Tab selbst betreffen (bleiben bei einem Fensterwechsel angemeldet).</summary>
+        private static void AttachWindowIndependentEvents(BrowserTab tab, CoreWebView2 core)
+        {
             core.IsDocumentPlayingAudioChanged += (s, e) => tab.IsAudible = core.IsDocumentPlayingAudio;
             core.IsMutedChanged += (s, e) => tab.IsMuted = core.IsMuted;
         }
@@ -236,15 +242,24 @@ namespace EchoBrowser
             }
         }
 
-        /// <summary>Tab in einem neuen Fenster (gleicher Modus: normal bzw. Inkognito) weiterführen.</summary>
+        /// <summary>
+        /// Tab in einem neuen Fenster (gleicher Modus: normal bzw. Inkognito) weiterführen – ohne Neuladen, die Seite
+        /// behält Verlauf, Eingaben und Scroll-Position (MainWindow.TabTransfer.cs). Das Fenster erscheint leicht
+        /// versetzt zum bisherigen.
+        /// </summary>
         private void MoveTabToNewWindow(BrowserTab tab)
         {
-            // Der einzige Tab ist schon allein im Fenster (und CloseTab würde jetzt das Fenster schließen)
+            // Der einzige Tab ist schon allein im Fenster
             if (Tabs.Count <= 1) return;
 
-            var window = new MainWindow(_isIncognito) { StartupUrls = new[] { tab.Url } };
-            window.Show();
-            CloseTab(tab, rememberForReopen: false);
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            var bounds = NativeScreen.WindowBounds(hwnd);
+            if (bounds.IsEmpty) return;
+
+            // Linke obere Ecke um 32 DIP versetzt: "Griffpunkt" = Fensterecke
+            double scale = DeviceScale;
+            var corner = new Point(bounds.Left + 32 * scale, bounds.Top + 32 * scale);
+            DetachTabToNewWindow(tab, corner, new Vector(0, 0));
         }
 
         private void ReopenClosedTab()

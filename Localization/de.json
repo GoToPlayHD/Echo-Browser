@@ -460,6 +460,7 @@
   "Tab_Mute": "Tab stummschalten",
   "Tab_Unmute": "Stummschaltung aufheben",
   "Tab_MoveToNewWindow": "In neues Fenster verschieben",
+  "Tab_DragNewWindowHint": "Loslassen öffnet ein neues Fenster · Esc bricht ab",
   "Tab_Close": "Tab schließen",
   "Tab_CloseOthers": "Andere Tabs schließen",
   "Tab_CloseRight": "Tabs rechts schließen",
