@@ -169,13 +169,8 @@
                                             RenderTransformOrigin="0.5,1"
                                             AutomationProperties.Name="{Binding DisplayTitle}"
                                             WindowChrome.IsHitTestVisibleInChrome="True"
-                                            AllowDrop="True"
                                             PreviewMouseLeftButtonDown="Tab_PreviewMouseLeftButtonDown"
-                                            PreviewMouseMove="Tab_PreviewMouseMove"
-                                            PreviewMouseLeftButtonUp="Tab_PreviewMouseLeftButtonUp"
                                             MouseUp="Tab_MouseUp"
-                                            DragOver="Tab_DragOver"
-                                            Drop="Tab_Drop"
                                             ToolTipOpening="Tab_ToolTipOpening">
                                         <Border.RenderTransform>
                                             <ScaleTransform ScaleX="1" ScaleY="1"/>
@@ -1074,14 +1069,9 @@
                                 <!-- Tab-Zeile -->
                                 <DataTemplate DataType="{x:Type models:BrowserTab}">
                                     <Border x:Name="vTab" Height="34" Margin="6,1" CornerRadius="7" Cursor="Hand" Background="Transparent"
-                                            AllowDrop="True"
                                             AutomationProperties.Name="{Binding DisplayTitle}"
                                             PreviewMouseLeftButtonDown="Tab_PreviewMouseLeftButtonDown"
-                                            PreviewMouseMove="Tab_PreviewMouseMove"
-                                            PreviewMouseLeftButtonUp="Tab_PreviewMouseLeftButtonUp"
                                             MouseUp="Tab_MouseUp"
-                                            DragOver="Tab_DragOver"
-                                            Drop="Tab_Drop"
                                             ToolTipOpening="Tab_ToolTipOpening">
                                         <Border.ToolTip>
                                             <ToolTip Placement="Right" HorizontalOffset="8">

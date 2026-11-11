@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using EchoBrowser.Models;
 using EchoBrowser.Services;
+using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
 namespace EchoBrowser
@@ -18,22 +19,24 @@ namespace EchoBrowser
 
         private void AttachZoomEvents(BrowserTab tab, WebView2 webView)
         {
-            webView.ZoomFactorChanged += (s, e) =>
-            {
-                if (!_isApplyingZoom && !_isIncognito)
+            Bind(tab, h => webView.ZoomFactorChanged += h, h => webView.ZoomFactorChanged -= h,
+                new EventHandler<EventArgs>((s, e) =>
                 {
-                    ZoomService.Instance.Set(tab.Url, webView.ZoomFactor, ZoomService.DefaultFactor);
-                }
-                if (tab == ActiveTab)
-                {
-                    UpdateZoomIndicator();
-                }
-            };
+                    if (!_isApplyingZoom && !_isIncognito)
+                    {
+                        ZoomService.Instance.Set(tab.Url, webView.ZoomFactor, ZoomService.DefaultFactor);
+                    }
+                    if (tab == ActiveTab)
+                    {
+                        UpdateZoomIndicator();
+                    }
+                }));
 
             // Beim Laden einer neuen Seite den Zoom dieser Website herstellen
-            if (webView.CoreWebView2 != null)
+            if (webView.CoreWebView2 is CoreWebView2 core)
             {
-                webView.CoreWebView2.ContentLoading += (s, e) => ApplySiteZoom(tab);
+                Bind(tab, h => core.ContentLoading += h, h => core.ContentLoading -= h,
+                    new EventHandler<CoreWebView2ContentLoadingEventArgs>((s, e) => ApplySiteZoom(tab)));
             }
         }
 

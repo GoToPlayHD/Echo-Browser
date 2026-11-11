@@ -74,6 +74,9 @@ namespace EchoBrowser
         /// </summary>
         private void OpenInitialTabs()
         {
+            // Herausgezogener Tab (MainWindow.TabTransfer.cs): nur er, keine Startseite
+            if (TryAdoptInitialTab()) return;
+
             if (WindowToRestore != null)
             {
                 RestoreWindowTabs(WindowToRestore);

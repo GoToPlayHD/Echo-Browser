@@ -95,6 +95,13 @@ namespace EchoBrowser
 
         private void OnTabDownloadFinished(BrowserTab tab)
         {
+            // Der Tab kann inzwischen in ein anderes Fenster gewechselt sein – dort wird er aufbewahrt
+            if (tab.Host is MainWindow host && host != this && !_tabsKeptForDownloads.Contains(tab))
+            {
+                host.OnTabDownloadFinished(tab);
+                return;
+            }
+
             tab.ActiveDownloads = Math.Max(0, tab.ActiveDownloads - 1);
             if (tab.ActiveDownloads > 0 || !_tabsKeptForDownloads.Remove(tab)) return;
 

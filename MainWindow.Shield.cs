@@ -76,7 +76,8 @@ namespace EchoBrowser
         /// </summary>
         private void AttachCertificateErrorEvents(BrowserTab tab, CoreWebView2 core)
         {
-            core.ServerCertificateErrorDetected += (s, args) =>
+            Bind(tab, h => core.ServerCertificateErrorDetected += h, h => core.ServerCertificateErrorDetected -= h,
+                new EventHandler<CoreWebView2ServerCertificateErrorDetectedEventArgs>((s, args) =>
             {
                 if (!CertificateErrorTracker.ForProfile(_isIncognito).Record(args.RequestUri, args.ErrorStatus)) return;
                 if (!_isIncognito && Uri.TryCreate(args.RequestUri, UriKind.Absolute, out var uri))
@@ -89,7 +90,7 @@ namespace EchoBrowser
                 {
                     window.RefreshSecurityState();
                 }
-            };
+            }));
         }
 
         private void RefreshSecurityState()

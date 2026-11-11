@@ -41,9 +41,7 @@ namespace EchoBrowser
         private string? _lastClosedExtensionPopupId;
         private DateTime _lastClosedExtensionPopupAt;
 
-        // Drag & Drop State for Tabs and Bookmarks
-        private Point _tabDragStartPoint;
-        private BrowserTab? _draggedTab;
+        // Drag & Drop State for Bookmarks (Tabs: MainWindow.TabDrag.cs)
         private Point _bmDragStartPoint;
         private Bookmark? _draggedBookmark;
         private Bookmark? _activeGroupForPopup;
@@ -653,6 +651,10 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
             {
                 _historyService.SaveHistory();
             }
+
+            // Ein laufendes Ziehen und ein nie übernommener Tab hinterlassen nichts
+            if (_tabDrag != null) EndTabDrag(cancel: true);
+            DisposeUnadoptedTab();
 
             // Inkognito-Daten liegen im InPrivate-Profil und verschwinden mit der letzten Inkognito-WebView
             foreach (var tab in Tabs.ToList())

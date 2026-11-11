@@ -25,13 +25,14 @@ namespace EchoBrowser
 
         private void AttachFullscreenEvents(BrowserTab tab, CoreWebView2 core)
         {
-            core.ContainsFullScreenElementChanged += (s, e) =>
-            {
-                if (tab == ActiveTab)
+            Bind(tab, h => core.ContainsFullScreenElementChanged += h, h => core.ContainsFullScreenElementChanged -= h,
+                new EventHandler<object>((s, e) =>
                 {
-                    SetFullscreen(core.ContainsFullScreenElement, fromPage: true);
-                }
-            };
+                    if (tab == ActiveTab)
+                    {
+                        SetFullscreen(core.ContainsFullScreenElement, fromPage: true);
+                    }
+                }));
         }
 
         private void ToggleFullscreen() => SetFullscreen(!_isFullscreen, fromPage: false);

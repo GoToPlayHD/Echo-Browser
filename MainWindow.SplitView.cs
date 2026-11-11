@@ -186,11 +186,13 @@ namespace EchoBrowser
 
         private void AttachSplitFocusEvents(BrowserTab tab, WebView2 webView)
         {
-            webView.GotFocus += (s, e) => OnWebViewFocused(tab, webView);
-            webView.IsKeyboardFocusWithinChanged += (s, e) =>
-            {
-                if (webView.IsKeyboardFocusWithin) OnWebViewFocused(tab, webView);
-            };
+            Bind(tab, h => webView.GotFocus += h, h => webView.GotFocus -= h,
+                new RoutedEventHandler((s, e) => OnWebViewFocused(tab, webView)));
+            Bind(tab, h => webView.IsKeyboardFocusWithinChanged += h, h => webView.IsKeyboardFocusWithinChanged -= h,
+                new DependencyPropertyChangedEventHandler((s, e) =>
+                {
+                    if (webView.IsKeyboardFocusWithin) OnWebViewFocused(tab, webView);
+                }));
         }
 
         /// <summary>Schließt ein Tab der geteilten Ansicht, zeigt der andere wieder die ganze Breite.</summary>
@@ -202,7 +204,8 @@ namespace EchoBrowser
         /// <summary>Kontextmenü eines Links: "Link in geteilter Ansicht öffnen".</summary>
         private void AttachSplitLinkMenu(BrowserTab tab, CoreWebView2 core)
         {
-            core.ContextMenuRequested += (s, args) =>
+            Bind(tab, h => core.ContextMenuRequested += h, h => core.ContextMenuRequested -= h,
+                new EventHandler<CoreWebView2ContextMenuRequestedEventArgs>((s, args) =>
             {
                 var target = args.ContextMenuTarget;
                 if (!target.HasLinkUri || _webViewEnvironment == null) return;
@@ -231,7 +234,7 @@ namespace EchoBrowser
                 var items = args.MenuItems;
                 int index = items.ToList().FindIndex(i => i.Name == "openLinkInNewWindow");
                 items.Insert(index >= 0 ? index + 1 : Math.Min(2, items.Count), item);
-            };
+            }));
         }
 
         /// <summary>Einträge des Tab-Kontextmenüs.</summary>

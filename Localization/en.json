@@ -460,6 +460,7 @@
   "Tab_Mute": "Mute tab",
   "Tab_Unmute": "Unmute tab",
   "Tab_MoveToNewWindow": "Move to new window",
+  "Tab_DragNewWindowHint": "Release to open in a new window · Esc to cancel",
   "Tab_Close": "Close tab",
   "Tab_CloseOthers": "Close other tabs",
   "Tab_CloseRight": "Close tabs to the right",

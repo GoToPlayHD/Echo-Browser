@@ -21,10 +21,25 @@ namespace EchoBrowser
 
         private bool _isUnresponsivePromptOpen;
 
-        private void AttachInternalPages(CoreWebView2Environment env, CoreWebView2 core)
+        /// <summary>Einmal pro WebView: Anfragen an echo:// abfangen, interne Seiten nie in fremde Seiten einbetten.</summary>
+        private static void AttachInternalPagesFilter(CoreWebView2 core)
         {
             core.AddWebResourceRequestedFilter(InternalPages.Scheme + "://*", CoreWebView2WebResourceContext.All);
-            core.WebResourceRequested += (s, args) =>
+
+            // Interne Seiten nie in fremde Seiten einbetten lassen (Schutz vor Clickjacking)
+            core.FrameNavigationStarting += (s, args) =>
+            {
+                if (InternalPages.IsInternalUrl(args.Uri))
+                {
+                    args.Cancel = true;
+                }
+            };
+        }
+
+        /// <summary>Liefert die internen Seiten – an das Fenster gebunden, weil sie dessen Zustand zeigen (z.B. Inkognito).</summary>
+        private void AttachInternalPages(BrowserTab tab, CoreWebView2Environment env, CoreWebView2 core)
+        {
+            EventHandler<CoreWebView2WebResourceRequestedEventArgs> onRequest = (s, args) =>
             {
                 if (!InternalPages.IsInternalUrl(args.Request.Uri)) return;
 
@@ -44,15 +59,7 @@ namespace EchoBrowser
                     ? env.CreateWebResourceResponse(null, 404, "Not Found", "")
                     : env.CreateWebResourceResponse(new MemoryStream(Encoding.UTF8.GetBytes(html)), 200, "OK", HtmlHeaders);
             };
-
-            // Interne Seiten nie in fremde Seiten einbetten lassen (Schutz vor Clickjacking)
-            core.FrameNavigationStarting += (s, args) =>
-            {
-                if (InternalPages.IsInternalUrl(args.Uri))
-                {
-                    args.Cancel = true;
-                }
-            };
+            Bind(tab, h => core.WebResourceRequested += h, h => core.WebResourceRequested -= h, onRequest);
         }
 
         private static CoreWebView2WebResourceResponse BuildInternalImage(CoreWebView2Environment env, string page, string url)

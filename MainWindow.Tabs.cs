@@ -62,14 +62,9 @@ namespace EchoBrowser
                 _ = LoadCachedFaviconAsync(tab, initialUrl);
             }
 
-            // Adresse oder Titel geändert -> Sitzung (verzögert) sichern
-            tab.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName is nameof(BrowserTab.Url) or nameof(BrowserTab.Title) or nameof(BrowserTab.IsActive))
-                {
-                    ScheduleSessionSave();
-                }
-            };
+            // Adresse oder Titel geändert -> Sitzung (verzögert) sichern (an das Fenster gebunden: MainWindow.TabTransfer.cs)
+            tab.Host = this;
+            BindTabToHost(tab);
 
             if (deferLoad && !activateTab && openerRequest == null)
             {
@@ -101,7 +96,6 @@ namespace EchoBrowser
             tab.WebView = webView;
             Grid.SetColumnSpan(webView, 3);
             WebViewContainer.Children.Add(webView);
-            AttachSplitFocusEvents(tab, webView);
 
             AttachWebViewEvents(tab, webView, url, openerRequest);
         }
@@ -122,6 +116,7 @@ namespace EchoBrowser
                 await webView.EnsureCoreWebView2Async(env, BrowserEnvironment.CreateControllerOptions(env, _isIncognito, _incognitoWithExtensions));
 
                 var core = webView.CoreWebView2;
+                tab.Environment = env;
                 if (core != null && (!_isIncognito || _incognitoWithExtensions))
                 {
                     // Temporäres Inkognito-Profil: startet leer, die installierten Erweiterungen hineinladen – vor der
@@ -130,57 +125,25 @@ namespace EchoBrowser
                     // laden und geänderte Hintergrund-Skripte neu starten – das läuft parallel zum Laden der Seite.
                     var extensionSetup = ExtensionService.Instance.EnsureProfileExtensionsAsync(core.Profile, isTemporaryProfile: _isIncognito);
                     if (_isIncognito) await extensionSetup;
-                    if (!_pinnedExtensionsShown)
-                    {
-                        // Erst danach kennt das Profil alle Erweiterungen – vorher bliebe die Leiste leer
-                        _pinnedExtensionsShown = true;
-                        _ = ShowPinnedExtensionsWhenReadyAsync(extensionSetup);
-                    }
+                    ShowPinnedExtensionsOnce(extensionSetup);
                 }
                 if (core != null)
                 {
-                    // Interne Seiten (echo://start, echo://settings …) -> MainWindow.InternalPages.cs
-                    AttachInternalPages(env, core);
-
+                    // Einmalig am Core: Filter für interne Seiten, Einstellungen und Skripte –
+                    // sie bleiben bei einem Wechsel in ein anderes Fenster erhalten
+                    AttachInternalPagesFilter(core);
                     await ConfigureCoreWebViewAsync(tab, webView, core);
-                    AttachAdBlocker(tab, core);
-
-                    // Nachrichten der internen Seiten & des Web Store -> MainWindow.WebMessages.cs
-                    core.WebMessageReceived += async (s, args) => await _webMessageRouter.HandleAsync(tab, core, args);
-
-                    // Neue Fenster / Popups als Tab öffnen – ungefragte Popups blockieren
-                    core.NewWindowRequested += (s, args) => HandleNewWindowRequested(tab, args);
-
-                    // Downloads -> MainWindow.Downloads.cs
-                    core.DownloadStarting += (s, args) => HandleDownloadStarting(tab, core, args);
-
-                    // Abstürze des Renderers oder Browsers -> MainWindow.InternalPages.cs
-                    core.ProcessFailed += (s, args) => HandleProcessFailed(tab, webView, args);
-
-                    // Website-Symbol und Ton-Anzeige im Tab -> MainWindow.TabActions.cs
-                    AttachTabIndicatorEvents(tab, core);
-
-                    // Zoom pro Website & Vollbild-Videos -> MainWindow.Zoom.cs / MainWindow.Fullscreen.cs
-                    AttachZoomEvents(tab, webView);
-                    AttachFullscreenEvents(tab, core);
-
-                    // Kamera, Mikrofon, Standort … -> MainWindow.Permissions.cs
-                    AttachPermissionEvents(tab, core);
-
-                    // Zertifikatsfehler: kein »Sicher« nach »Trotzdem fortfahren« -> MainWindow.Shield.cs
-                    AttachCertificateErrorEvents(tab, core);
-
-                    AttachPageStateEvents(tab, webView, core);
-
-                    // Link-Kontextmenü "In geteilter Ansicht öffnen" -> MainWindow.SplitView.cs
-                    AttachSplitLinkMenu(tab, core);
-
-                    // window.close() aus einem Popup (z.B. nach der OAuth-Anmeldung) schließt den Tab.
-                    // Chromium erlaubt das nur Fenstern, die per Skript geöffnet wurden.
-                    core.WindowCloseRequested += (s, args) => CloseTab(tab, rememberForReopen: false);
+                    AttachWindowIndependentEvents(tab, core);
                 }
 
-                AttachNavigationEvents(tab, webView);
+                // Der Tab kann während der Initialisierung in ein anderes Fenster gezogen worden sein: die
+                // fensterabhängigen Handler gehören dann dorthin. Ist er gerade unterwegs (Host = null),
+                // meldet das neue Fenster sie beim Übernehmen an (MainWindow.TabTransfer.cs AdoptTab).
+                if (tab.WebView == webView)
+                {
+                    tab.IsWebViewSetUp = true;
+                    if (tab.Host is MainWindow host) host.BindWebViewToHost(tab, webView);
+                }
 
                 if (openerRequest != null && core != null)
                 {
@@ -200,6 +163,102 @@ namespace EchoBrowser
             {
                 openerDeferral?.Complete();
             }
+        }
+
+        /// <summary>
+        /// Handler, die am Tab hängen und das Fenster brauchen (Sitzung sichern). Werden beim Wechsel des Tabs in ein
+        /// anderes Fenster gelöst und dort neu angemeldet (MainWindow.TabTransfer.cs).
+        /// </summary>
+        private void BindTabToHost(BrowserTab tab)
+        {
+            System.ComponentModel.PropertyChangedEventHandler onChanged = (s, e) =>
+            {
+                if (e.PropertyName is nameof(BrowserTab.Url) or nameof(BrowserTab.Title) or nameof(BrowserTab.IsActive))
+                {
+                    ScheduleSessionSave();
+                }
+            };
+            tab.PropertyChanged += onChanged;
+            tab.AddHostBinding(() => tab.PropertyChanged -= onChanged, webViewBound: false);
+        }
+
+        /// <summary>
+        /// Alle Ereignisse der WebView, die dieses Fenster brauchen (Adressleiste, Popups, Downloads, Berechtigungen …).
+        /// Jeder Handler wird über <see cref="BrowserTab.AddHostBinding"/> abmeldbar registriert, damit ein Tab samt
+        /// laufender WebView in ein anderes Fenster wechseln kann, ohne neu zu laden.
+        /// </summary>
+        private void BindWebViewToHost(BrowserTab tab, WebView2 webView)
+        {
+            if (tab.WebView != webView) return; // inzwischen verworfen oder ersetzt
+
+            AttachSplitFocusEvents(tab, webView);
+
+            var core = webView.CoreWebView2;
+            if (core != null)
+            {
+                // Interne Seiten (echo://start, echo://settings …) -> MainWindow.InternalPages.cs
+                var env = tab.Environment ?? _webViewEnvironment;
+                if (env != null) AttachInternalPages(tab, env, core);
+                AttachAdBlocker(tab, core);
+
+                // Nachrichten der internen Seiten & des Web Store -> MainWindow.WebMessages.cs
+                Bind(tab, h => core.WebMessageReceived += h, h => core.WebMessageReceived -= h,
+                    new EventHandler<CoreWebView2WebMessageReceivedEventArgs>(async (s, args) => await _webMessageRouter.HandleAsync(tab, core, args)));
+
+                // Neue Fenster / Popups als Tab öffnen – ungefragte Popups blockieren
+                Bind(tab, h => core.NewWindowRequested += h, h => core.NewWindowRequested -= h,
+                    new EventHandler<CoreWebView2NewWindowRequestedEventArgs>((s, args) => HandleNewWindowRequested(tab, args)));
+
+                // Downloads -> MainWindow.Downloads.cs
+                Bind(tab, h => core.DownloadStarting += h, h => core.DownloadStarting -= h,
+                    new EventHandler<CoreWebView2DownloadStartingEventArgs>((s, args) => HandleDownloadStarting(tab, core, args)));
+
+                // Abstürze des Renderers oder Browsers -> MainWindow.InternalPages.cs
+                Bind(tab, h => core.ProcessFailed += h, h => core.ProcessFailed -= h,
+                    new EventHandler<CoreWebView2ProcessFailedEventArgs>((s, args) => HandleProcessFailed(tab, webView, args)));
+
+                // Website-Symbol -> MainWindow.TabActions.cs
+                AttachTabIndicatorEvents(tab, core);
+
+                // Zoom pro Website & Vollbild-Videos -> MainWindow.Zoom.cs / MainWindow.Fullscreen.cs
+                AttachZoomEvents(tab, webView);
+                AttachFullscreenEvents(tab, core);
+
+                // Kamera, Mikrofon, Standort … -> MainWindow.Permissions.cs
+                AttachPermissionEvents(tab, core);
+
+                // Zertifikatsfehler: kein »Sicher« nach »Trotzdem fortfahren« -> MainWindow.Shield.cs
+                AttachCertificateErrorEvents(tab, core);
+
+                AttachPageStateEvents(tab, webView, core);
+
+                // Link-Kontextmenü "In geteilter Ansicht öffnen" -> MainWindow.SplitView.cs
+                AttachSplitLinkMenu(tab, core);
+
+                // window.close() aus einem Popup (z.B. nach der OAuth-Anmeldung) schließt den Tab.
+                // Chromium erlaubt das nur Fenstern, die per Skript geöffnet wurden.
+                Bind(tab, h => core.WindowCloseRequested += h, h => core.WindowCloseRequested -= h,
+                    new EventHandler<object>((s, args) => CloseTab(tab, rememberForReopen: false)));
+            }
+
+            AttachNavigationEvents(tab, webView);
+        }
+
+        /// <summary>Handler anmelden und seine Abmeldung am Tab merken (siehe <see cref="BindWebViewToHost"/>).</summary>
+        private static void Bind<THandler>(BrowserTab tab, Action<THandler> add, Action<THandler> remove, THandler handler)
+            where THandler : Delegate
+        {
+            add(handler);
+            tab.AddHostBinding(() => remove(handler));
+        }
+
+        /// <summary>Angeheftete Erweiterungen erst zeigen, wenn das Profil eines Tabs dieses Fensters bereit ist.</summary>
+        private void ShowPinnedExtensionsOnce(Task extensionSetup)
+        {
+            if (_pinnedExtensionsShown) return;
+            // Erst danach kennt das Profil alle Erweiterungen – vorher bliebe die Leiste leer
+            _pinnedExtensionsShown = true;
+            _ = ShowPinnedExtensionsWhenReadyAsync(extensionSetup);
         }
 
         /// <summary>
@@ -285,7 +344,7 @@ namespace EchoBrowser
         /// </summary>
         private void AttachAdBlocker(BrowserTab tab, CoreWebView2 core)
         {
-            core.WebResourceRequested += (s, args) =>
+            EventHandler<CoreWebView2WebResourceRequestedEventArgs> onRequest = (s, args) =>
             {
                 if (!AppSettingsService.Instance.Settings.IsAdBlockerEnabled) return;
                 if (!tab.TrackingProtectionEnabled) return;
@@ -319,6 +378,7 @@ namespace EchoBrowser
                     Log.Warn("Fehler im Shield-Netzwerkfilter", ex);
                 }
             };
+            Bind(tab, h => core.WebResourceRequested += h, h => core.WebResourceRequested -= h, onRequest);
         }
 
         private static bool IsAdScriptPath(string path) =>
@@ -329,7 +389,7 @@ namespace EchoBrowser
         /// <summary>Titel und Zurück/Vor-Status eines Tabs aktuell halten.</summary>
         private void AttachPageStateEvents(BrowserTab tab, WebView2 webView, CoreWebView2 core)
         {
-            core.DocumentTitleChanged += (s, args) =>
+            Bind(tab, h => core.DocumentTitleChanged += h, h => core.DocumentTitleChanged -= h, new EventHandler<object>((s, args) =>
             {
                 // Interne Seiten behalten ihren übersetzten Tab-Titel ("Neuer Tab", "Einstellungen")
                 if (InternalPages.IsInternalUrl(tab.Url)) return;
@@ -338,9 +398,9 @@ namespace EchoBrowser
                 // Während des Ladens trägt NavigationCompleted den Besuch ein (und weiß, ob er gelungen ist);
                 // danach halten Titeländerungen den Eintrag aktuell (auch Seitenwechsel per pushState)
                 if (!tab.IsLoading) RecordHistory(tab, titleChangeOnly: true);
-            };
+            }));
 
-            core.HistoryChanged += (s, args) =>
+            Bind(tab, h => core.HistoryChanged += h, h => core.HistoryChanged -= h, new EventHandler<object>((s, args) =>
             {
                 tab.CanGoBack = webView.CanGoBack;
                 tab.CanGoForward = webView.CanGoForward;
@@ -348,12 +408,13 @@ namespace EchoBrowser
                 {
                     UpdateNavigationControls();
                 }
-            };
+            }));
         }
 
         private void AttachNavigationEvents(BrowserTab tab, WebView2 webView)
         {
-            webView.NavigationStarting += async (s, args) =>
+            Bind(tab, h => webView.NavigationStarting += h, h => webView.NavigationStarting -= h,
+                new EventHandler<CoreWebView2NavigationStartingEventArgs>(async (s, args) =>
             {
                 var settings = AppSettingsService.Instance.Settings;
                 bool isInternal = InternalPages.IsInternalUrl(args.Uri);
@@ -409,9 +470,10 @@ namespace EchoBrowser
                 }
 
                 await SyncShieldStateAsync(tab);
-            };
+            }));
 
-            webView.NavigationCompleted += (s, args) =>
+            Bind(tab, h => webView.NavigationCompleted += h, h => webView.NavigationCompleted -= h,
+                new EventHandler<CoreWebView2NavigationCompletedEventArgs>((s, args) =>
             {
                 // Abgelöste Navigation (schnell hintereinander geklickt): die neue lädt noch
                 if (args.NavigationId != tab.CurrentNavigationId) return;
@@ -450,9 +512,10 @@ namespace EchoBrowser
                 {
                     _ = ShowNetErrorPageAsync(tab, webView, args.WebErrorStatus);
                 }
-            };
+            }));
 
-            webView.SourceChanged += (s, args) =>
+            Bind(tab, h => webView.SourceChanged += h, h => webView.SourceChanged -= h,
+                new EventHandler<CoreWebView2SourceChangedEventArgs>((s, args) =>
             {
                 // CoreWebView2.Source statt webView.Source: Uri.ToString() würde %20 & Co. entschlüsseln
                 string currentSrc = webView.CoreWebView2?.Source ?? "";
@@ -466,7 +529,7 @@ namespace EchoBrowser
                     CheckBookmarkStatus();
                     UpdateShieldUi();
                 }
-            };
+            }));
         }
 
         /// <summary>Verlaufseintrag anlegen – nicht im Inkognito-Modus und nicht für interne Seiten.</summary>
@@ -680,91 +743,6 @@ namespace EchoBrowser
             {
                 CloseTab(tab);
             }
-        }
-
-        // Tab Drag-and-Drop Reordering with Live Feedback
-        private void Tab_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is FrameworkElement fe && fe.DataContext is BrowserTab tab)
-            {
-                // If close button was clicked, don't start dragging
-                if (e.OriginalSource is DependencyObject dep && FindVisualParent<Button>(dep) != null)
-                {
-                    return;
-                }
-                _tabDragStartPoint = e.GetPosition(null);
-                _draggedTab = tab;
-                SelectTab(tab);
-            }
-        }
-
-        private void Tab_PreviewMouseMove(object sender, MouseEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed && _draggedTab != null)
-            {
-                Point currentPos = e.GetPosition(null);
-                Vector diff = _tabDragStartPoint - currentPos;
-
-                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
-                {
-                    if (sender is FrameworkElement fe)
-                    {
-                        var dragged = _draggedTab;
-                        var data = new DataObject("EchoBrowserTab", dragged);
-                        // Gezogenen Tab sichtbar "anheben", solange er verschoben wird
-                        double opacityBefore = fe.Opacity;
-                        fe.Opacity = 0.6;
-                        try
-                        {
-                            DragDrop.DoDragDrop(fe, data, DragDropEffects.Move);
-                        }
-                        finally
-                        {
-                            fe.Opacity = opacityBefore;
-                        }
-                        _draggedTab = null;
-
-                        // Gruppe nach der neuen Position anpassen (MainWindow.TabGroups.cs)
-                        FinishTabDrag(dragged);
-                    }
-                }
-            }
-        }
-
-        private void Tab_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _draggedTab = null;
-        }
-
-        private void Tab_DragOver(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent("EchoBrowserTab"))
-            {
-                e.Effects = DragDropEffects.Move;
-                e.Handled = true;
-
-                // Live reorder while dragging
-                if (e.Data.GetData("EchoBrowserTab") is BrowserTab sourceTab &&
-                    sender is FrameworkElement fe && fe.DataContext is BrowserTab targetTab)
-                {
-                    // Angeheftete und übrige Tabs bleiben getrennt
-                    if (sourceTab != targetTab && sourceTab.IsPinned == targetTab.IsPinned)
-                    {
-                        int oldIndex = Tabs.IndexOf(sourceTab);
-                        int newIndex = Tabs.IndexOf(targetTab);
-                        if (oldIndex >= 0 && newIndex >= 0)
-                        {
-                            Tabs.Move(oldIndex, newIndex);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void Tab_Drop(object sender, DragEventArgs e)
-        {
-            e.Handled = true;
         }
 
         #endregion

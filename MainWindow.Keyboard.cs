@@ -21,6 +21,13 @@ namespace EchoBrowser
         /// </summary>
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // Esc während ein Tab gezogen wird: Ziehen abbrechen (MainWindow.TabDrag.cs)
+            if (TryCancelTabDragByKey(e.Key))
+            {
+                e.Handled = true;
+                return;
+            }
+
             // Bei gedrückter Alt-Taste meldet WPF Key.System, die eigentliche Taste steht in SystemKey
             Key key = e.Key == Key.System ? e.SystemKey : e.Key;
             ModifierKeys modifiers = Keyboard.Modifiers;

@@ -460,6 +460,7 @@
   "Tab_Mute": "Silenciar pestaña",
   "Tab_Unmute": "Activar sonido de la pestaña",
   "Tab_MoveToNewWindow": "Mover a una ventana nueva",
+  "Tab_DragNewWindowHint": "Suelta para abrir en una ventana nueva · Esc para cancelar",
   "Tab_Close": "Cerrar pestaña",
   "Tab_CloseOthers": "Cerrar las demás pestañas",
   "Tab_CloseRight": "Cerrar pestañas a la derecha",

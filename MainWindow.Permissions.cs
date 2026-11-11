@@ -32,13 +32,14 @@ namespace EchoBrowser
 
         private void AttachPermissionEvents(BrowserTab tab, CoreWebView2 core)
         {
-            core.PermissionRequested += (s, args) =>
-            {
-                if (!SitePermissionTexts.IsPrompted(args.PermissionKind)) return;
+            Bind(tab, h => core.PermissionRequested += h, h => core.PermissionRequested -= h,
+                new EventHandler<CoreWebView2PermissionRequestedEventArgs>((s, args) =>
+                {
+                    if (!SitePermissionTexts.IsPrompted(args.PermissionKind)) return;
 
-                _pendingPermissions.Add(new PendingPermission(tab, args, args.GetDeferral()));
-                ShowNextPermissionPrompt();
-            };
+                    _pendingPermissions.Add(new PendingPermission(tab, args, args.GetDeferral()));
+                    ShowNextPermissionPrompt();
+                }));
         }
 
         /// <summary>Nächste offene Anfrage des sichtbaren Tabs zeigen (Anfragen im Hintergrund warten, bis der Tab aktiv ist).</summary>
