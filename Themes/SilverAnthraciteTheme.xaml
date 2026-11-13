@@ -56,7 +56,7 @@
     <!-- Typography -->
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F0F2F5"/>
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A0A4AB"/>
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#868B95"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#9095A0"/>
     <!-- Text auf Akzent-Flächen; ThemeManager wählt dunkel/weiß passend zur Akzentfarbe -->
     <SolidColorBrush x:Key="AccentForegroundBrush" Color="#16171A"/>
 

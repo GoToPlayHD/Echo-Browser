@@ -27,6 +27,23 @@ namespace EchoBrowser.Models
         [JsonIgnore]
         public CoreWebView2DownloadOperation? Operation { get; set; }
 
+        /// <summary>
+        /// Tab, an dessen WebView der Download hängt (nur während der Sitzung). Stirbt die WebView (Fenster geschlossen,
+        /// Browser-Absturz), meldet WebView2 kein StateChanged mehr – darüber werden solche Downloads aufgeräumt.
+        /// </summary>
+        [JsonIgnore]
+        public BrowserTab? OwnerTab { get; set; }
+
+        /// <summary>Die WebView ist weg: Download endgültig als abgebrochen markieren (sonst »läuft« er bis zum Neustart).</summary>
+        public void MarkAbandoned()
+        {
+            if (!IsInProgress) return;
+            IsPaused = false;
+            Operation = null;
+            OwnerTab = null;
+            IsCancelled = true;
+        }
+
         /// <summary>Aus einem Inkognito-Fenster: wird nie in downloads.json gespeichert.</summary>
         [JsonIgnore]
         public bool IsIncognito { get; init; }

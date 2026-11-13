@@ -148,7 +148,8 @@ namespace EchoBrowser
                 SourceUrl = operation.Uri,
                 IsIncognito = _isIncognito,
                 TotalBytes = operation.TotalBytesToReceive.HasValue ? (long)operation.TotalBytesToReceive.Value : 0,
-                Operation = operation
+                Operation = operation,
+                OwnerTab = tab
             };
 
             DownloadService.Instance.Add(download);
@@ -194,14 +195,16 @@ namespace EchoBrowser
                         download.BytesReceived = (long)operation.BytesReceived;
                         download.IsCompleted = true;
                         download.Operation = null;
-                        Finished();
+                        download.OwnerTab = null;
 
                         // Auto-install CRX if it is a downloaded extension – nur aus dem Chrome Web Store bzw. von Googles
-                        // Update-Server; .crx von anderen Seiten lassen sich über "Installieren" im Download-Flyout installieren
+                        // Update-Server; .crx von anderen Seiten lassen sich über "Installieren" im Download-Flyout installieren.
+                        // Profil VOR Finished() holen: das gibt einen nur für den Download aufbewahrten Tab samt Core frei.
                         if (download.IsCrx && File.Exists(download.FilePath) && DownloadService.IsTrustedCrxSource(download.SourceUrl))
                         {
-                            _ = OfferCrxInstallAsync(core, download.FilePath);
+                            _ = OfferCrxInstallAsync(TryGetProfile(core), download.FilePath);
                         }
+                        Finished();
                         break;
 
                     case CoreWebView2DownloadState.Interrupted:
@@ -216,6 +219,7 @@ namespace EchoBrowser
                         {
                             download.IsCancelled = true;
                             download.Operation = null;
+                            download.OwnerTab = null;
                             Finished();
                         }
                         break;
@@ -227,12 +231,37 @@ namespace EchoBrowser
             };
         }
 
-        private async Task OfferCrxInstallAsync(CoreWebView2 core, string crxPath)
+        private static CoreWebView2Profile? TryGetProfile(CoreWebView2 core)
+        {
+            try
+            {
+                return core.Profile;
+            }
+            catch (Exception)
+            {
+                return null; // Core bereits freigegeben
+            }
+        }
+
+        /// <summary>
+        /// Downloads, deren WebView gestorben ist (Fenster geschlossen, Browser-Absturz), als abgebrochen markieren –
+        /// WebView2 meldet für sie kein StateChanged mehr, sonst »laufen« sie bis zum Neustart.
+        /// </summary>
+        private static void AbandonDownloadsOf(Func<BrowserTab, bool> isAffected)
+        {
+            foreach (var download in DownloadService.Instance.Items.Where(d => d.IsInProgress && d.OwnerTab is { } t && isAffected(t)).ToList())
+            {
+                download.MarkAbandoned();
+            }
+        }
+
+        private async Task OfferCrxInstallAsync(CoreWebView2Profile? profile, string crxPath)
         {
             await Task.Delay(250);
             try
             {
-                var profile = core.Profile;
+                // Tab inzwischen geschlossen: das aktive Tab dieses Fensters nutzt dasselbe Profil
+                profile ??= ActiveTab?.WebView?.CoreWebView2?.Profile;
                 if (profile != null)
                 {
                     await InstallCrxWithPromptAsync(profile, crxPath);

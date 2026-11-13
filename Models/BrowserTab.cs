@@ -414,6 +414,12 @@ namespace EchoBrowser.Models
         public bool LoadFailed { get; set; }
 
         /// <summary>
+        /// Ziel, das eingegeben wurde, solange die WebView noch initialisiert (Strg+T, sofort tippen und Enter).
+        /// Ersetzt die erste Navigation, statt die Eingabe stillschweigend zu verwerfen.
+        /// </summary>
+        public string? PendingNavigationUrl { get; set; }
+
+        /// <summary>
         /// Laufende oder pausierte Downloads dieses Tabs. WebView2 bricht Downloads ab, sobald ihre WebView
         /// freigegeben wird – solche Tabs werden nicht verworfen, und beim Schließen lebt die WebView unsichtbar weiter.
         /// </summary>

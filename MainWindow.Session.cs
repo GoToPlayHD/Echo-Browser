@@ -257,6 +257,8 @@ namespace EchoBrowser
                     Tr.Get("Dialog_CloseAnyway"), Tr.Get("Dialog_Cancel")))
             {
                 e.Cancel = true;
+                // Schließen kam vom Herausziehen des letzten Tabs: kein leeres Fenster ohne Tab zurücklassen
+                if (Tabs.Count == 0) AddNewTab(StartPageService.StartPageUrl);
                 return;
             }
 

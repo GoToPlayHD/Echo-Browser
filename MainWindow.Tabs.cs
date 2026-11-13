@@ -113,7 +113,10 @@ namespace EchoBrowser
             {
                 // Nach einem Absturz des Browser-Prozesses liefert das eine neue Umgebung
                 var env = _webViewEnvironment = await BrowserEnvironment.GetAsync();
+                // Tab schon wieder geschlossen/verworfen (schnelles Öffnen und Schließen): nichts mehr anlegen
+                if (IsStaleWebView(tab, webView)) return;
                 await webView.EnsureCoreWebView2Async(env, BrowserEnvironment.CreateControllerOptions(env, _isIncognito, _incognitoWithExtensions));
+                if (IsStaleWebView(tab, webView)) return;
 
                 var core = webView.CoreWebView2;
                 tab.Environment = env;
@@ -126,6 +129,7 @@ namespace EchoBrowser
                     var extensionSetup = ExtensionService.Instance.EnsureProfileExtensionsAsync(core.Profile, isTemporaryProfile: _isIncognito);
                     if (_isIncognito) await extensionSetup;
                     ShowPinnedExtensionsOnce(extensionSetup);
+                    if (IsStaleWebView(tab, webView)) return;
                 }
                 if (core != null)
                 {
@@ -133,6 +137,7 @@ namespace EchoBrowser
                     // sie bleiben bei einem Wechsel in ein anderes Fenster erhalten
                     AttachInternalPagesFilter(core);
                     await ConfigureCoreWebViewAsync(tab, webView, core);
+                    if (IsStaleWebView(tab, webView)) return;
                     AttachWindowIndependentEvents(tab, core);
                 }
 
@@ -152,8 +157,17 @@ namespace EchoBrowser
                 }
                 else
                 {
-                    NavigateInitially(tab, webView, initialUrl);
+                    // Während der Initialisierung eingegebene Adresse hat Vorrang (MainWindow.Navigation.cs NavigateToInput)
+                    string target = tab.PendingNavigationUrl ?? initialUrl;
+                    tab.PendingNavigationUrl = null;
+                    if (target != initialUrl) tab.ExpectBrowserNavigation = true;
+                    NavigateInitially(tab, webView, target);
                 }
+            }
+            catch (Exception ex) when (IsStaleWebView(tab, webView))
+            {
+                // Tab wurde während der Initialisierung geschlossen – erwartbar, kein Fehler
+                Log.Info($"Initialisierung eines geschlossenen Tabs abgebrochen ({ex.GetType().Name})");
             }
             catch (Exception ex)
             {
@@ -164,6 +178,9 @@ namespace EchoBrowser
                 openerDeferral?.Complete();
             }
         }
+
+        /// <summary>Die WebView gehört nicht mehr zum Tab (geschlossen, verworfen oder nach einem Absturz ersetzt).</summary>
+        private static bool IsStaleWebView(BrowserTab tab, WebView2 webView) => !ReferenceEquals(tab.WebView, webView);
 
         /// <summary>
         /// Handler, die am Tab hängen und das Fenster brauchen (Sitzung sichern). Werden beim Wechsel des Tabs in ein
@@ -732,6 +749,10 @@ namespace EchoBrowser
             UpdateVerticalTabsForActiveTab();
         }
 
+        /// <summary>Tab-Breiten halten, solange die Maus in der Leiste bleibt (Views/Controls/TabStripPanel.cs).</summary>
+        private void FreezeTabStripWidths() =>
+            FindVisualChild<EchoBrowser.Views.Controls.TabStripPanel>(itemsTabs)?.FreezeTabWidth();
+
         private void BtnNewTab_Click(object sender, RoutedEventArgs e)
         {
             AddNewTab(StartPageService.StartPageUrl);
@@ -741,6 +762,7 @@ namespace EchoBrowser
         {
             if (sender is Button btn && btn.Tag is BrowserTab tab)
             {
+                FreezeTabStripWidths();
                 CloseTab(tab);
             }
         }

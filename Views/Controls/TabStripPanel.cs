@@ -124,6 +124,8 @@ namespace EchoBrowser.Views.Controls
 
             double rest = double.IsInfinity(availableSize.Width) ? double.PositiveInfinity : Math.Max(0, availableSize.Width - fixedWidth);
             _tabWidth = TabWidthFor(rest, tabCount, MinTabWidth, MaxTabWidth);
+            // Nach dem Schließen per Maus: Breite halten, damit das nächste Kreuz unter dem Zeiger liegt
+            if (!double.IsNaN(_frozenTabWidth)) _tabWidth = Math.Min(_tabWidth, _frozenTabWidth);
             bool compact = _tabWidth <= CompactWidth;
 
             for (int i = 0; i < count; i++)
@@ -207,6 +209,45 @@ namespace EchoBrowser.Views.Controls
         }
 
         /// <summary>Mausrad über der Tab-Leiste blättert durch die Tabs, wenn nicht alle hineinpassen.</summary>
+        private double _frozenTabWidth = double.NaN;
+        private System.Windows.Threading.DispatcherTimer? _freezeTimer;
+
+        /// <summary>
+        /// Wie Chrome: Wird ein Tab per Maus geschlossen, behalten die übrigen Tabs ihre Breite, bis der Zeiger die
+        /// Tab-Leiste verlässt. So rückt der nächste Tab mit seinem Schließen-Kreuz genau unter den Zeiger und
+        /// mehrere Tabs lassen sich nacheinander schließen, ohne der Maus hinterherzujagen.
+        /// </summary>
+        public void FreezeTabWidth()
+        {
+            if (_tabWidth <= 0) return;
+            _frozenTabWidth = _tabWidth;
+            // Über die Bildschirmposition prüfen: über den Lücken zwischen Tabs liegt die Fenster-Titelleiste,
+            // dort kämen MouseLeave-Ereignisse zu früh
+            _freezeTimer ??= new System.Windows.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(150),
+                System.Windows.Threading.DispatcherPriority.Input, (s, e) => ReleaseFreezeIfPointerLeft(), Dispatcher);
+            _freezeTimer.Start();
+        }
+
+        private void ReleaseFreezeIfPointerLeft()
+        {
+            if (IsVisible && PresentationSource.FromVisual(this) != null && GetCursorPos(out var screen))
+            {
+                var p = PointFromScreen(new Point(screen.X, screen.Y));
+                // Etwas Spielraum nach oben/unten, damit kurzes Zittern über den Rand nicht sofort auflöst
+                if (p.X >= 0 && p.X <= ActualWidth && p.Y >= -6 && p.Y <= ActualHeight + 6) return;
+            }
+            _freezeTimer?.Stop();
+            _frozenTabWidth = double.NaN;
+            InvalidateMeasure();
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct NativePoint { public int X; public int Y; }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        private static extern bool GetCursorPos(out NativePoint point);
+
         protected override void OnMouseWheel(System.Windows.Input.MouseWheelEventArgs e)
         {
             base.OnMouseWheel(e);

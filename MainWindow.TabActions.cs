@@ -145,6 +145,7 @@ namespace EchoBrowser
 
             if (e.ChangedButton == MouseButton.Middle)
             {
+                FreezeTabStripWidths();
                 CloseTab(tab);
                 e.Handled = true;
             }

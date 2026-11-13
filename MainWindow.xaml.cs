@@ -134,6 +134,8 @@ namespace EchoBrowser
             DataContext = this;
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += MainWindow_PreviewKeyDown;
+            PreviewMouseUp += MainWindow_PreviewMouseUp;
+            InitializeNetworkRecovery();
             Closing += MainWindow_Closing;
             Activated += (s, e) => LastActive = this;
             RegisterWebMessageHandlers();
@@ -656,17 +658,29 @@ private void BtnMenu_Click(object sender, RoutedEventArgs e)
             if (_tabDrag != null) EndTabDrag(cancel: true);
             DisposeUnadoptedTab();
 
+            // Downloads dieses Fensters enden mit seinen WebViews (der Nutzer hat »Trotzdem schließen« gewählt).
+            // Auch nur für Downloads aufbewahrte Tabs freigeben – sonst bleiben ihre WebViews bis zum App-Ende.
+            var ownTabs = new HashSet<BrowserTab>(Tabs.Concat(_tabsKeptForDownloads));
+            AbandonDownloadsOf(ownTabs.Contains);
+
             // Inkognito-Daten liegen im InPrivate-Profil und verschwinden mit der letzten Inkognito-WebView
-            foreach (var tab in Tabs.ToList())
+            foreach (var tab in ownTabs)
             {
                 tab.Dispose();
             }
             Tabs.Clear();
+            _tabsKeptForDownloads.Clear();
 
             // Mit dem Profil enden auch dessen Zertifikats-Ausnahmen (»Trotzdem fortfahren«)
             if (_isIncognito && !Application.Current.Windows.OfType<MainWindow>().Any(w => w != this && w.IsIncognito))
             {
                 CertificateErrorTracker.ForProfile(incognito: true).Clear();
+
+                // Privatsphäre: Inkognito-Downloads nicht weiter in der Liste normaler Fenster zeigen
+                foreach (var download in DownloadService.Instance.Items.Where(d => d.IsIncognito && !d.IsInProgress).ToList())
+                {
+                    DownloadService.Instance.Items.Remove(download);
+                }
             }
 
             if (LastActive == this)

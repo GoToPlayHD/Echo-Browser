@@ -217,7 +217,23 @@ namespace EchoBrowser
         /// <summary>Ersetzt die (tote) WebView eines Tabs durch eine neue und lädt die bisherige Adresse.</summary>
         private void RecreateTabWebView(BrowserTab tab, WebView2 deadWebView)
         {
-            if (tab.WebView != deadWebView || !Tabs.Contains(tab)) return;
+            if (tab.WebView != deadWebView) return;
+
+            // Mit dem Browser-Prozess sind auch die Downloads dieser WebView tot – es kommt kein StateChanged mehr
+            AbandonDownloadsOf(t => t == tab);
+            tab.ActiveDownloads = 0;
+
+            // Nur noch für Downloads aufbewahrter (geschlossener) Tab: jetzt endgültig freigeben
+            if (_tabsKeptForDownloads.Remove(tab))
+            {
+                WebViewContainer.Children.Remove(deadWebView);
+                tab.Dispose();
+                return;
+            }
+            if (!Tabs.Contains(tab)) return;
+
+            // Offene Suche hängt am alten Core
+            if (tab == ActiveTab) CloseFindBar();
 
             WebViewContainer.Children.Remove(deadWebView);
             tab.ReleaseWebView();

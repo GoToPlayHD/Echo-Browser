@@ -101,8 +101,17 @@ namespace EchoBrowser
         {
             if (_findCore != null)
             {
-                if (forward) _findCore.Find.FindNext();
-                else _findCore.Find.FindPrevious();
+                try
+                {
+                    if (forward) _findCore.Find.FindNext();
+                    else _findCore.Find.FindPrevious();
+                }
+                catch (Exception ex)
+                {
+                    // Core inzwischen ersetzt (Absturz) oder geschlossen
+                    Log.Warn("Weitersuchen fehlgeschlagen", ex);
+                    StopFind();
+                }
             }
             else if (_findApiUnavailable && ActiveTab?.WebView?.CoreWebView2 is { } core)
             {
@@ -139,7 +148,17 @@ namespace EchoBrowser
         {
             if (string.IsNullOrEmpty(term)) return;
             string script = $"window.find({JsonSerializer.Serialize(term)}, {(matchCase ? "true" : "false")}, {(forward ? "false" : "true")}, true)";
-            string result = await core.ExecuteScriptAsync(script);
+            string result;
+            try
+            {
+                result = await core.ExecuteScriptAsync(script);
+            }
+            catch (Exception ex)
+            {
+                // Tab während der Suche geschlossen/ersetzt – der async-void-Aufrufer darf keine Ausnahme sehen
+                Log.Warn("window.find fehlgeschlagen", ex);
+                return;
+            }
             findBar.ShowResult(result == "true" ? 1 : -1, result == "true" ? 1 : 0);
         }
     }

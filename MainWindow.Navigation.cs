@@ -26,10 +26,20 @@ namespace EchoBrowser
     {
         #region Navigation & Omnibox
 
+        /// <summary>
+        /// Einzige Quelle für den Zustand von Zurück/Vor/Neu laden (MainWindow hat kein INotifyPropertyChanged –
+        /// eine XAML-Bindung an ActiveTab würde einen Tabwechsel nicht bemerken).
+        /// </summary>
         private void UpdateNavigationControls()
         {
             if (ActiveTab == null) return;
 
+            // Verworfener/schlafender Tab: Zustand aus der WebView lesen, sobald es eine gibt
+            if (ActiveTab.WebView is { CoreWebView2: not null } webView)
+            {
+                ActiveTab.CanGoBack = webView.CanGoBack;
+                ActiveTab.CanGoForward = webView.CanGoForward;
+            }
             btnBack.IsEnabled = ActiveTab.CanGoBack;
             btnForward.IsEnabled = ActiveTab.CanGoForward;
 
@@ -54,15 +64,54 @@ namespace EchoBrowser
 
         public static bool IsStartPage(string? url) => AddressInput.IsStartPage(url);
 
+        /// <summary>
+        /// Verbindung wieder da: Tabs mit Offline-/DNS-Fehlerseite automatisch neu laden (wie Chrome).
+        /// NetworkChange ist ein statisches Ereignis – beim Schließen des Fensters abmelden, sonst bleibt es im Speicher.
+        /// </summary>
+        private void InitializeNetworkRecovery()
+        {
+            System.Net.NetworkInformation.NetworkAvailabilityChangedEventHandler handler = (s, e) =>
+            {
+                if (!e.IsAvailable) return;
+                // Ereignis kommt auf einem Thread-Pool-Thread; kurz warten, bis DNS/DHCP wirklich bereit sind
+                Dispatcher.BeginInvoke(async () =>
+                {
+                    await Task.Delay(1500);
+                    RetryFailedTabsAfterReconnect();
+                });
+            };
+            System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += handler;
+            Closed += (s, e) => System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= handler;
+        }
+
+        private void RetryFailedTabsAfterReconnect()
+        {
+            foreach (var tab in Tabs.ToList())
+            {
+                if (!tab.LoadFailed || tab.LastNetError is not { } error) continue;
+                if (error.Kind is not (NetErrorPageService.ErrorKind.Offline or NetErrorPageService.ErrorKind.Dns)) continue;
+                if (tab.WebView?.CoreWebView2 is not { } core) continue;
+                try
+                {
+                    tab.ExpectBrowserNavigation = true;
+                    core.Navigate(error.Url);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Automatisches Neuladen von {error.Url} fehlgeschlagen", ex);
+                }
+            }
+        }
+
         /// <summary>Eingabe aus Adressleiste oder Startseite: Adresse öffnen oder mit der gewählten Suchmaschine suchen.</summary>
         private void NavigateToInput(string input, BrowserTab? tab = null)
         {
             tab ??= ActiveTab;
-            var core = tab?.WebView?.CoreWebView2;
-            if (string.IsNullOrWhiteSpace(input) || tab == null || core == null) return;
+            if (string.IsNullOrWhiteSpace(input) || tab == null) return;
 
             // Bedeutung der Eingabe: Services/AddressInput.cs
             var target = AddressInput.Resolve(input);
+
             switch (target.Kind)
             {
                 case AddressTargetKind.StartPage:
@@ -71,6 +120,24 @@ namespace EchoBrowser
                 case AddressTargetKind.Settings:
                     tab.Title = Tr.Get("Tab_Settings");
                     break;
+            }
+
+            var core = tab.WebView?.CoreWebView2;
+            if (core == null)
+            {
+                // WebView startet noch (oder der Tab ist verworfen): Ziel merken statt die Eingabe zu verlieren.
+                // AttachWebViewEvents navigiert nach der Initialisierung dorthin, ein verworfener Tab lädt es beim Aktivieren.
+                if (tab.IsDiscarded)
+                {
+                    tab.Url = target.Url;
+                }
+                else
+                {
+                    tab.PendingNavigationUrl = target.Url;
+                    tab.Url = target.Url;
+                }
+                ShowAddress(tab);
+                return;
             }
 
             try

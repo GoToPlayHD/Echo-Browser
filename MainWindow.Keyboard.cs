@@ -52,7 +52,7 @@ namespace EchoBrowser
                 // Navigation & Adressleiste
                 (Key.D, Alt) or (Key.F6, None) => FocusAddressBar,
                 (Key.F5, None) => () => ExecuteCommand("reload"),
-                (Key.F5, Ctrl) or (Key.R, CtrlShift) => () => ActiveTab?.WebView?.CoreWebView2?.CallDevToolsProtocolMethodAsync("Page.reload", "{\"ignoreCache\":true}"),
+                (Key.F5, Ctrl) or (Key.R, CtrlShift) => HardReloadActiveTab,
                 // Esc in Adressleiste und Befehlspalette gehört diesen selbst – dort nicht abfangen
                 (Key.Escape, None) when ActiveTab?.IsLoading == true && !txtUrl.IsKeyboardFocusWithin && !IsFindBarOpen && !popupPalette.IsOpen
                     => () => ActiveTab?.WebView?.Stop(),
@@ -79,6 +79,33 @@ namespace EchoBrowser
         }
 
         private void FocusAddressBar() => FocusWpfInput(txtUrl);
+
+        /// <summary>Strg+F5 / Strg+Umschalt+R: ohne Cache neu laden. Fehler (Tab geschlossen) nicht unbeobachtet lassen.</summary>
+        private async void HardReloadActiveTab()
+        {
+            var core = ActiveTab?.WebView?.CoreWebView2;
+            if (core == null) return;
+            try
+            {
+                await core.CallDevToolsProtocolMethodAsync("Page.reload", "{\"ignoreCache\":true}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Neu laden ohne Cache fehlgeschlagen", ex);
+            }
+        }
+
+        /// <summary>
+        /// Maus-Seitentasten (Zurück/Vor) auch über Tab-Leiste, Symbolleiste und Seitenleiste – in der Webseite
+        /// selbst übernimmt das WebView2.
+        /// </summary>
+        private void MainWindow_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.XButton1) ExecuteCommand("back");
+            else if (e.ChangedButton == MouseButton.XButton2) ExecuteCommand("forward");
+            else return;
+            e.Handled = true;
+        }
 
         /// <summary>
         /// Tastaturfokus in ein WPF-Eingabefeld holen – auch wenn er gerade in der Webseite liegt.
